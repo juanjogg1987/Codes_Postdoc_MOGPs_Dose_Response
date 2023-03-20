@@ -1,0 +1,822 @@
+index,feature,specificity
+0,DRUG_ID,others
+1,SCAN_DRUGID_COSMICID_KEY,others
+2,COSMIC_ID,others
+3,FOLD_RANGE,others
+4,MAX_CONC,others
+5,fd_num_0,others
+6,fd_num_1,others
+7,fd_num_2,others
+8,fd_num_3,others
+9,fd_num_4,others
+10,fd_num_5,others
+11,fd_num_6,others
+12,fd_num_7,others
+13,norm_cells_0,others
+14,norm_cells_1,others
+15,norm_cells_2,others
+16,norm_cells_3,others
+17,norm_cells_4,others
+18,norm_cells_5,others
+19,norm_cells_6,others
+20,norm_cells_7,others
+21,param_1,others
+22,param_2,others
+23,param_3,others
+24,param_4,others
+25,ABCB1_mut,cell_line_mutation
+26,ABL2_mut,cell_line_mutation
+27,ACACA_mut,cell_line_mutation
+28,ACVR1B_mut,cell_line_mutation
+29,ACVR2A_mut,cell_line_mutation
+30,ADCY1_mut,cell_line_mutation
+31,AFF4_mut,cell_line_mutation
+32,AHCTF1_mut,cell_line_mutation
+33,AHNAK_mut,cell_line_mutation
+34,AKAP9_mut,cell_line_mutation
+36,ALK_mut,cell_line_mutation
+37,AMOT_mut,cell_line_mutation
+38,ANK3_mut,cell_line_mutation
+39,APAF1_mut,cell_line_mutation
+40,APC_mut,cell_line_mutation
+41,AQR_mut,cell_line_mutation
+42,ARAP3_mut,cell_line_mutation
+43,ARFGAP3_mut,cell_line_mutation
+44,ARFGEF1_mut,cell_line_mutation
+45,ARFGEF2_mut,cell_line_mutation
+46,ARHGAP26_mut,cell_line_mutation
+47,ARHGAP29_mut,cell_line_mutation
+48,ARHGEF6_mut,cell_line_mutation
+49,ARID1A_mut,cell_line_mutation
+50,ARID1B_mut,cell_line_mutation
+51,ARID2_mut,cell_line_mutation
+52,ARID4A_mut,cell_line_mutation
+53,ARID4B_mut,cell_line_mutation
+54,ARID5B_mut,cell_line_mutation
+55,ASH1L_mut,cell_line_mutation
+56,ASPM_mut,cell_line_mutation
+57,ASXL1_mut,cell_line_mutation
+58,ASXL2_mut,cell_line_mutation
+59,ATM_mut,cell_line_mutation
+60,ATR_mut,cell_line_mutation
+61,ATRX_mut,cell_line_mutation
+62,AXIN1_mut,cell_line_mutation
+63,AXIN2_mut,cell_line_mutation
+64,B2M_mut,cell_line_mutation
+65,BAP1_mut,cell_line_mutation
+66,BAZ2B_mut,cell_line_mutation
+67,BCLAF1_mut,cell_line_mutation
+68,BCOR_mut,cell_line_mutation
+70,BLM_mut,cell_line_mutation
+71,BMPR2_mut,cell_line_mutation
+72,BNC2_mut,cell_line_mutation
+73,BPTF_mut,cell_line_mutation
+74,BRAF_mut,cell_line_mutation
+75,BRCA1_mut,cell_line_mutation
+76,BRCA2_mut,cell_line_mutation
+77,BRWD1_mut,cell_line_mutation
+78,C15orf55_mut,cell_line_mutation
+79,CAD_mut,cell_line_mutation
+80,CASP8_mut,cell_line_mutation
+81,CCAR1_mut,cell_line_mutation
+82,CCND1_mut,cell_line_mutation
+83,CDC27_mut,cell_line_mutation
+84,CDC73_mut,cell_line_mutation
+85,CDH1_mut,cell_line_mutation
+86,CDK12_mut,cell_line_mutation
+89,CDKN2A_mut,cell_line_mutation
+90,CEP290_mut,cell_line_mutation
+91,CHD3_mut,cell_line_mutation
+92,CHD4_mut,cell_line_mutation
+93,CHD6_mut,cell_line_mutation
+94,CHD8_mut,cell_line_mutation
+95,CHD9_mut,cell_line_mutation
+96,CHEK2_mut,cell_line_mutation
+97,CIC_mut,cell_line_mutation
+98,CLASP2_mut,cell_line_mutation
+100,CLSPN_mut,cell_line_mutation
+101,CNOT1_mut,cell_line_mutation
+102,CNOT3_mut,cell_line_mutation
+103,COL1A1_mut,cell_line_mutation
+104,CREBBP_mut,cell_line_mutation
+105,CSDE1_mut,cell_line_mutation
+106,CTCF_mut,cell_line_mutation
+107,CTNNB1_mut,cell_line_mutation
+108,CTNND1_mut,cell_line_mutation
+109,CUL2_mut,cell_line_mutation
+110,CUL3_mut,cell_line_mutation
+111,CUX1_mut,cell_line_mutation
+112,CYLD_mut,cell_line_mutation
+113,DDX3X_mut,cell_line_mutation
+115,DHX15_mut,cell_line_mutation
+116,DHX9_mut,cell_line_mutation
+117,DICER1_mut,cell_line_mutation
+118,DLG1_mut,cell_line_mutation
+119,DNMT3A_mut,cell_line_mutation
+120,EGFR_mut,cell_line_mutation
+121,EIF4A2_mut,cell_line_mutation
+122,EIF4G1_mut,cell_line_mutation
+123,EIF4G3_mut,cell_line_mutation
+124,ELF1_mut,cell_line_mutation
+125,ELF3_mut,cell_line_mutation
+126,EP300_mut,cell_line_mutation
+127,EPHA2_mut,cell_line_mutation
+128,EPHA4_mut,cell_line_mutation
+129,ERBB2_mut,cell_line_mutation
+130,ERBB2IP_mut,cell_line_mutation
+131,ERBB3_mut,cell_line_mutation
+136,EZH2_mut,cell_line_mutation
+137,F8_mut,cell_line_mutation
+138,FAF1_mut,cell_line_mutation
+139,FAM123B_mut,cell_line_mutation
+140,FAT1_mut,cell_line_mutation
+141,FAT2_mut,cell_line_mutation
+142,FBXW7_mut,cell_line_mutation
+143,FGFR2_mut,cell_line_mutation
+145,FLT3_mut,cell_line_mutation
+146,FN1_mut,cell_line_mutation
+147,FOXP1_mut,cell_line_mutation
+148,FRG1B_mut,cell_line_mutation
+149,FTSJD1_mut,cell_line_mutation
+150,FXR1_mut,cell_line_mutation
+151,G3BP2_mut,cell_line_mutation
+152,GATA3_mut,cell_line_mutation
+153,GNA11_mut,cell_line_mutation
+154,GNAS_mut,cell_line_mutation
+155,GPS2_mut,cell_line_mutation
+156,HDAC9_mut,cell_line_mutation
+157,HGF_mut,cell_line_mutation
+158,HLA-A_mut,cell_line_mutation
+159,HLA-B_mut,cell_line_mutation
+160,HNF1A_mut,cell_line_mutation
+161,HRAS_mut,cell_line_mutation
+163,IDH1_mut,cell_line_mutation
+165,INPP4A_mut,cell_line_mutation
+166,INPPL1_mut,cell_line_mutation
+167,IREB2_mut,cell_line_mutation
+168,ITSN1_mut,cell_line_mutation
+169,KALRN_mut,cell_line_mutation
+170,KAT6B_mut,cell_line_mutation
+171,KDM5C_mut,cell_line_mutation
+172,KDM6A_mut,cell_line_mutation
+173,KDR_mut,cell_line_mutation
+174,KEAP1_mut,cell_line_mutation
+175,KIT_mut,cell_line_mutation
+176,KRAS_mut,cell_line_mutation
+177,LAMA2_mut,cell_line_mutation
+178,LARP4B_mut,cell_line_mutation
+179,LIMA1_mut,cell_line_mutation
+180,LNPEP_mut,cell_line_mutation
+181,LPHN2_mut,cell_line_mutation
+182,LRP6_mut,cell_line_mutation
+183,LRPPRC_mut,cell_line_mutation
+184,MACF1_mut,cell_line_mutation
+185,MAGI2_mut,cell_line_mutation
+186,MAP2K1_mut,cell_line_mutation
+187,MAP2K4_mut,cell_line_mutation
+188,MAP3K1_mut,cell_line_mutation
+189,MAP3K4_mut,cell_line_mutation
+190,MAP4K3_mut,cell_line_mutation
+191,MAX_mut,cell_line_mutation
+193,MCM8_mut,cell_line_mutation
+194,MECOM_mut,cell_line_mutation
+195,MED12_mut,cell_line_mutation
+196,MED23_mut,cell_line_mutation
+198,MEN1_mut,cell_line_mutation
+199,MET_mut,cell_line_mutation
+200,MGA_mut,cell_line_mutation
+201,MKL1_mut,cell_line_mutation
+202,MLH1_mut,cell_line_mutation
+203,MLH3_mut,cell_line_mutation
+204,MLL_mut,cell_line_mutation
+206,MLL2_mut,cell_line_mutation
+207,MLL3_mut,cell_line_mutation
+208,MLLT4_mut,cell_line_mutation
+209,MNDA_mut,cell_line_mutation
+210,MSR1_mut,cell_line_mutation
+211,MTOR_mut,cell_line_mutation
+214,MYH11_mut,cell_line_mutation
+215,MYH14_mut,cell_line_mutation
+216,MYH9_mut,cell_line_mutation
+217,NCOR1_mut,cell_line_mutation
+218,NCOR2_mut,cell_line_mutation
+219,NF1_mut,cell_line_mutation
+220,NF2_mut,cell_line_mutation
+221,NFE2L2_mut,cell_line_mutation
+222,NOTCH1_mut,cell_line_mutation
+223,NOTCH2_mut,cell_line_mutation
+225,NR4A2_mut,cell_line_mutation
+226,NRAS_mut,cell_line_mutation
+227,NSD1_mut,cell_line_mutation
+229,NTRK2_mut,cell_line_mutation
+230,NUP93_mut,cell_line_mutation
+231,NUP98_mut,cell_line_mutation
+232,PABPC3_mut,cell_line_mutation
+233,PBRM1_mut,cell_line_mutation
+234,PCDH18_mut,cell_line_mutation
+235,PCSK5_mut,cell_line_mutation
+236,PGR_mut,cell_line_mutation
+238,PHLPP1_mut,cell_line_mutation
+239,PIK3C2B_mut,cell_line_mutation
+240,PIK3CA_mut,cell_line_mutation
+241,PIK3CB_mut,cell_line_mutation
+242,PIK3R1_mut,cell_line_mutation
+243,PLCB1_mut,cell_line_mutation
+244,PLCG1_mut,cell_line_mutation
+245,PLXNA1_mut,cell_line_mutation
+246,PLXNB2_mut,cell_line_mutation
+248,POLR2B_mut,cell_line_mutation
+249,PPP2R1A_mut,cell_line_mutation
+250,PSIP1_mut,cell_line_mutation
+251,PTCH1_mut,cell_line_mutation
+252,PTEN_mut,cell_line_mutation
+253,PTPN11_mut,cell_line_mutation
+254,PTPRU_mut,cell_line_mutation
+255,RAC1_mut,cell_line_mutation
+256,RAD21_mut,cell_line_mutation
+257,RASA1_mut,cell_line_mutation
+258,RASA2_mut,cell_line_mutation
+259,RB1_mut,cell_line_mutation
+260,RBM10_mut,cell_line_mutation
+261,RBM5_mut,cell_line_mutation
+262,RGS3_mut,cell_line_mutation
+263,RHOA_mut,cell_line_mutation
+264,RHOT1_mut,cell_line_mutation
+265,RNF43_mut,cell_line_mutation
+266,ROBO2_mut,cell_line_mutation
+267,RPGR_mut,cell_line_mutation
+268,RPL5_mut,cell_line_mutation
+269,RTN4_mut,cell_line_mutation
+272,SACS_mut,cell_line_mutation
+273,SCAI_mut,cell_line_mutation
+274,SEC31A_mut,cell_line_mutation
+275,SETD2_mut,cell_line_mutation
+276,SETDB1_mut,cell_line_mutation
+277,SF3B1_mut,cell_line_mutation
+278,SIN3A_mut,cell_line_mutation
+279,SMAD2_mut,cell_line_mutation
+280,SMAD4_mut,cell_line_mutation
+281,SMARCA1_mut,cell_line_mutation
+282,SMARCA4_mut,cell_line_mutation
+283,SMARCB1_mut,cell_line_mutation
+284,SMC1A_mut,cell_line_mutation
+285,SOS1_mut,cell_line_mutation
+286,SOS2_mut,cell_line_mutation
+287,SOX9_mut,cell_line_mutation
+288,SPOP_mut,cell_line_mutation
+289,SPTAN1_mut,cell_line_mutation
+290,SRGAP1_mut,cell_line_mutation
+291,SRGAP3_mut,cell_line_mutation
+292,STAG1_mut,cell_line_mutation
+293,STAG2_mut,cell_line_mutation
+294,STIP1_mut,cell_line_mutation
+295,STK11_mut,cell_line_mutation
+296,STK4_mut,cell_line_mutation
+297,SVEP1_mut,cell_line_mutation
+298,TAF1_mut,cell_line_mutation
+299,TAOK1_mut,cell_line_mutation
+301,TBX3_mut,cell_line_mutation
+302,TCF12_mut,cell_line_mutation
+305,TCF7L2_mut,cell_line_mutation
+306,TET2_mut,cell_line_mutation
+308,THRAP3_mut,cell_line_mutation
+309,TJP1_mut,cell_line_mutation
+310,TJP2_mut,cell_line_mutation
+312,TNPO1_mut,cell_line_mutation
+313,TP53_mut,cell_line_mutation
+314,TP53BP1_mut,cell_line_mutation
+315,TRIO_mut,cell_line_mutation
+316,TSC1_mut,cell_line_mutation
+317,U2AF1_mut,cell_line_mutation
+318,UPF3B_mut,cell_line_mutation
+319,USP6_mut,cell_line_mutation
+321,WHSC1_mut,cell_line_mutation
+322,WHSC1L1_mut,cell_line_mutation
+323,WNK1_mut,cell_line_mutation
+324,WT1_mut,cell_line_mutation
+325,XPO1_mut,cell_line_mutation
+326,XRN1_mut,cell_line_mutation
+327,ZC3H11A_mut,cell_line_mutation
+328,ZFHX3_mut,cell_line_mutation
+329,ZFP36L1_mut,cell_line_mutation
+330,ZFP36L2_mut,cell_line_mutation
+331,ZMYM2_mut,cell_line_mutation
+332,ZNF292_mut,cell_line_mutation
+333,ZNF638_mut,cell_line_mutation
+334,ZNRF3_mut,cell_line_mutation
+335,gain:cnaPANCAN1 (CCNE1),cell_line_cna
+336,loss:cnaPANCAN2 (STK11),cell_line_cna
+337,loss:cnaPANCAN3 (GNA11),cell_line_cna
+338,loss:cnaPANCAN4,cell_line_cna
+339,loss:cnaPANCAN5,cell_line_cna
+340,loss:cnaPANCAN6,cell_line_cna
+341,loss:cnaPANCAN7 (SMARCA4),cell_line_cna
+342,loss:cnaPANCAN8,cell_line_cna
+343,loss:cnaPANCAN9,cell_line_cna
+344,loss:cnaPANCAN10 (CIC),cell_line_cna
+345,loss:cnaPANCAN11,cell_line_cna
+346,loss:cnaPANCAN12,cell_line_cna
+347,loss:cnaPANCAN13,cell_line_cna
+348,loss:cnaPANCAN14,cell_line_cna
+349,loss:cnaPANCAN15,cell_line_cna
+350,loss:cnaPANCAN16,cell_line_cna
+351,loss:cnaPANCAN17,cell_line_cna
+352,gain:cnaPANCAN18,cell_line_cna
+353,gain:cnaPANCAN19,cell_line_cna
+354,loss:cnaPANCAN20,cell_line_cna
+355,loss:cnaPANCAN21,cell_line_cna
+356,loss:cnaPANCAN22,cell_line_cna
+357,loss:cnaPANCAN23 (SMAD4),cell_line_cna
+358,loss:cnaPANCAN24,cell_line_cna
+359,loss:cnaPANCAN25,cell_line_cna
+360,loss:cnaPANCAN26,cell_line_cna
+361,"gain:cnaPANCAN27 (GATA3,KLF6,LARP4B,VIM)",cell_line_cna
+362,"gain:cnaPANCAN28 (CUL2,EPC1)",cell_line_cna
+363,gain:cnaPANCAN29 (KAT6B),cell_line_cna
+364,loss:cnaPANCAN30 (LARP4B),cell_line_cna
+365,loss:cnaPANCAN31,cell_line_cna
+366,loss:cnaPANCAN32,cell_line_cna
+367,loss:cnaPANCAN33,cell_line_cna
+368,loss:cnaPANCAN34,cell_line_cna
+369,loss:cnaPANCAN35 (CUL2),cell_line_cna
+370,loss:cnaPANCAN36 (RET),cell_line_cna
+371,loss:cnaPANCAN37,cell_line_cna
+372,loss:cnaPANCAN38,cell_line_cna
+373,loss:cnaPANCAN39,cell_line_cna
+374,loss:cnaPANCAN40,cell_line_cna
+375,loss:cnaPANCAN41,cell_line_cna
+376,loss:cnaPANCAN42 (ANK3),cell_line_cna
+377,loss:cnaPANCAN43,cell_line_cna
+378,"loss:cnaPANCAN44 (BMPR1A,FAS,PTEN)",cell_line_cna
+379,loss:cnaPANCAN45,cell_line_cna
+380,loss:cnaPANCAN46,cell_line_cna
+381,loss:cnaPANCAN47,cell_line_cna
+382,loss:cnaPANCAN48,cell_line_cna
+383,loss:cnaPANCAN49,cell_line_cna
+384,loss:cnaPANCAN50,cell_line_cna
+385,loss:cnaPANCAN51,cell_line_cna
+386,loss:cnaPANCAN52,cell_line_cna
+387,loss:cnaPANCAN53,cell_line_cna
+388,loss:cnaPANCAN54,cell_line_cna
+389,loss:cnaPANCAN55,cell_line_cna
+390,gain:cnaPANCAN56,cell_line_cna
+391,gain:cnaPANCAN57 (CAT),cell_line_cna
+392,gain:cnaPANCAN58,cell_line_cna
+393,"gain:cnaPANCAN59 (CCND1,CTTN)",cell_line_cna
+394,gain:cnaPANCAN60,cell_line_cna
+395,gain:cnaPANCAN61,cell_line_cna
+396,"loss:cnaPANCAN62 (HRAS,IRF7)",cell_line_cna
+397,loss:cnaPANCAN63,cell_line_cna
+398,loss:cnaPANCAN64,cell_line_cna
+399,loss:cnaPANCAN65,cell_line_cna
+400,loss:cnaPANCAN66,cell_line_cna
+401,loss:cnaPANCAN67,cell_line_cna
+402,loss:cnaPANCAN68,cell_line_cna
+403,loss:cnaPANCAN69,cell_line_cna
+404,loss:cnaPANCAN70,cell_line_cna
+405,loss:cnaPANCAN71 (EXT2),cell_line_cna
+406,loss:cnaPANCAN72,cell_line_cna
+407,loss:cnaPANCAN73,cell_line_cna
+408,loss:cnaPANCAN74,cell_line_cna
+409,loss:cnaPANCAN75 (MED17),cell_line_cna
+410,loss:cnaPANCAN76,cell_line_cna
+411,loss:cnaPANCAN77 (CASP1),cell_line_cna
+412,loss:cnaPANCAN78 (CASP1),cell_line_cna
+413,loss:cnaPANCAN79,cell_line_cna
+414,loss:cnaPANCAN80 (SDHD),cell_line_cna
+415,loss:cnaPANCAN81,cell_line_cna
+416,loss:cnaPANCAN82,cell_line_cna
+417,gain:cnaPANCAN83,cell_line_cna
+418,"gain:cnaPANCAN84 (FGFR1,WHSC1L1)",cell_line_cna
+419,gain:cnaPANCAN85 (SOX17),cell_line_cna
+420,gain:cnaPANCAN86,cell_line_cna
+421,gain:cnaPANCAN87,cell_line_cna
+422,"gain:cnaPANCAN88 (PABPC1,UBR5)",cell_line_cna
+423,gain:cnaPANCAN89 (RAD21),cell_line_cna
+424,gain:cnaPANCAN90,cell_line_cna
+425,gain:cnaPANCAN91 (MYC),cell_line_cna
+426,loss:cnaPANCAN92,cell_line_cna
+427,loss:cnaPANCAN93,cell_line_cna
+428,loss:cnaPANCAN94,cell_line_cna
+429,loss:cnaPANCAN95,cell_line_cna
+430,loss:cnaPANCAN96,cell_line_cna
+431,loss:cnaPANCAN97,cell_line_cna
+432,loss:cnaPANCAN98,cell_line_cna
+433,loss:cnaPANCAN99 (SOX17),cell_line_cna
+434,loss:cnaPANCAN100,cell_line_cna
+435,loss:cnaPANCAN101,cell_line_cna
+436,loss:cnaPANCAN102,cell_line_cna
+437,loss:cnaPANCAN103,cell_line_cna
+438,loss:cnaPANCAN104,cell_line_cna
+440,gain:cnaPANCAN106,cell_line_cna
+441,"gain:cnaPANCAN107 (FUS,TAOK2)",cell_line_cna
+442,"gain:cnaPANCAN108 (CHD9,CYLD)",cell_line_cna
+443,gain:cnaPANCAN109 (MMP2),cell_line_cna
+444,loss:cnaPANCAN110,cell_line_cna
+445,loss:cnaPANCAN111,cell_line_cna
+446,loss:cnaPANCAN112 (CREBBP),cell_line_cna
+447,loss:cnaPANCAN113,cell_line_cna
+448,loss:cnaPANCAN114 (CIITA),cell_line_cna
+449,loss:cnaPANCAN115,cell_line_cna
+450,loss:cnaPANCAN116,cell_line_cna
+451,"loss:cnaPANCAN117 (CHD9,CNOT1,CYLD,MMP2,NUP93)",cell_line_cna
+452,loss:cnaPANCAN118 (ZFHX3),cell_line_cna
+453,loss:cnaPANCAN119,cell_line_cna
+454,loss:cnaPANCAN120,cell_line_cna
+455,"gain:cnaPANCAN121 (ACTB,CARD11,PMS2,RAC1)",cell_line_cna
+456,"gain:cnaPANCAN122 (AHR,HDAC9)",cell_line_cna
+457,gain:cnaPANCAN123,cell_line_cna
+458,gain:cnaPANCAN124 (EGFR),cell_line_cna
+459,gain:cnaPANCAN125,cell_line_cna
+460,gain:cnaPANCAN126,cell_line_cna
+461,gain:cnaPANCAN127 (AKAP9),cell_line_cna
+462,gain:cnaPANCAN128,cell_line_cna
+463,gain:cnaPANCAN129 (MET),cell_line_cna
+464,gain:cnaPANCAN130 (RHEB),cell_line_cna
+465,loss:cnaPANCAN131,cell_line_cna
+466,loss:cnaPANCAN132,cell_line_cna
+467,loss:cnaPANCAN133,cell_line_cna
+468,loss:cnaPANCAN134,cell_line_cna
+469,loss:cnaPANCAN135,cell_line_cna
+470,loss:cnaPANCAN136,cell_line_cna
+471,loss:cnaPANCAN137 (POT1),cell_line_cna
+472,loss:cnaPANCAN138,cell_line_cna
+473,gain:cnaPANCAN139,cell_line_cna
+474,gain:cnaPANCAN140 (FANCG),cell_line_cna
+475,"gain:cnaPANCAN141 (GNAQ,NTRK2,PCSK5,TJP2)",cell_line_cna
+476,gain:cnaPANCAN142,cell_line_cna
+477,gain:cnaPANCAN143 (NOTCH1),cell_line_cna
+478,"loss:cnaPANCAN144 (BNC2,CDKN2A,JAK2,PSIP1)",cell_line_cna
+479,"loss:cnaPANCAN145 (FANCG,PAX5)",cell_line_cna
+480,"loss:cnaPANCAN146 (GNAQ,NTRK2,PCSK5,TJP2)",cell_line_cna
+481,loss:cnaPANCAN147,cell_line_cna
+482,loss:cnaPANCAN148,cell_line_cna
+483,loss:cnaPANCAN149,cell_line_cna
+484,loss:cnaPANCAN150 (PTGS1),cell_line_cna
+485,loss:cnaPANCAN151,cell_line_cna
+486,loss:cnaPANCAN152,cell_line_cna
+487,loss:cnaPANCAN153 (ABL1),cell_line_cna
+488,loss:cnaPANCAN154,cell_line_cna
+489,loss:cnaPANCAN155,cell_line_cna
+490,loss:cnaPANCAN156,cell_line_cna
+491,loss:cnaPANCAN157,cell_line_cna
+492,loss:cnaPANCAN158,cell_line_cna
+493,loss:cnaPANCAN159,cell_line_cna
+494,loss:cnaPANCAN160,cell_line_cna
+495,loss:cnaPANCAN161 (NOTCH1),cell_line_cna
+496,loss:cnaPANCAN162,cell_line_cna
+497,"gain:cnaPANCAN163 (CHD4,WNK1)",cell_line_cna
+498,gain:cnaPANCAN164 (KRAS),cell_line_cna
+499,gain:cnaPANCAN165 (CDK4),cell_line_cna
+500,"gain:cnaPANCAN166 (MDM2,NUP107,SRGAP1)",cell_line_cna
+501,loss:cnaPANCAN167,cell_line_cna
+502,loss:cnaPANCAN168,cell_line_cna
+503,loss:cnaPANCAN169,cell_line_cna
+504,loss:cnaPANCAN170,cell_line_cna
+505,loss:cnaPANCAN171,cell_line_cna
+506,loss:cnaPANCAN172,cell_line_cna
+507,loss:cnaPANCAN173,cell_line_cna
+508,loss:cnaPANCAN174,cell_line_cna
+509,loss:cnaPANCAN175,cell_line_cna
+510,"gain:cnaPANCAN176 (CCT5,TERT,TRIO)",cell_line_cna
+511,gain:cnaPANCAN177 (IL7R),cell_line_cna
+512,gain:cnaPANCAN178,cell_line_cna
+513,loss:cnaPANCAN179,cell_line_cna
+514,loss:cnaPANCAN180,cell_line_cna
+515,loss:cnaPANCAN181,cell_line_cna
+516,loss:cnaPANCAN182,cell_line_cna
+517,loss:cnaPANCAN183,cell_line_cna
+518,loss:cnaPANCAN184 (APC),cell_line_cna
+519,loss:cnaPANCAN185,cell_line_cna
+520,loss:cnaPANCAN186,cell_line_cna
+521,loss:cnaPANCAN187,cell_line_cna
+522,loss:cnaPANCAN188,cell_line_cna
+523,loss:cnaPANCAN189,cell_line_cna
+524,"gain:cnaPANCAN190 (FGFR3,WHSC1)",cell_line_cna
+525,"gain:cnaPANCAN191 (FIP1L1,PDGFRA)",cell_line_cna
+526,"gain:cnaPANCAN192 (FIP1L1,PDGFRA)",cell_line_cna
+527,loss:cnaPANCAN193,cell_line_cna
+528,loss:cnaPANCAN194 (FGFR3),cell_line_cna
+529,loss:cnaPANCAN195,cell_line_cna
+530,loss:cnaPANCAN196,cell_line_cna
+531,loss:cnaPANCAN197,cell_line_cna
+532,loss:cnaPANCAN198,cell_line_cna
+533,loss:cnaPANCAN199,cell_line_cna
+534,loss:cnaPANCAN200,cell_line_cna
+535,loss:cnaPANCAN201,cell_line_cna
+536,loss:cnaPANCAN202,cell_line_cna
+537,loss:cnaPANCAN203,cell_line_cna
+538,loss:cnaPANCAN204,cell_line_cna
+539,loss:cnaPANCAN205,cell_line_cna
+540,loss:cnaPANCAN206,cell_line_cna
+541,loss:cnaPANCAN207,cell_line_cna
+542,loss:cnaPANCAN208 (PCDH18),cell_line_cna
+543,loss:cnaPANCAN209,cell_line_cna
+544,"loss:cnaPANCAN210 (FAT1,IRF2)",cell_line_cna
+545,gain:cnaPANCAN211,cell_line_cna
+546,"gain:cnaPANCAN212 (HSP90AB1,TRERF1)",cell_line_cna
+547,gain:cnaPANCAN213 (MCM3),cell_line_cna
+548,gain:cnaPANCAN214,cell_line_cna
+549,loss:cnaPANCAN215,cell_line_cna
+550,loss:cnaPANCAN216,cell_line_cna
+551,loss:cnaPANCAN217,cell_line_cna
+552,loss:cnaPANCAN218,cell_line_cna
+553,loss:cnaPANCAN219,cell_line_cna
+554,loss:cnaPANCAN220 (HIST1H3B),cell_line_cna
+555,loss:cnaPANCAN221,cell_line_cna
+556,loss:cnaPANCAN222,cell_line_cna
+557,loss:cnaPANCAN223,cell_line_cna
+558,loss:cnaPANCAN224,cell_line_cna
+559,loss:cnaPANCAN225,cell_line_cna
+560,loss:cnaPANCAN226,cell_line_cna
+561,loss:cnaPANCAN227,cell_line_cna
+562,loss:cnaPANCAN228,cell_line_cna
+563,loss:cnaPANCAN229,cell_line_cna
+564,"loss:cnaPANCAN230 (SYNCRIP,ZNF292)",cell_line_cna
+565,loss:cnaPANCAN231,cell_line_cna
+566,loss:cnaPANCAN232,cell_line_cna
+567,loss:cnaPANCAN233,cell_line_cna
+568,loss:cnaPANCAN234,cell_line_cna
+569,"loss:cnaPANCAN235 (ARID1B,MAP3K4,MLLT4)",cell_line_cna
+570,gain:cnaPANCAN236,cell_line_cna
+573,"gain:cnaPANCAN239 (FOXP1,MITF)",cell_line_cna
+574,gain:cnaPANCAN240,cell_line_cna
+575,"gain:cnaPANCAN241 (NCK1,STAG1)",cell_line_cna
+576,gain:cnaPANCAN242 (PIK3CB),cell_line_cna
+577,gain:cnaPANCAN243,cell_line_cna
+578,gain:cnaPANCAN244,cell_line_cna
+579,gain:cnaPANCAN245 (MECOM),cell_line_cna
+580,gain:cnaPANCAN246 (SOX2),cell_line_cna
+581,gain:cnaPANCAN247,cell_line_cna
+582,"gain:cnaPANCAN248 (EIF4A2,RFC4)",cell_line_cna
+583,gain:cnaPANCAN249,cell_line_cna
+584,loss:cnaPANCAN250 (SRGAP3),cell_line_cna
+585,loss:cnaPANCAN251,cell_line_cna
+586,loss:cnaPANCAN252,cell_line_cna
+587,loss:cnaPANCAN253,cell_line_cna
+588,loss:cnaPANCAN254,cell_line_cna
+589,loss:cnaPANCAN255,cell_line_cna
+590,"loss:cnaPANCAN256 (CACNA1D,WNT5A)",cell_line_cna
+591,loss:cnaPANCAN257,cell_line_cna
+592,loss:cnaPANCAN258,cell_line_cna
+593,loss:cnaPANCAN259,cell_line_cna
+594,loss:cnaPANCAN260,cell_line_cna
+595,loss:cnaPANCAN261,cell_line_cna
+596,loss:cnaPANCAN262 (FOXP1),cell_line_cna
+597,loss:cnaPANCAN263,cell_line_cna
+598,loss:cnaPANCAN264,cell_line_cna
+599,loss:cnaPANCAN265,cell_line_cna
+600,loss:cnaPANCAN266,cell_line_cna
+601,loss:cnaPANCAN267,cell_line_cna
+602,gain:cnaPANCAN268,cell_line_cna
+603,gain:cnaPANCAN269 (MACF1),cell_line_cna
+604,gain:cnaPANCAN270 (JUN),cell_line_cna
+605,gain:cnaPANCAN271 (NOTCH2),cell_line_cna
+606,"gain:cnaPANCAN272 (PIP5K1A,SETDB1)",cell_line_cna
+607,gain:cnaPANCAN273,cell_line_cna
+608,gain:cnaPANCAN274,cell_line_cna
+609,gain:cnaPANCAN275 (SDHC),cell_line_cna
+610,gain:cnaPANCAN276,cell_line_cna
+611,gain:cnaPANCAN277 (DHX9),cell_line_cna
+612,"gain:cnaPANCAN278 (MDM4,PIK3C2B,ZC3H11A)",cell_line_cna
+613,gain:cnaPANCAN279,cell_line_cna
+614,"gain:cnaPANCAN280 (ARID4B,FH)",cell_line_cna
+615,loss:cnaPANCAN281 (RPL22),cell_line_cna
+616,loss:cnaPANCAN282,cell_line_cna
+617,loss:cnaPANCAN283,cell_line_cna
+618,loss:cnaPANCAN284,cell_line_cna
+619,loss:cnaPANCAN285,cell_line_cna
+620,loss:cnaPANCAN286,cell_line_cna
+621,loss:cnaPANCAN287,cell_line_cna
+622,loss:cnaPANCAN288,cell_line_cna
+623,"loss:cnaPANCAN289 (CDKN2C,FAF1)",cell_line_cna
+624,loss:cnaPANCAN290,cell_line_cna
+625,loss:cnaPANCAN291 (JAK1),cell_line_cna
+626,loss:cnaPANCAN292,cell_line_cna
+627,loss:cnaPANCAN293,cell_line_cna
+628,loss:cnaPANCAN294,cell_line_cna
+629,"loss:cnaPANCAN295 (ATP1A1,CSDE1,NRAS)",cell_line_cna
+630,loss:cnaPANCAN296,cell_line_cna
+632,loss:cnaPANCAN298,cell_line_cna
+633,gain:cnaPANCAN299 (TAOK1),cell_line_cna
+634,gain:cnaPANCAN300,cell_line_cna
+635,"gain:cnaPANCAN301 (CDK12,ERBB2,MED24)",cell_line_cna
+636,"gain:cnaPANCAN302 (CLTC,PPM1D)",cell_line_cna
+637,gain:cnaPANCAN303,cell_line_cna
+638,loss:cnaPANCAN304,cell_line_cna
+639,loss:cnaPANCAN305,cell_line_cna
+640,loss:cnaPANCAN306,cell_line_cna
+641,"loss:cnaPANCAN307 (CHD3,GPS2,TP53)",cell_line_cna
+642,loss:cnaPANCAN308,cell_line_cna
+643,loss:cnaPANCAN309,cell_line_cna
+644,loss:cnaPANCAN310 (MAP2K4),cell_line_cna
+645,loss:cnaPANCAN311,cell_line_cna
+646,loss:cnaPANCAN312,cell_line_cna
+647,loss:cnaPANCAN313,cell_line_cna
+648,loss:cnaPANCAN314,cell_line_cna
+649,"loss:cnaPANCAN315 (NF1,SUZ12)",cell_line_cna
+650,loss:cnaPANCAN316,cell_line_cna
+651,loss:cnaPANCAN317,cell_line_cna
+652,loss:cnaPANCAN318,cell_line_cna
+653,loss:cnaPANCAN319,cell_line_cna
+654,loss:cnaPANCAN320,cell_line_cna
+655,loss:cnaPANCAN321,cell_line_cna
+656,loss:cnaPANCAN322,cell_line_cna
+657,loss:cnaPANCAN323,cell_line_cna
+659,loss:cnaPANCAN325,cell_line_cna
+660,loss:cnaPANCAN326 (SOX9),cell_line_cna
+662,loss:cnaPANCAN328,cell_line_cna
+663,loss:cnaPANCAN329 (ZNF750),cell_line_cna
+664,gain:cnaPANCAN330 (RPGR),cell_line_cna
+665,gain:cnaPANCAN331,cell_line_cna
+666,gain:cnaPANCAN332,cell_line_cna
+667,"gain:cnaPANCAN333 (F8,HCFC1,RPL10)",cell_line_cna
+668,loss:cnaPANCAN334,cell_line_cna
+669,loss:cnaPANCAN335,cell_line_cna
+670,loss:cnaPANCAN336,cell_line_cna
+671,loss:cnaPANCAN337,cell_line_cna
+672,loss:cnaPANCAN338,cell_line_cna
+673,loss:cnaPANCAN339 (ATRX),cell_line_cna
+674,loss:cnaPANCAN340,cell_line_cna
+675,loss:cnaPANCAN341,cell_line_cna
+676,loss:cnaPANCAN342,cell_line_cna
+677,loss:cnaPANCAN343,cell_line_cna
+678,gain:cnaPANCAN344 (MYCN),cell_line_cna
+679,gain:cnaPANCAN345,cell_line_cna
+680,"gain:cnaPANCAN346 (BCL11A,REL,XPO1)",cell_line_cna
+681,gain:cnaPANCAN347,cell_line_cna
+682,gain:cnaPANCAN348,cell_line_cna
+683,gain:cnaPANCAN349 (INPP4A),cell_line_cna
+684,gain:cnaPANCAN350,cell_line_cna
+685,gain:cnaPANCAN351 (NFE2L2),cell_line_cna
+686,gain:cnaPANCAN352 (PMS1),cell_line_cna
+687,loss:cnaPANCAN353,cell_line_cna
+688,loss:cnaPANCAN354,cell_line_cna
+689,loss:cnaPANCAN355,cell_line_cna
+690,loss:cnaPANCAN356 (ERCC3),cell_line_cna
+691,loss:cnaPANCAN357 (ACVR2A),cell_line_cna
+692,loss:cnaPANCAN358,cell_line_cna
+693,loss:cnaPANCAN359 (CUL3),cell_line_cna
+694,loss:cnaPANCAN360,cell_line_cna
+695,loss:cnaPANCAN361,cell_line_cna
+696,"gain:cnaPANCAN362 (CRNKL1,FOXA2)",cell_line_cna
+697,gain:cnaPANCAN363 (ASXL1),cell_line_cna
+698,gain:cnaPANCAN364 (STK4),cell_line_cna
+699,gain:cnaPANCAN365,cell_line_cna
+700,gain:cnaPANCAN366,cell_line_cna
+701,"gain:cnaPANCAN367 (ARFGAP1,GNAS)",cell_line_cna
+702,loss:cnaPANCAN368,cell_line_cna
+703,loss:cnaPANCAN369,cell_line_cna
+704,loss:cnaPANCAN370,cell_line_cna
+705,loss:cnaPANCAN371,cell_line_cna
+706,loss:cnaPANCAN372,cell_line_cna
+707,loss:cnaPANCAN373,cell_line_cna
+708,gain:cnaPANCAN374,cell_line_cna
+709,gain:cnaPANCAN375,cell_line_cna
+710,gain:cnaPANCAN376,cell_line_cna
+711,loss:cnaPANCAN377,cell_line_cna
+712,loss:cnaPANCAN378 (ZNRF3),cell_line_cna
+713,loss:cnaPANCAN379,cell_line_cna
+714,loss:cnaPANCAN380,cell_line_cna
+715,loss:cnaPANCAN381 (ARFGAP3),cell_line_cna
+716,"gain:cnaPANCAN382 (FLT3,WASF3)",cell_line_cna
+717,gain:cnaPANCAN383,cell_line_cna
+718,"gain:cnaPANCAN384 (ERCC5,ING1,IRS2,TFDP1)",cell_line_cna
+719,"loss:cnaPANCAN385 (PABPC3,SACS,ZMYM2)",cell_line_cna
+720,loss:cnaPANCAN386,cell_line_cna
+721,loss:cnaPANCAN387,cell_line_cna
+722,loss:cnaPANCAN388,cell_line_cna
+723,loss:cnaPANCAN389 (RB1),cell_line_cna
+724,loss:cnaPANCAN390,cell_line_cna
+725,"loss:cnaPANCAN391 (ING1,IRS2,TFDP1)",cell_line_cna
+726,gain:cnaPANCAN392 (CHD8),cell_line_cna
+727,"gain:cnaPANCAN393 (FOXA1,NKX2-1,PSMA6)",cell_line_cna
+728,"gain:cnaPANCAN394 (GNG2,SOS2)",cell_line_cna
+729,"gain:cnaPANCAN395 (AKT1,HSP90AA1,PPP2R5C)",cell_line_cna
+730,loss:cnaPANCAN396,cell_line_cna
+731,loss:cnaPANCAN397,cell_line_cna
+732,loss:cnaPANCAN398,cell_line_cna
+733,loss:cnaPANCAN399,cell_line_cna
+734,loss:cnaPANCAN400,cell_line_cna
+735,loss:cnaPANCAN401,cell_line_cna
+736,loss:cnaPANCAN402,cell_line_cna
+737,loss:cnaPANCAN403,cell_line_cna
+738,loss:cnaPANCAN404,cell_line_cna
+739,loss:cnaPANCAN405,cell_line_cna
+740,loss:cnaPANCAN406,cell_line_cna
+741,loss:cnaPANCAN407,cell_line_cna
+742,loss:cnaPANCAN408,cell_line_cna
+743,loss:cnaPANCAN409,cell_line_cna
+744,loss:cnaPANCAN410,cell_line_cna
+745,"gain:cnaPANCAN411 (BLM,CRTC3,FANCI,IDH2,NR2F2,PCSK6)",cell_line_cna
+746,loss:cnaPANCAN412,cell_line_cna
+747,loss:cnaPANCAN413,cell_line_cna
+748,loss:cnaPANCAN414,cell_line_cna
+749,"loss:cnaPANCAN415 (B2M,BUB1B,MGA,TP53BP1)",cell_line_cna
+750,loss:cnaPANCAN416,cell_line_cna
+751,loss:cnaPANCAN417,cell_line_cna
+752,loss:cnaPANCAN418,cell_line_cna
+753,loss:cnaPANCAN419,cell_line_cna
+754,loss:cnaPANCAN420,cell_line_cna
+755,loss:cnaPANCAN421,cell_line_cna
+756,loss:cnaPANCAN422,cell_line_cna
+757,loss:cnaPANCAN423,cell_line_cna
+758,loss:cnaPANCAN424,cell_line_cna
+759,loss:cnaPANCAN425,cell_line_cna
+761,chr1:110230238-110230614(GSTM1)_HypMET,cell_line_methylation
+765,chr1:120835961-120839391(FAM72B)_HypMET,cell_line_methylation
+768,chr1:143912736-143916156(FAM72D)_HypMET,cell_line_methylation
+771,chr1:1476093-1476669(SSU72)_HypMET,cell_line_methylation
+772,chr1:150266476-150266689(MRPS21)_HypMET,cell_line_methylation
+775,chr1:171810467-171811325(DNM3)_HypMET,cell_line_methylation
+778,chr1:181451311-181452049()_HypMET,cell_line_methylation
+784,chr1:248020330-248021252()_HypMET,cell_line_methylation
+787,chr1:40782220-40783145(COL9A2)_HypMET,cell_line_methylation
+788,chr1:42127380-42128632(HIVEP3)_HypMET,cell_line_methylation
+795,"chr10:102891010-102891794(TLX1NB, TLX1)_HypMET",cell_line_methylation
+807,chr10:52499392-52500021(ASAH2B)_HypMET,cell_line_methylation
+809,chr10:93392667-93393147(PPP1R3C)_HypMET,cell_line_methylation
+812,chr11:119293320-119293943(THY1)_HypMET,cell_line_methylation
+819,chr11:65408344-65408631(SIPA1)_HypMET,cell_line_methylation
+826,chr11:8615397-8615889(STK33)_HypMET,cell_line_methylation
+830,chr12:124246524-124247254(DNAH10)_HypMET,cell_line_methylation
+832,chr12:3862068-3862606(EFCAB4B)_HypMET,cell_line_methylation
+838,chr13:27131568-27132677()_HypMET,cell_line_methylation
+839,chr13:28544524-28544890(CDX2)_HypMET,cell_line_methylation
+844,chr13:96296143-96297059(DZIP1)_HypMET,cell_line_methylation
+846,chr14:24457864-24458100(DHRS4L2)_HypMET,cell_line_methylation
+847,"chr14:24803678-24804353(ADCY4, RIPK3)_HypMET",cell_line_methylation
+851,chr14:70345943-70346527(SMOC1)_HypMET,cell_line_methylation
+853,chr15:30685087-30685891(CHRFAM7A)_HypMET,cell_line_methylation
+859,chr15:81426499-81426702(C15orf26)_HypMET,cell_line_methylation
+860,chr15:93198374-93199181(FAM174B)_HypMET,cell_line_methylation
+864,chr16:56659107-56659660(MT1E)_HypMET,cell_line_methylation
+871,chr16:68676450-68676843(CDH3)_HypMET,cell_line_methylation
+877,chr17:42092143-42092432(TMEM101)_HypMET,cell_line_methylation
+879,chr17:44656490-44657494(ARL17A)_HypMET,cell_line_methylation
+882,chr17:46673532-46674181(LOC404266)_HypMET,cell_line_methylation
+883,chr17:46691520-46692097(HOXB8)_HypMET,cell_line_methylation
+890,chr18:14132000-14132482(ZNF519)_HypMET,cell_line_methylation
+893,chr18:5543437-5544241(EPB41L3)_HypMET,cell_line_methylation
+897,chr18:77905297-77905566(LOC100130522)_HypMET,cell_line_methylation
+906,chr19:21265164-21265433(ZNF714)_HypMET,cell_line_methylation
+907,chr19:22018594-22018827(ZNF43)_HypMET,cell_line_methylation
+909,"chr19:37095680-37096589(ZNF529, ZNF382)_HypMET",cell_line_methylation
+912,chr19:37957726-37958390(ZNF569)_HypMET,cell_line_methylation
+920,chr19:49315545-49315765(BCAT2)_HypMET,cell_line_methylation
+926,chr19:53073308-53074039(ZNF701)_HypMET,cell_line_methylation
+928,chr19:53662189-53662500(ZNF347)_HypMET,cell_line_methylation
+932,chr19:57831599-57832250(ZNF543)_HypMET,cell_line_methylation
+933,chr19:58011124-58011743(ZNF773)_HypMET,cell_line_methylation
+938,chr19:58458686-58459219(ZNF256)_HypMET,cell_line_methylation
+945,chr2:183731819-183732093(FRZB)_HypMET,cell_line_methylation
+958,chr20:30192854-30194025(ID1)_HypMET,cell_line_methylation
+962,chr20:42543097-42545137(TOX2)_HypMET,cell_line_methylation
+971,chr21:47602431-47602740(C21orf56)_HypMET,cell_line_methylation
+972,chr22:19746924-19747141(TBX1)_HypMET,cell_line_methylation
+977,chr22:24372912-24373725(LOC391322)_HypMET,cell_line_methylation
+978,chr22:24384134-24384405(GSTT1)_HypMET,cell_line_methylation
+990,chr3:139258152-139258731(RBP1)_HypMET,cell_line_methylation
+998,chr3:50604905-50605359(C3orf18)_HypMET,cell_line_methylation
+1004,"chr3:99594969-99595215(C3orf26, FILIP1L, MIR548G)_HypMET",cell_line_methylation
+1017,chr5:101632049-101632373(SLCO4C1)_HypMET,cell_line_methylation
+1027,chr5:180017099-180019062(SCGB3A1)_HypMET,cell_line_methylation
+1043,"chr6:26250436-26250827(HIST1H2BH, HIST1H3F)_HypMET",cell_line_methylation
+1045,chr6:291948-292839(DUSP22)_HypMET,cell_line_methylation
+1053,chr6:6007387-6007797(NRN1)_HypMET,cell_line_methylation
+1062,chr7:27186927-27187692(HOXA6)_HypMET,cell_line_methylation
+1076,chr8:11058624-11058844(XKR6)_HypMET,cell_line_methylation
+1077,chr8:11059011-11059242(XKR6)_HypMET,cell_line_methylation
+1079,chr8:144659745-144660635(NAPRT1)_HypMET,cell_line_methylation
+1080,chr8:22422534-22423702(SORBS3)_HypMET,cell_line_methylation
+1083,chr8:61626645-61627074(CHD7)_HypMET,cell_line_methylation
+1084,chr8:67344497-67344989(RRS1)_HypMET,cell_line_methylation
+1085,chr8:67940691-67940997(LRRC67)_HypMET,cell_line_methylation
+1086,chr8:79428433-79428754(PKIA)_HypMET,cell_line_methylation
+1087,chr8:95652455-95652873(ESRP1)_HypMET,cell_line_methylation
+1098,O,drug
+1099,3bonds,drug
+1100,Br,drug
+1101,atom_stereo_count,drug
+1102,undefined_atom_stereo_count,drug
+1103,2bonds,drug
+1106,defined_atom_stereo_count,drug
+1107,h_bond_acceptor_count,drug
+1108,B,drug
+1109,rotatable_bond_count,drug
+1110,F,drug
+1111,molecular_weight,drug
+1112,h_bond_donor_count,drug
+1113,complexity,drug
+1114,surface_area,drug
+1116,xlogp,drug
+1117,I,drug
+1118,bond_stereo_count,drug
+1119,N,drug
+1120,covalent_unit_count,drug
+1121,Cl,drug
+1122,S,drug
+1123,heavy_atom_count,drug
+1132,EGFR signaling,drug_pathway
+1133,ERK MAPK signaling,drug_pathway
+1140,PI3K/MTOR signaling,drug_pathway

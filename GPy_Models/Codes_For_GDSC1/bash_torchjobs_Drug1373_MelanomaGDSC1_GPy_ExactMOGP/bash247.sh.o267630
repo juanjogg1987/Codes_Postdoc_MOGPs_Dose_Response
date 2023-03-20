@@ -1,0 +1,303 @@
+ABCB1_mut
+(68, 1)
+Ytrain size:  (68, 5)
+0.5586627054810995
+AUC train size: (68, 1)
+IC50 train size: (68, 1)
+Emax train size: (68, 1)
+X all data size: (68, 346)
+Y all data size: (68, 5)
+[0 1 2 3] to Val in IC50
+NegLPD Val -0.8946703666721451
+[0.]
+IC50 MSE: 0.0
+AUC MAE: 0.0923234561618898
+Emax MAE: 0.10783855702019157
+Med_MSE: 0.004348160464295609
+Mean_MSE: 0.017444345673482447
+All Predictions MSE: 0.017444345673482443
+Spearman_all Corr:  nan
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (20, 1)
+[4 5 6 7] to Val in IC50
+NegLPD Val -1.5422858108638176
+[0.08174834]
+IC50 MSE: 0.0
+AUC MAE: 0.03431027364285264
+Emax MAE: 0.06119347875410547
+Med_MSE: 0.002155954574373006
+Mean_MSE: 0.0025270855645068155
+All Predictions MSE: 0.0025270855645068155
+Spearman_all Corr:  nan
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (20, 1)
+[ 8  9 10 11] to Val in IC50
+NegLPD Val -0.9310282896482953
+[0.15373939]
+IC50 MSE: 0.0
+AUC MAE: 0.06653704235748345
+Emax MAE: 0.060079741244685556
+Med_MSE: 0.007528026016760515
+Mean_MSE: 0.006251239482333983
+All Predictions MSE: 0.006251239482333982
+Spearman_all Corr:  nan
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (20, 1)
+[12 13 14 15] to Val in IC50
+NegLPD Val -1.6674539497691316
+[0.17396262]
+IC50 MSE: 0.0
+AUC MAE: 0.023840835800443966
+Emax MAE: 0.10827215773898502
+Med_MSE: 0.0011395034158577762
+Mean_MSE: 0.0016908421770750843
+All Predictions MSE: 0.001690842177075084
+Spearman_all Corr:  nan
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (20, 1)
+[16 17 18 19] to Val in IC50
+NegLPD Val 0.39679828574617304
+[0.16718463]
+IC50 MSE: 0.49911818961710047
+AUC MAE: 0.4074690625343612
+Emax MAE: 0.4172751186167739
+Med_MSE: 0.29696106868490735
+Mean_MSE: 0.37552908592789075
+All Predictions MSE: 0.37552908592789075
+Spearman_all Corr:  nan
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (20, 1)
+[20 21 22 23] to Val in IC50
+NegLPD Val 0.9553989140789865
+[0.]
+IC50 MSE: 0.9645063271605001
+AUC MAE: 0.4875114229696063
+Emax MAE: 0.517926972593546
+Med_MSE: 0.34555898212753633
+Mean_MSE: 0.3839037194110583
+All Predictions MSE: 0.3839037194110583
+Spearman_all Corr:  nan
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (20, 1)
+[24 25 26] to Val in IC50
+NegLPD Val -0.5527790137976508
+[0.]
+IC50 MSE: 0.006226637903127298
+AUC MAE: 0.12453924547759974
+Emax MAE: 0.1454837502805375
+Med_MSE: 0.007024487519289614
+Mean_MSE: 0.03839212905926776
+All Predictions MSE: 0.03839212905926777
+Spearman_all Corr:  0.8660254037844387
+Spearman p-value:  0.3333333333333332
+Spearman_actualIC50 Corr:  0.8660254037844387
+Spearman p-value:  0.3333333333333332
+Yval shape (15, 1)
+[27 28 29] to Val in IC50
+NegLPD Val 0.17880132324246595
+[0.67154864]
+IC50 MSE: 0.005374432073435044
+AUC MAE: 0.2678722789994188
+Emax MAE: 0.3309440503592117
+Med_MSE: 0.15210073411065775
+Mean_MSE: 0.1333314223234112
+All Predictions MSE: 0.1333314223234112
+Spearman_all Corr:  0.8660254037844387
+Spearman p-value:  0.3333333333333332
+Spearman_actualIC50 Corr:  0.8660254037844387
+Spearman p-value:  0.3333333333333332
+Yval shape (15, 1)
+[30 31 32] to Val in IC50
+NegLPD Val 0.9623755684681822
+[0.]
+IC50 MSE: 0.7710234526788042
+AUC MAE: 0.5245638706797578
+Emax MAE: 0.5405929158082247
+Med_MSE: 0.47838182000934654
+Mean_MSE: 0.4185337486348275
+All Predictions MSE: 0.41853374863482745
+Spearman_all Corr:  nan
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (15, 1)
+[33 34 35] to Val in IC50
+NegLPD Val 0.09913970106036166
+[0.]
+IC50 MSE: 0.643004218107
+AUC MAE: 0.33827850557927247
+Emax MAE: 0.35422406426063685
+Med_MSE: 0.08347283316215344
+Mean_MSE: 0.2869091238887477
+All Predictions MSE: 0.2869091238887476
+Spearman_all Corr:  0.5000000000000001
+Spearman p-value:  0.6666666666666667
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (15, 1)
+[36 37 38] to Val in IC50
+NegLPD Val -0.2759652247018617
+[0.8816494]
+IC50 MSE: 0.0
+AUC MAE: 0.1348451074879752
+Emax MAE: 0.13903195563091456
+Med_MSE: 0.056906918111065664
+Mean_MSE: 0.03896458725392705
+All Predictions MSE: 0.03896458725392705
+Spearman_all Corr:  1.0
+Spearman p-value:  0.0
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (15, 1)
+[39 40 41] to Val in IC50
+NegLPD Val 0.3753444402045619
+[0.]
+IC50 MSE: 0.0
+AUC MAE: 0.10805581972564278
+Emax MAE: 0.1210678536255612
+Med_MSE: 0.019923111304576357
+Mean_MSE: 0.019172728727540056
+All Predictions MSE: 0.019172728727540056
+Spearman_all Corr:  nan
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (15, 1)
+[42 43 44] to Val in IC50
+NegLPD Val 0.7718977095449284
+[0.]
+IC50 MSE: 0.6430048118867064
+AUC MAE: 0.3778760836861272
+Emax MAE: 0.39445164186676734
+Med_MSE: 0.18333446425465755
+Mean_MSE: 0.28825255378488546
+All Predictions MSE: 0.28825255378488546
+Spearman_all Corr:  nan
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (15, 1)
+[45 46 47] to Val in IC50
+NegLPD Val -0.37760637185618984
+[0.]
+IC50 MSE: 0.003774921495509918
+AUC MAE: 0.09369001320784152
+Emax MAE: 0.1810599285851596
+Med_MSE: 0.008174735692049453
+Mean_MSE: 0.029890622876262023
+All Predictions MSE: 0.02989062287626202
+Spearman_all Corr:  0.8660254037844387
+Spearman p-value:  0.3333333333333332
+Spearman_actualIC50 Corr:  0.8660254037844387
+Spearman p-value:  0.3333333333333332
+Yval shape (15, 1)
+[48 49 50] to Val in IC50
+NegLPD Val -1.4814562258514925
+[0.59101906]
+IC50 MSE: 0.4868396153613103
+AUC MAE: 0.047570624388958094
+Emax MAE: 0.053446586684669804
+Med_MSE: 0.002972245896371882
+Mean_MSE: 0.003021136144732775
+All Predictions MSE: 0.0030211361447327755
+Spearman_all Corr:  nan
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (15, 1)
+[51 52 53] to Val in IC50
+NegLPD Val -1.1972267117641757
+[0.58983597]
+IC50 MSE: 0.48486120735519567
+AUC MAE: 0.03999664271500725
+Emax MAE: 0.04793447659676434
+Med_MSE: 0.0026191134747376985
+Mean_MSE: 0.0048850306757378175
+All Predictions MSE: 0.004885030675737819
+Spearman_all Corr:  nan
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (15, 1)
+[54 55 56] to Val in IC50
+NegLPD Val -1.5338786835297205
+[0.59544698]
+IC50 MSE: 0.004564516553941181
+AUC MAE: 0.03438041522470758
+Emax MAE: 0.10453549846610229
+Med_MSE: 0.002401225651068025
+Mean_MSE: 0.0026365417241257607
+All Predictions MSE: 0.002636541724125761
+Spearman_all Corr:  nan
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (15, 1)
+[57 58 59] to Val in IC50
+NegLPD Val 0.5285400259970718
+[0.]
+IC50 MSE: 0.0
+AUC MAE: 0.293036453277148
+Emax MAE: 0.32105455549709705
+Med_MSE: 0.10970123359983977
+Mean_MSE: 0.1203252234884155
+All Predictions MSE: 0.12032522348841548
+Spearman_all Corr:  nan
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (15, 1)
+[60 61 62] to Val in IC50
+NegLPD Val 1.2324035947709138
+[0.]
+IC50 MSE: 1.286008436214
+AUC MAE: 0.6036815253695063
+Emax MAE: 0.5900529702497007
+Med_MSE: 0.6776815117957307
+Mean_MSE: 0.5191288659653813
+All Predictions MSE: 0.5191288659653814
+Spearman_all Corr:  nan
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (15, 1)
+[63 64 65] to Val in IC50
+NegLPD Val 0.8355031617588345
+[0.]
+IC50 MSE: 0.6430074509076237
+AUC MAE: 0.43355214107231377
+Emax MAE: 0.4854910001193095
+Med_MSE: 0.20627110781490354
+Mean_MSE: 0.3115065426297449
+All Predictions MSE: 0.311506542629745
+Spearman_all Corr:  nan
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (15, 1)
+Train ovell all Data in IC50
+NegLPD Val 0.017332599053672727
+[0.]
+IC50 MSE: 0.9668229586849174
+AUC MAE: 0.3794474101367188
+Emax MAE: 0.38966559377119014
+Med_MSE: 0.3318419733884513
+Mean_MSE: 0.3318419733884513
+All Predictions MSE: 0.3318419733884513
+Spearman_all Corr:  -0.9999999999999999
+Spearman p-value:  nan
+Spearman_actualIC50 Corr:  nan
+Spearman p-value:  nan
+Yval shape (10, 1)
