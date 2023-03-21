@@ -8,12 +8,13 @@ plt.close('all')
 #path_to_load = '/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/Test_Data_ToPlot_GDSC2_5Cancers/Three_drugs/'
 #AUC_per_cell,Emax_per_cell,IC50_per_cell,AUCR2_per_cell,EmaxR2_per_cell,IC50R2_per_cell = np.load(path_to_load+'Test_Metrics_To_Plot_Three_drugs.pkl',allow_pickle=True)
 
-path_to_load = '/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/Test_Data_ToPlot_GDSC2_5Cancers/N_drugs_3/'
-AUC_per_cell,Emax_per_cell,IC50_per_cell,AUCR2_per_cell,EmaxR2_per_cell,IC50R2_per_cell,AUC_CV_per_cell,Emax_CV_per_cell,IC50_CV_per_cell = np.load(path_to_load+'Test_Metrics_To_Plot_N_drugs_3.pkl',allow_pickle=True)
+#path_to_load = '/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/Test_Data_ToPlot_GDSC2_5Cancers/N_drugs_3/'
+path_to_load = '/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/Test_Data_ToPlot_GDSC2_5Cancers/N_drugs_3/SamplingFromSimilarity/'
+AUC_per_cell,Emax_per_cell,IC50_per_cell,AUCR2_per_cell,EmaxR2_per_cell,IC50R2_per_cell,AUC_CV_per_cell,Emax_CV_per_cell,IC50_CV_per_cell = np.load(path_to_load+'Test_Metrics_To_Plot_N_drugs_3_SamplingFromSimilarity.pkl',allow_pickle=True)
 #IC50R2_per_cell[0][2]=0.0
 def get_mean_std(data_per_cell):
-    data_std = np.array([np.std(data_per_cell[i][2:]) for i in range(data_per_cell.__len__())])
-    data_mean = np.array([np.mean(data_per_cell[i][2:]) for i in range(data_per_cell.__len__())])
+    data_std = np.array([np.std(data_per_cell[i][1:]) for i in range(data_per_cell.__len__())])
+    data_mean = np.array([np.mean(data_per_cell[i][1:]) for i in range(data_per_cell.__len__())])
     return data_mean,data_std
 
 N_Cells = 4*np.array([12,24,48,96,144])

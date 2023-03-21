@@ -45,11 +45,7 @@ for Sel_cancer in sel_cancers:
     for cell_k,N_cells in enumerate(N_CellLines):
         for Seed_N in Seeds_for_NCells:
             #Sel_cancer = 3
-            _FOLDER_Cancer = '/home/ac1jjgg/MOGP_GPy/Codes_for_GDSC2_5Cancers/bash_Cancer'+str(Sel_cancer)+'_GPyjobs_N_Drugs_5Cancers_GPy_ExactMOGP_ProdKern_N5thCancer_'+str(N5th_cancer)+'/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(N5th_cancer)+'/Cancer_'+str(Sel_cancer)+'/'
-            #_FOLDER_Cancer = '/home/ac1jjgg/MOGP_GPy/Codes_for_GDSC2_5Cancers/bash_Cancer'+str(Sel_cancer)+'_GPyjobs_Three_Drugs_5Cancers_GPy_ExactMOGP_ProdKern/Three_drugs/Cancer_'+str(Sel_cancer)+'/'
-            #_FOLDER_Cancer = '/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/Cancer_'+str(Sel_cancer)+'/'
-            #N_cells = 5
-            #Seed_N = 1
+            _FOLDER_Cancer = '/home/ac1jjgg/MOGP_GPy/Codes_for_GDSC2_5Cancers/bash_Cancer'+str(Sel_cancer)+'_SamplingFromSimilarity_GPyjobs_N_Drugs_5Cancers_GPy_ExactMOGP_ProdKern_N5thCancer_'+str(N5th_cancer)+'/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(N5th_cancer)+'/Cancer_'+str(Sel_cancer)+'/'
             path_to_aver = _FOLDER_Cancer+'N'+str(N_cells)+'/seed'+str(Seed_N)+'/Average_Metrics_IC50_AUC_Emax.txt'
             #path_to_test = _FOLDER_Cancer+'N'+str(N_cells)+'/seed'+str(Seed_N)+'/Test_Metrics_IC50_AUC_Emax.txt'
             path_to_CV = _FOLDER_Cancer + 'N' + str(N_cells) + '/seed' + str(Seed_N) + '/Metrics.txt'
@@ -62,7 +58,8 @@ for Sel_cancer in sel_cancers:
                 #df_Test_Metrics[0]==winner_bash
                 #indx_test_by_winner = df_Test_Metrics[0]==winner_bash
                 #df_test_winner = df_Test_Metrics[indx_test_by_winner]
-                _FOLDER_Cancer_csv_test = '/data/ac1jjgg/Data_Marina/GPy_results/Codes_for_GDSC2_5Cancers/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(N5th_cancer)+'/Cancer_'+str(Sel_cancer)+'/'+'N'+str(N_cells)+'/seed'+str(Seed_N)+'/'
+                #_FOLDER_Cancer_csv_test = '/data/ac1jjgg/Data_Marina/GPy_results/Codes_for_GDSC2_5Cancers/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(N5th_cancer)+'/Cancer_'+str(Sel_cancer)+'/'+'N'+str(N_cells)+'/seed'+str(Seed_N)+'/'
+                _FOLDER_Cancer_csv_test = '/data/ac1jjgg/Data_Marina/GPy_results/Codes_for_GDSC2_5Cancers/SamplingFromSimilarity/N_drugs_'+str(Num_drugs)+'/N5thCancer_' + str(N5th_cancer) + '/Cancer_' + str(Sel_cancer)+'/'+'N'+str(N_cells) + '/seed' + str(Seed_N) + '/'
                 #print('Results_Test_IC50_AUC_Emax_'+'m_'+str(winner_bash)+'.csv')
                 Nth_bash = int(winner_bash.split('h')[1])
                 print("Nth_bash:",Nth_bash)
@@ -108,7 +105,7 @@ for Sel_cancer in sel_cancers:
             except:
                 print('Non existent path: ',path_to_test)
 
-with open('Test_Metrics_To_Plot_N_drugs_'+str(Num_drugs)+'.pkl', 'wb') as f:
+with open('Test_Metrics_To_Plot_N_drugs_'+str(Num_drugs)+'_SamplingFromSimilarity.pkl', 'wb') as f:
     pickle.dump([AUC_per_cell,Emax_per_cell,IC50_per_cell,AUCR2_per_cell,EmaxR2_per_cell,IC50R2_per_cell,AUC_CV_per_cell,Emax_CV_per_cell,IC50_CV_per_cell], f)
 
 "To load use:"
