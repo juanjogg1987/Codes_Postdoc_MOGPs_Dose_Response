@@ -8,8 +8,8 @@ warnings.filterwarnings("ignore")
 from sklearn.preprocessing import MinMaxScaler
 import os
 
-#_FOLDER = "/home/ac1jjgg/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
-_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
+_FOLDER = "/home/ac1jjgg/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
+#_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 def sigmoid_4_param(x, x0, L, k, d):
@@ -43,8 +43,8 @@ class commandLine:
         self.scale = 1
         self.weight = 1
         self.bash = "1"
-        self.N_CellLines = 12   #Try to put this values as multiple of Num_drugs
-        self.sel_cancer = 0
+        self.N_CellLines = 48   #Try to put this values as multiple of Num_drugs
+        self.sel_cancer = 4
         self.seed_for_N = 1
         self.N_5thCancer_ToBe_Included = 9 #Try to put this values as multiple of Num_drugs
 
@@ -132,7 +132,17 @@ if int(config.N_5thCancer_ToBe_Included)!=0:
     #indx_test_to_include = [,np.random.permutation(np.arange(0,N_per_drug[1])),np.random.permutation(np.arange(0,N_per_drug[2]))]
     "The seed below is to guarantee always having the same values of 5th cancer to be included in Training regardless"
     "of all the different cross-validations, we do not want them to change at each different cross-validation of MOGP"
-    np.random.seed(6)
+    if indx_cancer_test == 0:
+        np.random.seed(6)
+    elif indx_cancer_test == 1:
+        np.random.seed(1)
+    elif indx_cancer_test == 2:
+        np.random.seed(1)
+    elif indx_cancer_test == 3:
+        np.random.seed(1)
+    elif indx_cancer_test == 4:
+        np.random.seed(1)
+
     Test_drugs_indexes = [np.random.permutation(np.arange(0, N_per_drug[myind])) for myind in range(Num_drugs)]
     indx_test_to_NotInclude = [np.delete(Test_drugs_indexes[myind],np.arange(0,N_ToInclude_per_Drug)) for myind in range(Num_drugs)]
     indx_test_to_include = [Test_drugs_indexes[myind][np.arange(0,N_ToInclude_per_Drug)] for myind in range(Num_drugs)]
@@ -283,8 +293,8 @@ def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_tra
     plt.title(f"AUC = {AUC[posy]}")
     print(AUC[posy])
 
-posy = 0
-#my_plot(posy,0,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_train_drug)
+posy = 57-9
+my_plot(posy,0,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_train_drug)
 #my_plot(posy,1,Ydose50_test,Ydose_res_test,IC50_test,AUC_test,Emax_test,x_lin,x_real_dose,y_test_drug)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -612,8 +622,8 @@ f.close()
 
 "The last model should have been trained over all dataset without splitting"
 
-#final_path = '/data/ac1jjgg/Data_Marina/GPy_results/Codes_for_GDSC2_5Cancers/SamplingFromSimilarity/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(config.N_CellLines)+'/seed'+str(rand_state_N)+'/'
-final_path ='Models_5Cancers/SamplingFromSimilarity/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(config.N_CellLines)+'/seed'+str(rand_state_N)+'/'
+final_path = '/data/ac1jjgg/Data_Marina/GPy_results/Codes_for_GDSC2_5Cancers/SamplingFromSimilarity/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(config.N_CellLines)+'/seed'+str(rand_state_N)+'/'
+#final_path ='Models_5Cancers/SamplingFromSimilarity/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(config.N_CellLines)+'/seed'+str(rand_state_N)+'/'
 if not os.path.exists(final_path):
    os.makedirs(final_path)
 np.save(final_path+'m_'+str(config.bash)+'.npy', model.param_array)

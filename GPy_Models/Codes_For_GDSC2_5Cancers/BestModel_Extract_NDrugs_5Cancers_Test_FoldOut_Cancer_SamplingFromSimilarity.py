@@ -105,7 +105,7 @@ for Sel_cancer in sel_cancers:
             except:
                 print('Non existent path: ',path_to_test)
 
-with open('Test_Metrics_To_Plot_N_drugs_'+str(Num_drugs)+'_SamplingFromSimilarity.pkl', 'wb') as f:
+with open('Test_Metrics_To_Plot_N_drugs_'+str(Num_drugs)+'_SamplingFromSimilarity_Cancer_'+str(sel_cancers[0])+'.pkl', 'wb') as f:
     pickle.dump([AUC_per_cell,Emax_per_cell,IC50_per_cell,AUCR2_per_cell,EmaxR2_per_cell,IC50R2_per_cell,AUC_CV_per_cell,Emax_CV_per_cell,IC50_CV_per_cell], f)
 
 "To load use:"
