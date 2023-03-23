@@ -7,22 +7,27 @@ import numpy as np
 # %matplotlib inline
 # %load_ext autoreload
 # %autoreload 2
-
-train_x1 = torch.rand(3)
-train_x2 = torch.rand(2)
-
-train_y1_aux = torch.sin(train_x1 * (2 * math.pi)) + torch.randn(train_x1.size()) * 0.2
-#train_y2 = -torch.cos(train_x1*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.2
-train_y2_aux = torch.cos(0.2+2*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.2 + train_x2
-
-# train_x1 = torch.rand(100,5)
-# train_x2 = torch.rand(10,5)
+# torch.manual_seed(2)
+# train_x1 = torch.rand(40)
+# torch.manual_seed(6)
+# train_x2 = torch.rand(10)
+# torch.manual_seed(6)
+# train_x2_ToPlot = torch.rand(100)
 #
-# train_y1_aux = torch.sin(torch.sum(train_x1,1) * (2 * math.pi)) + torch.randn(train_x1.shape[0]) * 0.2
-# train_y2_aux = torch.cos(torch.sum(train_x2,1) * (2 * math.pi)) + torch.randn(train_x2.shape[0]) * 0.2 + torch.sum(train_x2,1)
+# train_y1_aux = torch.sin(train_x1 * (2 * math.pi)) + torch.randn(train_x1.size()) * 0.2
+# ##train_y2 = -torch.cos(train_x1*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.2
+# train_y2_aux = torch.cos(0.2+2*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.2 + train_x2
+# train_y2_aux_ToPlot = torch.cos(0.2+2*train_x2_ToPlot * (2 * math.pi)) + torch.randn(train_x2_ToPlot.size()) * 0.2 + train_x2_ToPlot
+
+train_x1 = torch.rand(100,3)
+train_x2 = torch.rand(10,3)
+
+train_y1_aux = torch.sin(torch.sum(train_x1,1) * (2 * math.pi)) + torch.randn(train_x1.shape[0]) * 0.2
+train_y2_aux = torch.cos(torch.sum(train_x2,1) * (2 * math.pi)) + torch.randn(train_x2.shape[0]) * 0.2 + torch.sum(train_x2,1)
 
 train_y1 = torch.dstack((train_y1_aux[:,None], 0.5*(train_y1_aux[:,None])+ torch.randn(train_x1.shape[0])[:,None] * 0.02,0.2*(train_y1_aux[:,None])+ torch.randn(train_x1.shape[0])[:,None] * 0.02  ))[:,0,:]
-train_y2 = torch.dstack((train_y2_aux[:,None], 0.6*( train_y2_aux[:,None]+ torch.randn(train_x2.shape[0])[:,None] * 0.03),0.4*( train_y2_aux[:,None]+ torch.randn(train_x2.shape[0])[:,None] * 0.03) ))[:,0,:]
+train_y2 = torch.dstack((train_y2_aux[:,None], 0.6*( train_y2_aux[:,None]+ torch.randn(train_x2.shape[0])[:,None] * 0.01),0.3*( train_y2_aux[:,None]+ torch.randn(train_x2.shape[0])[:,None] * 0.03) ))[:,0,:]
+#train_y2_ToPlot = torch.dstack((train_y2_aux_ToPlot[:,None], 0.6*( train_y2_aux_ToPlot[:,None]+ torch.randn(train_x2_ToPlot.shape[0])[:,None] * 0.01),0.3*( train_y2_aux_ToPlot[:,None]+ torch.randn(train_x2_ToPlot.shape[0])[:,None] * 0.03) ))[:,0,:]
 
 myrank = mynum_doses = train_y1.shape[1]
 
@@ -30,6 +35,8 @@ if train_x1.shape.__len__()>1:
     Dim = train_x2.shape[1]
 else:
     Dim = 1
+
+torch.manual_seed(11)
 
 # train_y1 = train_y1_aux
 # train_y2 = train_y2_aux
@@ -252,7 +259,7 @@ model = TL_GPModel((full_train_x, full_train_i), full_train_y, replicate_train_x
 # this is for running the notebook in our testing framework
 import os
 smoke_test = ('CI' in os.environ)
-training_iterations = 2 if smoke_test else 500
+training_iterations = 2 if smoke_test else 50
 
 
 # Find optimal model hyperparameters
@@ -305,9 +312,7 @@ with torch.no_grad():#, gpytorch.settings.fast_pred_var():
     mean = predictions.mean
     lower, upper = predictions.confidence_region()
     #lower = predictions.stdd
-# This contains predictions for both tasks, flattened out
-# The first half of the predictions is for the first task
-# The second half is for the second task
+
 mean = mean.reshape(-1,mynum_doses)
 lower = lower.reshape(-1,mynum_doses)
 upper = upper.reshape(-1,mynum_doses)
@@ -315,6 +320,7 @@ upper = upper.reshape(-1,mynum_doses)
 if Dim>1:
     # Plot training data as black stars
     y1_ax.plot(train_y2[:, 0].numpy(), 'k*')
+    y1_ax.plot(train_y2_ToPlot[:, 0].numpy(), 'r*')
     # Predictive mean as blue line
     y1_ax.plot(mean[:, 0].numpy(), 'b.')
     y1_ax.plot(lower[:, 0].numpy(), 'c.')
@@ -327,6 +333,7 @@ if Dim>1:
 
     # Plot training data as black stars
     y2_ax.plot(train_y2[:, 1].detach().numpy(), 'k*')
+    y2_ax.plot(train_y2_ToPlot[:, 1].detach().numpy(), 'r*')
     # Predictive mean as blue line
     y2_ax.plot(mean[:, 1].numpy(), 'b.')
     y2_ax.plot(lower[:, 1].numpy(), 'c.')
@@ -339,6 +346,7 @@ if Dim>1:
 else:
     # Plot training data as black stars
     y1_ax.plot(train_x2.numpy(),train_y2[:, 0].numpy(), 'k*')
+    y1_ax.plot(train_x2_ToPlot.numpy(), train_y2_ToPlot[:, 0].numpy(), 'r*')
     # Predictive mean as blue line
     y1_ax.plot(test_x.numpy(),mean[:, 0].numpy(), 'b')
     # Shade in confidence
@@ -349,6 +357,7 @@ else:
 
     # Plot training data as black stars
     y2_ax.plot(train_x2.numpy(),train_y2[:, 1].detach().numpy(), 'k*')
+    y2_ax.plot(train_x2_ToPlot.numpy(), train_y2_ToPlot[:, 1].detach().numpy(), 'r*')
     # Predictive mean as blue line
     y2_ax.plot(test_x.numpy(),mean[:, 1].numpy(), 'b')
     # Shade in confidence
