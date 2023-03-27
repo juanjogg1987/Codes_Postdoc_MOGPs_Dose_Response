@@ -48,6 +48,8 @@ for myseed in seeds:
                     for Seed_N in Seeds_for_N:
                         for sel_cancer in Test_cancers:
                             f = open(path_to_save + "bash" + str(count) + ".sh", "w+")
+                            if N_Cells==144:
+                                print("indx:",count)
                             if which_HPC == 'sharc' and count%1 == 0:
                                 f.write("#!/bin/bash\n#$ -P rse\n#$ -l rmem=%dG #Ram memory\n\n"  
                                         "module load apps/python/conda\nsource activate py38_gpflow\npython /home/ac1jjgg/MOGP_GPy/Codes_for_GDSC2_5Cancers/N_Drugs_5Cancers_GPy_ExactMOGP_ProdKern_SamplingFromSimilarity.py -i 1500 -s %.4f -k %d -w %.4f -r %d -p %d -c %d -a %d -n %d -t %d" % (

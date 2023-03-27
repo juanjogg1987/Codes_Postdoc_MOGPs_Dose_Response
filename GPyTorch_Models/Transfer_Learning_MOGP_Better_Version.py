@@ -8,22 +8,22 @@ import numpy as np
 # %load_ext autoreload
 # %autoreload 2
 # torch.manual_seed(2)
-# train_x1 = torch.rand(40)
+train_x1 = torch.rand(10)
 # torch.manual_seed(6)
-# train_x2 = torch.rand(10)
+train_x2 = torch.rand(2)
 # torch.manual_seed(6)
 # train_x2_ToPlot = torch.rand(100)
 #
-# train_y1_aux = torch.sin(train_x1 * (2 * math.pi)) + torch.randn(train_x1.size()) * 0.2
+train_y1_aux = torch.sin(train_x1 * (2 * math.pi)) + torch.randn(train_x1.size()) * 0.2
 # ##train_y2 = -torch.cos(train_x1*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.2
-# train_y2_aux = torch.cos(0.2+2*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.2 + train_x2
+train_y2_aux = torch.cos(0.2+2*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.2 + train_x2
 # train_y2_aux_ToPlot = torch.cos(0.2+2*train_x2_ToPlot * (2 * math.pi)) + torch.randn(train_x2_ToPlot.size()) * 0.2 + train_x2_ToPlot
 
-train_x1 = torch.rand(100,3)
-train_x2 = torch.rand(10,3)
+#train_x1 = torch.rand(100,3)
+#train_x2 = torch.rand(5,3)
 
-train_y1_aux = torch.sin(torch.sum(train_x1,1) * (2 * math.pi)) + torch.randn(train_x1.shape[0]) * 0.2
-train_y2_aux = torch.cos(torch.sum(train_x2,1) * (2 * math.pi)) + torch.randn(train_x2.shape[0]) * 0.2 + torch.sum(train_x2,1)
+#train_y1_aux = torch.sin(torch.sum(train_x1,1) * (2 * math.pi)) + torch.randn(train_x1.shape[0]) * 0.2
+#train_y2_aux = torch.cos(torch.sum(train_x2,1) * (2 * math.pi)) + torch.randn(train_x2.shape[0]) * 0.2 + torch.sum(train_x2,1)
 
 train_y1 = torch.dstack((train_y1_aux[:,None], 0.5*(train_y1_aux[:,None])+ torch.randn(train_x1.shape[0])[:,None] * 0.02,0.2*(train_y1_aux[:,None])+ torch.randn(train_x1.shape[0])[:,None] * 0.02  ))[:,0,:]
 train_y2 = torch.dstack((train_y2_aux[:,None], 0.6*( train_y2_aux[:,None]+ torch.randn(train_x2.shape[0])[:,None] * 0.01),0.3*( train_y2_aux[:,None]+ torch.randn(train_x2.shape[0])[:,None] * 0.03) ))[:,0,:]
