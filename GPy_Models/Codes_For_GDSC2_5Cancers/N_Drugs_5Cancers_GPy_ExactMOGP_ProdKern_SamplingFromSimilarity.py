@@ -43,10 +43,10 @@ class commandLine:
         self.scale = 1
         self.weight = 1
         self.bash = "1"
-        self.N_CellLines = 48   #Try to put this values as multiple of Num_drugs
-        self.sel_cancer = 0
+        self.N_CellLines = 12   #Try to put this values as multiple of Num_drugs
+        self.sel_cancer = 3
         self.seed_for_N = 1
-        self.N_5thCancer_ToBe_Included = 9 #Try to put this values as multiple of Num_drugs
+        self.N_5thCancer_ToBe_Included = 45 #Try to put this values as multiple of Num_drugs
 
         for op, arg in opts:
             # print(op,arg)
@@ -132,16 +132,30 @@ if int(config.N_5thCancer_ToBe_Included)!=0:
     #indx_test_to_include = [,np.random.permutation(np.arange(0,N_per_drug[1])),np.random.permutation(np.arange(0,N_per_drug[2]))]
     "The seed below is to guarantee always having the same values of 5th cancer to be included in Training regardless"
     "of all the different cross-validations, we do not want them to change at each different cross-validation of MOGP"
-    if indx_cancer_test == 0:
-        np.random.seed(6)   #There are 3 IC50s, we put the 9 observations (1 IC50s and 8 non-IC50)
-    elif indx_cancer_test == 1:
-        np.random.seed(1)   #There are 8 IC50s, we put the 9 observations (3 IC50s and 6 non-IC50)
-    elif indx_cancer_test == 2:
-        np.random.seed(1)  #There is only 1 IC50s for this Cancer almost all data are non-responsive (Test with no IC50)
-    elif indx_cancer_test == 3:
-        np.random.seed(1)  #There are 63 IC50s and 68 Non-IC50, we put the 9 observations (5 IC50s and 4 non-IC50)
-    elif indx_cancer_test == 4:
-        np.random.seed(1)    #There are not IC50s for this Cancer all data are non-responsive
+    if int(config.N_5thCancer_ToBe_Included) == 9:
+        if indx_cancer_test == 0:
+            np.random.seed(6)   #There are 3 IC50s, we put the 9 observations (1 IC50s and 8 non-IC50)
+        elif indx_cancer_test == 1:
+            np.random.seed(1)   #There are 8 IC50s, we put the 9 observations (3 IC50s and 6 non-IC50)
+        elif indx_cancer_test == 2:
+            np.random.seed(1)  #There is only 1 IC50s for this Cancer almost all data are non-responsive (Test with no IC50)
+        elif indx_cancer_test == 3:
+            np.random.seed(1)  #There are 63 IC50s and 68 Non-IC50, we put the 9 observations (5 IC50s and 4 non-IC50)
+        elif indx_cancer_test == 4:
+            np.random.seed(1)    #There are not IC50s for this Cancer all data are non-responsive
+    elif int(config.N_5thCancer_ToBe_Included) == 45:
+        if indx_cancer_test == 0:
+            np.random.seed(6)   #There are 3 IC50s, we put the 45 observations (1 IC50s and 44 non-IC50)
+        elif indx_cancer_test == 1:
+            np.random.seed(3)   #There are 8 IC50s, we put the 45 observations (4 IC50s and 40 non-IC50)
+        elif indx_cancer_test == 2:
+            np.random.seed(1)  #There is only 1 IC50s for this Cancer almost all data are non-responsive (Test with no IC50)
+        elif indx_cancer_test == 3:
+            np.random.seed(1)  #There are 63 IC50s and 68 Non-IC50, we put the 45 observations (19 IC50s and 26 non-IC50)
+        elif indx_cancer_test == 4:
+            np.random.seed(1)    #There are not IC50s for this Cancer all data are non-responsive
+    else:
+        print("SELECTING THE IC50s RANDOMLY!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
     Test_drugs_indexes = [np.random.permutation(np.arange(0, N_per_drug[myind])) for myind in range(Num_drugs)]
     indx_test_to_NotInclude = [np.delete(Test_drugs_indexes[myind],np.arange(0,N_ToInclude_per_Drug)) for myind in range(Num_drugs)]
@@ -249,8 +263,11 @@ import matplotlib.pyplot as plt
 from sklearn import metrics
 
 plt.close('all')
-x_lin = np.linspace(0.111111, 1, 1000)
-x_real_dose = np.linspace(0.111111, 1, 7)  #Here is 7 due to using GDSC2 that has 7 doses
+#0.142857143
+"Be careful that x starts from 0.111111 for 9 drugs,"
+"but x starts from 0.142857143 for the case of 7 drugs"
+x_lin = np.linspace(0.142857143, 1, 1000)
+x_real_dose = np.linspace(0.142857143, 1, 7)  #Here is 7 due to using GDSC2 that has 7 doses
 def Get_IC50_AUC_Emax(params_4_sig_train,x_lin,x_real_dose):
     x_lin_tile = np.tile(x_lin, (params_4_sig_train.shape[0], 1))
     # (x_lin,params_4_sig_train.shape[0],1).shape
@@ -293,8 +310,8 @@ def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_tra
     plt.title(f"AUC = {AUC[posy]}")
     print(AUC[posy])
 
-posy = 57-9
-my_plot(posy,0,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_train_drug)
+#posy = 18
+#my_plot(posy,0,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_train_drug)
 #my_plot(posy,1,Ydose50_test,Ydose_res_test,IC50_test,AUC_test,Emax_test,x_lin,x_real_dose,y_test_drug)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -337,7 +354,7 @@ print("Y all test data size:", y_test_drug.shape)
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-# "Create a K-fold for cross-validation"
+"Create a K-fold for cross-validation"
 # from sklearn.model_selection import KFold, cross_val_score
 # Ndata = Xall.shape[0]
 # Xind = np.arange(Ndata)
@@ -496,8 +513,10 @@ print("Y all test data size:", y_test_drug.shape)
 #     from scipy.interpolate import interp1d
 #     from scipy.interpolate import pchip_interpolate
 #
-#     x_dose = np.linspace(0.111111, 1.0, 7)
-#     x_dose_new = np.linspace(0.111111, 1.0, 1000)
+#     "Be careful that x starts from 0.111111 for 9 drugs,"
+#     "but x starts from 0.142857143 for the case of 7 drugs"
+#     x_dose = np.linspace(0.142857143, 1.0, 7)
+#     x_dose_new = np.linspace(0.142857143, 1.0, 1000)
 #     Ydose50_pred = []
 #     IC50_pred = []
 #     AUC_pred = []
@@ -550,7 +569,7 @@ print("Y all test data size:", y_test_drug.shape)
 #     AUC_pred = np.array(AUC_pred)[:, None]
 #     Emax_pred = np.array(Emax_pred)[:, None]
 #
-#     posy = 0
+#     posy = 1
 #     plt.figure(Nfold+nsplits+2)
 #     plt.plot(x_dose_new, Y_pred_interp_all[posy])
 #     plt.plot(x_dose_new, std_upper_interp_all[posy],'b--')
@@ -604,29 +623,29 @@ print("Y all test data size:", y_test_drug.shape)
 #     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 #     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 #
-# path_cancer = './N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(N_CellLines)+'/seed'+str(rand_state_N)+'/'
-# if not os.path.exists(path_cancer):
-#     os.makedirs(path_cancer)
-# f = open(path_cancer+"Metrics.txt","a+")
-# f.write("bash"+str(config.bash)+f" Med_MSE={np.mean(Med_MSE_AllFolds):0.5f}({np.std(Med_MSE_AllFolds):0.5f}) Mean_MSE={np.mean(Mean_MSE_AllFolds):0.5f}({np.std(Mean_MSE_AllFolds):0.5f}) NegLPD={np.mean(NegMLL_AllFolds):0.5f}({np.std(NegMLL_AllFolds):0.5f}) IC50_MSE={np.mean(IC50_MSE_AllFolds):0.5f}({np.std(IC50_MSE_AllFolds):0.5f}) AUC_abs={np.mean(AUC_abs_AllFolds):0.5f}({np.std(AUC_abs_AllFolds):0.5f}) Emax_abs ={np.mean(Emax_abs_AllFolds):0.5f}({np.std(Emax_abs_AllFolds):0.5f})\n")
-# f.close()
-#
-# f= open(path_cancer+"Average_Metrics_IC50_AUC_Emax.txt","a+")
-# Aver_IC50_AUC_Emax_MSECurve = np.array([np.mean(IC50_MSE_AllFolds),np.mean(AUC_abs_AllFolds),np.mean(Emax_abs_AllFolds),np.mean(Mean_MSE_AllFolds)])
-# f.write("bash"+str(config.bash)+f", {np.mean(Aver_IC50_AUC_Emax_MSECurve):0.5f} \n")
-# f.close()
-#
-# f= open(path_cancer+"Test_Metrics_IC50_AUC_Emax.txt","a+")
-# f.write("bash"+str(config.bash)+f" IC50_MSE={IC50_MSE:0.5f} AUC_abs={AUC_abs:0.5f} Emax_abs ={Emax_abs:0.5f}\n")
-# f.close()
-#
-# "The last model should have been trained over all dataset without splitting"
-#
-# final_path = '/data/ac1jjgg/Data_Marina/GPy_results/Codes_for_GDSC2_5Cancers/SamplingFromSimilarity/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(config.N_CellLines)+'/seed'+str(rand_state_N)+'/'
-# #final_path ='Models_5Cancers/SamplingFromSimilarity/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(config.N_CellLines)+'/seed'+str(rand_state_N)+'/'
-# if not os.path.exists(final_path):
-#    os.makedirs(final_path)
-# np.save(final_path+'m_'+str(config.bash)+'.npy', model.param_array)
-#
-# dataframe_IC50_AUC_Emax = pd.DataFrame({'IC50_MOGP': IC50_pred.flatten(), 'AUC_MOGP': AUC_pred.flatten(),'Emax_MOGP': Emax_pred.flatten(), 'IC50_s4': IC50_val.flatten(), 'AUC_s4': AUC_val.flatten(),'Emax_s4': Emax_val.flatten()})
-# dataframe_IC50_AUC_Emax.to_csv(final_path+'Results_Test_IC50_AUC_Emax_'+'m_'+str(config.bash)+'.csv')
+# # path_cancer = './N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(N_CellLines)+'/seed'+str(rand_state_N)+'/'
+# # if not os.path.exists(path_cancer):
+# #     os.makedirs(path_cancer)
+# # f = open(path_cancer+"Metrics.txt","a+")
+# # f.write("bash"+str(config.bash)+f" Med_MSE={np.mean(Med_MSE_AllFolds):0.5f}({np.std(Med_MSE_AllFolds):0.5f}) Mean_MSE={np.mean(Mean_MSE_AllFolds):0.5f}({np.std(Mean_MSE_AllFolds):0.5f}) NegLPD={np.mean(NegMLL_AllFolds):0.5f}({np.std(NegMLL_AllFolds):0.5f}) IC50_MSE={np.mean(IC50_MSE_AllFolds):0.5f}({np.std(IC50_MSE_AllFolds):0.5f}) AUC_abs={np.mean(AUC_abs_AllFolds):0.5f}({np.std(AUC_abs_AllFolds):0.5f}) Emax_abs ={np.mean(Emax_abs_AllFolds):0.5f}({np.std(Emax_abs_AllFolds):0.5f})\n")
+# # f.close()
+# #
+# # f= open(path_cancer+"Average_Metrics_IC50_AUC_Emax.txt","a+")
+# # Aver_IC50_AUC_Emax_MSECurve = np.array([np.mean(IC50_MSE_AllFolds),np.mean(AUC_abs_AllFolds),np.mean(Emax_abs_AllFolds),np.mean(Mean_MSE_AllFolds)])
+# # f.write("bash"+str(config.bash)+f", {np.mean(Aver_IC50_AUC_Emax_MSECurve):0.5f} \n")
+# # f.close()
+# #
+# # f= open(path_cancer+"Test_Metrics_IC50_AUC_Emax.txt","a+")
+# # f.write("bash"+str(config.bash)+f" IC50_MSE={IC50_MSE:0.5f} AUC_abs={AUC_abs:0.5f} Emax_abs ={Emax_abs:0.5f}\n")
+# # f.close()
+# #
+# # "The last model should have been trained over all dataset without splitting"
+# #
+# # final_path = '/data/ac1jjgg/Data_Marina/GPy_results/Codes_for_GDSC2_5Cancers/SamplingFromSimilarity/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(config.N_CellLines)+'/seed'+str(rand_state_N)+'/'
+# # #final_path ='Models_5Cancers/SamplingFromSimilarity/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(config.N_CellLines)+'/seed'+str(rand_state_N)+'/'
+# # if not os.path.exists(final_path):
+# #    os.makedirs(final_path)
+# # np.save(final_path+'m_'+str(config.bash)+'.npy', model.param_array)
+# #
+# # dataframe_IC50_AUC_Emax = pd.DataFrame({'IC50_MOGP': IC50_pred.flatten(), 'AUC_MOGP': AUC_pred.flatten(),'Emax_MOGP': Emax_pred.flatten(), 'IC50_s4': IC50_val.flatten(), 'AUC_s4': AUC_val.flatten(),'Emax_s4': Emax_val.flatten()})
+# # dataframe_IC50_AUC_Emax.to_csv(final_path+'Results_Test_IC50_AUC_Emax_'+'m_'+str(config.bash)+'.csv')

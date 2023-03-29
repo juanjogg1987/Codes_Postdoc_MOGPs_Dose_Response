@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from scipy.interpolate import pchip_interpolate
 plt.close('all')
-sel_cancer = 2
+sel_cancer = 3
 #path_to_load = '/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/Test_Data_ToPlot_GDSC2_5Cancers/Three_drugs/'
 #AUC_per_cell,Emax_per_cell,IC50_per_cell,AUCR2_per_cell,EmaxR2_per_cell,IC50R2_per_cell = np.load(path_to_load+'Test_Metrics_To_Plot_Three_drugs.pkl',allow_pickle=True)
 
@@ -76,7 +76,7 @@ cancer_names = {0:'Breast Cancer',1:'Coad Cancer',2:'Luad Cancer',3:'Melanoma Ca
 cancer = cancer_names[sel_cancer]
 if sel_cancer ==0:
     ylimAUC = [0.04,0.13]; ylimAUC_CV = [0.04,0.095]
-    ylimEmax = [0.1,0.17]; ylimEmax_CV = [0.1,0.17]
+    ylimEmax = [0.1,0.18]; ylimEmax_CV = [0.085,0.17]
     ylimIC50 = [0.0073,0.0343]; ylimIC50_CV = [0.04,0.13]
 elif sel_cancer == 1:
     ylimAUC = [0.06, 0.15];   ylimAUC_CV = [0.035, 0.095]
@@ -87,9 +87,9 @@ elif sel_cancer == 2:
     ylimEmax = [0.08, 0.135];    ylimEmax_CV = [0.075, 0.14]
     ylimIC50 = [-0.0001, 0.025];    ylimIC50_CV = [0.04, 0.13]
 elif sel_cancer == 3:
-    ylimAUC = [0.04, 0.13];    ylimAUC_CV = [0.04, 0.095]
-    ylimEmax = [0.1, 0.17];    ylimEmax_CV = [0.1, 0.17]
-    ylimIC50 = [0.0073, 0.0343];    ylimIC50_CV = [0.04, 0.13]
+    ylimAUC = [0.12, 0.16];    ylimAUC_CV = [0.013, 0.085]
+    ylimEmax = [0.18, 0.22];    ylimEmax_CV = [0.05, 0.15]
+    ylimIC50 = [0.35, 0.48];    ylimIC50_CV = [0.0, 0.08]
 elif sel_cancer == 4:
     ylimAUC = [0.04, 0.13];    ylimAUC_CV = [0.04, 0.095]
     ylimEmax = [0.1, 0.17];    ylimEmax_CV = [0.1, 0.17]
