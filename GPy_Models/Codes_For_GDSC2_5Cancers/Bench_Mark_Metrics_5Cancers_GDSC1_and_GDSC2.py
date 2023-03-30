@@ -89,4 +89,65 @@ indx_cancer_train = np.delete(indx_cancer,indx_cancer_test)
 #N_CellLines = int(config.N_CellLines)
 #rand_state_N = int(config.seed_for_N)
 
-df_to_read = pd.read_csv(_FOLDER + 'GDSC2_GDSC1_2-fold_breast_3drugs.csv')
+fold = 4  #fold = 2 one is used for 9 doses, fold = 4 one is used for 5 doses (GDSC1)
+Cancer_Names = ['breast','COAD','LUAD','melanoma','SCLC']
+Sel_Cancer = Cancer_Names[4]
+df_Cancer = pd.read_csv(_FOLDER + 'GDSC2_GDSC1_'+str(fold)+'-fold_'+Sel_Cancer+'_3drugs_uM.csv')
+
+def Extract_Dose_Response(df_Cancer,sel_dataset = "GDSC1", fold = 2):
+    if sel_dataset=="GDSC2":
+        "Below we select 7 concentration since GDSC2 has such a number"
+        norm_cell = "_x"
+        Ndoses_lim = 7+1
+    elif sel_dataset=="GDSC1":
+        "Below we select 9 or 5 concentration since GDSC1 has such a number"
+        norm_cell = "_y"
+        if fold == 2:
+            Ndoses_lim = 9 + 1
+        elif fold == 4:
+            Ndoses_lim = 5 + 1
+
+    y_drug_GDSC = np.clip(df_Cancer["norm_cells_" + str(1)+norm_cell].values[:, None], 1.0e-9, np.inf)
+    x_dose_uM = df_Cancer["fd_uM_" + str(1) + norm_cell].values[:, None]
+    print(y_drug_GDSC.shape)
+    for i in range(2, Ndoses_lim):  #Here until 8 for GDSC2
+        y_drug_GDSC = np.concatenate((y_drug_GDSC, np.clip(df_Cancer["norm_cells_" + str(i)+norm_cell].values[:, None], 1.0e-9, np.inf)), 1)
+        x_dose_uM = np.concatenate((x_dose_uM, df_Cancer["fd_uM_" + str(i) + norm_cell].values[:, None]), 1)
+    print("Y size: ", y_drug_GDSC.shape)
+    print("X size: ", x_dose_uM.shape)
+    return  y_drug_GDSC,x_dose_uM
+
+y_drug_GDSC1, x_dose_GDSC1_uM = Extract_Dose_Response(df_Cancer,sel_dataset="GDSC1",fold=fold)
+y_drug_GDSC2, x_dose_GDSC2_uM = Extract_Dose_Response(df_Cancer,sel_dataset="GDSC2")   #GDSC2 does not need fold always 7 doses
+
+Ndoses_GDSC1 = y_drug_GDSC1.shape[1]
+
+import matplotlib.pyplot as plt
+
+plt.close('all')
+
+posy = 2
+plt.figure(1)
+x_dose_GDSC2_uM_log10 = np.log10(x_dose_GDSC2_uM)
+x_dose_GDSC1_uM_log10 = np.log10(x_dose_GDSC1_uM)
+plt.plot(x_dose_GDSC2_uM_log10[posy],y_drug_GDSC2[posy],'ro')
+plt.plot(x_dose_GDSC1_uM_log10[posy],y_drug_GDSC1[posy],'bo')
+plt.ylim([-0.1,1.5])
+
+plt.figure(2)
+x_lin_GDSC2 = np.linspace(0.142857143,1,7)
+x_lin_GDSC1 = np.linspace(0.111111,1,Ndoses_GDSC1)
+plt.plot(x_lin_GDSC2,y_drug_GDSC2[posy],'ro')
+plt.plot(x_lin_GDSC1,y_drug_GDSC1[posy],'bo')
+plt.ylim([-0.1,1.5])
+
+my_prop_log = (x_dose_GDSC2_uM_log10[posy][0]-x_dose_GDSC2_uM_log10[posy][-1])/(x_dose_GDSC1_uM_log10[posy][0]-x_dose_GDSC1_uM_log10[posy][-1])
+my_prop_orig = (x_lin_GDSC1[0]-x_lin_GDSC1[-1])/(x_lin_GDSC2[0]-x_lin_GDSC2[-1])
+
+x_lin_GDSC2_scaled = x_lin_GDSC2*my_prop_orig-(my_prop_orig-1.0)
+x_lin_GDSC2_scaled = x_lin_GDSC2_scaled*my_prop_log-(my_prop_log-1.0)
+
+plt.figure(3)
+plt.plot(x_lin_GDSC2_scaled,y_drug_GDSC2[posy],'ro')
+plt.plot(x_lin_GDSC1,y_drug_GDSC1[posy],'bo')
+plt.ylim([-0.1,1.5])
