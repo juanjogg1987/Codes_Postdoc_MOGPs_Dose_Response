@@ -75,79 +75,233 @@ config = commandLine()
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 dict_cancers={0:'GDSC2_EGFR_PI3K_MAPK_Breast_1000FR.csv',1:'GDSC2_EGFR_PI3K_MAPK_COAD_1000FR.csv',
               2:'GDSC2_EGFR_PI3K_MAPK_LUAD.csv',3:'GDSC2_EGFR_PI3K_MAPK_melanoma.csv',4:'GDSC2_EGFR_PI3K_MAPK_SCLC.csv'}
-
+#
 #GDSC2_GDSC1_2-fold_breast_3drugs
 
 indx_cancer = np.array([0,1,2,3,4])
 indx_cancer_test = np.array([int(config.sel_cancer)])
 indx_cancer_train = np.delete(indx_cancer,indx_cancer_test)
 
-#name_feat_file = "GDSC2_EGFR_PI3K_MAPK_allfeatures.csv"
-#name_feat_file_nozero = "GDSC2_EGFR_PI3K_MAPK_features_NonZero_Drugs1036_1061_1373.csv" #"GDSC2_EGFR_PI3K_MAPK_features_NonZero.csv"
-#Num_drugs = 3
-#N_CellLines_perDrug = int(config.N_CellLines)//Num_drugs
-#N_CellLines = int(config.N_CellLines)
-#rand_state_N = int(config.seed_for_N)
+Diff_AUC_5Cancers = []
+Diff_Emax_5Cancers = []
+Diff_IC50_5Cancers = []
+for which_cancer in range(0,5):
+    AUC_GDSC1_All = []; AUC_GDSC2_All = []
+    Emax_GDSC1_All = []; Emax_GDSC2_All = []
+    IC50_GDSC1_All = []; IC50_GDSC2_All = []
+    for fold in range(2,5,2):
+    #for fold in range(2,3):
+        #fold = 4  #fold = 2 one is used for 9 doses, fold = 4 one is used for 5 doses (GDSC1)
+        Cancer_Names = ['breast','COAD','LUAD','melanoma','SCLC']
+        Sel_Cancer = Cancer_Names[which_cancer]
+        df_Cancer = pd.read_csv(_FOLDER + 'GDSC2_GDSC1_'+str(fold)+'-fold_'+Sel_Cancer+'_3drugs_uM.csv')
 
-fold = 4  #fold = 2 one is used for 9 doses, fold = 4 one is used for 5 doses (GDSC1)
-Cancer_Names = ['breast','COAD','LUAD','melanoma','SCLC']
-Sel_Cancer = Cancer_Names[4]
-df_Cancer = pd.read_csv(_FOLDER + 'GDSC2_GDSC1_'+str(fold)+'-fold_'+Sel_Cancer+'_3drugs_uM.csv')
+        def Extract_Dose_Response(df_Cancer,sel_dataset = "GDSC1", fold = 2):
+            if sel_dataset=="GDSC2":
+                "Below we select 7 concentration since GDSC2 has such a number"
+                norm_cell = "_x"
+                Ndoses_lim = 7+1
+            elif sel_dataset=="GDSC1":
+                "Below we select 9 or 5 concentration since GDSC1 has such a number"
+                norm_cell = "_y"
+                if fold == 2:
+                    Ndoses_lim = 9 + 1
+                elif fold == 4:
+                    Ndoses_lim = 5 + 1
 
-def Extract_Dose_Response(df_Cancer,sel_dataset = "GDSC1", fold = 2):
-    if sel_dataset=="GDSC2":
-        "Below we select 7 concentration since GDSC2 has such a number"
-        norm_cell = "_x"
-        Ndoses_lim = 7+1
-    elif sel_dataset=="GDSC1":
-        "Below we select 9 or 5 concentration since GDSC1 has such a number"
-        norm_cell = "_y"
-        if fold == 2:
-            Ndoses_lim = 9 + 1
-        elif fold == 4:
-            Ndoses_lim = 5 + 1
+            y_drug_GDSC = np.clip(df_Cancer["norm_cells_" + str(1)+norm_cell].values[:, None], 1.0e-9, np.inf)
+            x_dose_uM = df_Cancer["fd_uM_" + str(1) + norm_cell].values[:, None]
+            print(y_drug_GDSC.shape)
+            for i in range(2, Ndoses_lim):  #Here until 8 for GDSC2
+                y_drug_GDSC = np.concatenate((y_drug_GDSC, np.clip(df_Cancer["norm_cells_" + str(i)+norm_cell].values[:, None], 1.0e-9, np.inf)), 1)
+                x_dose_uM = np.concatenate((x_dose_uM, df_Cancer["fd_uM_" + str(i) + norm_cell].values[:, None]), 1)
+            print("Y size: ", y_drug_GDSC.shape)
+            print("X size: ", x_dose_uM.shape)
 
-    y_drug_GDSC = np.clip(df_Cancer["norm_cells_" + str(1)+norm_cell].values[:, None], 1.0e-9, np.inf)
-    x_dose_uM = df_Cancer["fd_uM_" + str(1) + norm_cell].values[:, None]
-    print(y_drug_GDSC.shape)
-    for i in range(2, Ndoses_lim):  #Here until 8 for GDSC2
-        y_drug_GDSC = np.concatenate((y_drug_GDSC, np.clip(df_Cancer["norm_cells_" + str(i)+norm_cell].values[:, None], 1.0e-9, np.inf)), 1)
-        x_dose_uM = np.concatenate((x_dose_uM, df_Cancer["fd_uM_" + str(i) + norm_cell].values[:, None]), 1)
-    print("Y size: ", y_drug_GDSC.shape)
-    print("X size: ", x_dose_uM.shape)
-    return  y_drug_GDSC,x_dose_uM
+            params_4_sigmoid = df_Cancer["param_" + str(1)+norm_cell].values[:, None]
+            for i in range(2, 5):
+                params_4_sigmoid = np.concatenate((params_4_sigmoid, df_Cancer["param_" + str(i)+norm_cell].values[:, None]),1)
 
-y_drug_GDSC1, x_dose_GDSC1_uM = Extract_Dose_Response(df_Cancer,sel_dataset="GDSC1",fold=fold)
-y_drug_GDSC2, x_dose_GDSC2_uM = Extract_Dose_Response(df_Cancer,sel_dataset="GDSC2")   #GDSC2 does not need fold always 7 doses
+            return  y_drug_GDSC,x_dose_uM, params_4_sigmoid
 
-Ndoses_GDSC1 = y_drug_GDSC1.shape[1]
+        y_drug_GDSC1, x_dose_GDSC1_uM, params_4_sig_GDSC1 = Extract_Dose_Response(df_Cancer,sel_dataset="GDSC1",fold=fold)
+        y_drug_GDSC2, x_dose_GDSC2_uM, params_4_sig_GDSC2 = Extract_Dose_Response(df_Cancer,sel_dataset="GDSC2")   #GDSC2 does not need fold always 7 doses
 
-import matplotlib.pyplot as plt
+        Ndoses_GDSC1 = y_drug_GDSC1.shape[1]
+
+        import matplotlib.pyplot as plt
+
+        #plt.close('all')
+
+        posy = 5
+        plt.figure(1)
+        x_dose_GDSC2_uM_log10 = np.log10(x_dose_GDSC2_uM)
+        x_dose_GDSC1_uM_log10 = np.log10(x_dose_GDSC1_uM)
+        plt.plot(x_dose_GDSC2_uM_log10[posy],y_drug_GDSC2[posy],'ro')
+        plt.plot(x_dose_GDSC1_uM_log10[posy],y_drug_GDSC1[posy],'bo')
+        plt.ylim([-0.1,1.5])
+
+        plt.figure(2)
+        x_lin_GDSC2 = np.linspace(0.142857143,1,7)
+        x_lin_GDSC1 = np.linspace(0.111111,1,Ndoses_GDSC1)
+        plt.plot(x_lin_GDSC2,y_drug_GDSC2[posy],'ro')
+        plt.plot(x_lin_GDSC1,y_drug_GDSC1[posy],'bo')
+        plt.ylim([-0.1,1.5])
+
+        my_prop_log = (x_dose_GDSC2_uM_log10[:,0]-x_dose_GDSC2_uM_log10[:,-1])/(x_dose_GDSC1_uM_log10[:,0]-x_dose_GDSC1_uM_log10[:,-1])
+        "I realised that all my_prop_log for all data become exactly the same, so I just use one unique scalar instead of vector"
+        my_prop_log = my_prop_log[0]
+        my_prop_orig = (x_lin_GDSC1[0]-x_lin_GDSC1[-1])/(x_lin_GDSC2[0]-x_lin_GDSC2[-1])
+
+        "Here we scale to have GDSC2 in same range (of normalized doses, i.e., [0.111111,1]) of GDSC1"
+        x_lin_GDSC2_scaled = x_lin_GDSC2*my_prop_orig-(my_prop_orig-1.0)
+        "Here we scale to guarantee GDSC2 gets a bigger range than GDSC1."
+        "This is due to having for GDSC2 a minimum dose of uM smaller than GDSC1"
+        "The scaling in meant to be in the normalized doses space."
+        x_lin_GDSC2_scaled = x_lin_GDSC2_scaled*my_prop_log-(my_prop_log-1.0)
+        #x_lin_GDSC2_scaled = np.repeat(x_lin_GDSC2_scaled[None,:],my_prop_log.shape[0],axis=0)*my_prop_log-(my_prop_log-1.0)
+
+        plt.figure(3)
+        plt.plot(x_lin_GDSC2_scaled,y_drug_GDSC2[posy],'ro')
+        plt.plot(x_lin_GDSC1,y_drug_GDSC1[posy],'bo')
+        plt.ylim([-0.1,1.5])
+
+        from sklearn import metrics
+        def Get_IC50_AUC_Emax(params_4_sig_train,x_lin,x_lin_scaled=None,cut_GDSC2=False,my_prop_log=None):
+            x_lin_tile = np.tile(x_lin, (params_4_sig_train.shape[0], 1))
+            if cut_GDSC2:
+                assert x_lin.shape == x_lin_scaled.shape
+                indx_cut = int(x_lin.shape[0]-x_lin.shape[0]/my_prop_log)
+                x_lin = x_lin_scaled[indx_cut:].copy()
+            # (x_lin,params_4_sig_train.shape[0],1).shape
+            Ydose_res = []
+            AUC = []
+            IC50 = []
+            Ydose50 = []
+            Emax = []
+            for i in range(params_4_sig_train.shape[0]):
+                "TO DO: put an if for the case of cut, replace x_lin_tile by new cutted and Ydose[indx_cut:]"
+                if cut_GDSC2:
+                    "Here we compute the curve in the original space, but then the metrics are taken with x_scaled"
+                    Ydose_res.append(sigmoid_4_param(x_lin_tile[i, :], *params_4_sig_train[i, :])[indx_cut:])
+                    "Here we use x_lin_scaled to account for the new curve scaled in a new range"
+                    AUC.append(metrics.auc(x_lin_scaled[indx_cut:], Ydose_res[i]))
+                else:
+                    Ydose_res.append(sigmoid_4_param(x_lin_tile[i, :], *params_4_sig_train[i, :]))
+                    AUC.append(metrics.auc(x_lin_tile[i, :], Ydose_res[i]))
+                Emax.append(Ydose_res[i][-1])
+                res1 = (Ydose_res[i] < 0.507)
+                res2 = (Ydose_res[i] > 0.493)
+                if (res1 & res2).sum() > 0:
+                    Ydose50.append(Ydose_res[i][res1 & res2].mean())
+                    IC50.append(x_lin[res1 & res2].mean())
+                elif Ydose_res[i][-1]<0.5:
+                   for dose_j in range(x_lin.shape[0]):
+                       if(Ydose_res[i][dose_j] < 0.5):
+                           break
+                   Ydose50.append(Ydose_res[i][dose_j])
+                   aux_IC50 = x_lin[dose_j]  #it has to be a float not an array to avoid bug
+                   IC50.append(aux_IC50)
+                else:
+                    Ydose50.append(0.5)
+                    IC50.append(1.5) #IC50.append(x_lin[-1])
+
+            #return Ydose50,Ydose_res,IC50,AUC,Emax, x_lin
+            return np.array(Ydose50),np.array(Ydose_res),np.array(IC50)[:,None],np.array(AUC)[:,None],np.array(Emax)[:,None], x_lin
+
+        "Here we define x_interpol in the range of GDSC1 with a big number of points to plot sigmoid_4"
+        x_for_sig4_GDSC1 = np.linspace(0.111111,1,1000)
+        x_for_sig4_GDSC2 = np.linspace(0.142857143,1,1248)
+        x_for_sig4_GDSC2_scaled = np.linspace(x_lin_GDSC2_scaled[0],1,1248)
+        Ydose50_GDSC1,Ydose_res_GDSC1,IC50_GDSC1,AUC_GDSC1,Emax_GDSC1,_ = Get_IC50_AUC_Emax(params_4_sig_GDSC1,x_for_sig4_GDSC1)
+        Ydose50_GDSC2,Ydose_res_GDSC2,IC50_GDSC2,AUC_GDSC2,Emax_GDSC2, x_for_sig4_GDSC2_cut = Get_IC50_AUC_Emax(params_4_sig_GDSC2,x_for_sig4_GDSC2,x_for_sig4_GDSC2_scaled,cut_GDSC2=True,my_prop_log=my_prop_log)
+        Ydose50_GDSC2_ori,Ydose_res_GDSC2_ori,IC50_GDSC2_ori,AUC_GDSC2_ori,Emax_GDSC2_ori, _ = Get_IC50_AUC_Emax(params_4_sig_GDSC2,x_for_sig4_GDSC2)
+
+        def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_train_drug):
+            plt.figure(fig_num)
+            plt.plot(x_lin, Ydose_res[posy])
+            plt.plot(x_real_dose, y_train_drug[posy, :], '.')
+            plt.plot(IC50[posy], Ydose50[posy], 'rx')
+            plt.plot(x_lin, np.ones_like(x_lin)*Emax[posy], 'r') #Plot a horizontal line as Emax
+            plt.title(f"AUC = {AUC[posy]}")
+            plt.ylim([-0.1,1.2])
+            print("AUC:",AUC[posy])
+            print("Emax:",Emax[posy])
+            print("IC50:", IC50[posy])
+
+        #posy = 22
+        my_plot(posy,0,Ydose50_GDSC1,Ydose_res_GDSC1,IC50_GDSC1,AUC_GDSC1,Emax_GDSC1,x_for_sig4_GDSC1,x_lin_GDSC1,y_drug_GDSC1)
+        my_plot(posy,0,Ydose50_GDSC2,Ydose_res_GDSC2,IC50_GDSC2,AUC_GDSC2,Emax_GDSC2,x_for_sig4_GDSC2_cut,x_lin_GDSC2_scaled,y_drug_GDSC2)
+        my_plot(posy,10,Ydose50_GDSC2_ori,Ydose_res_GDSC2_ori,IC50_GDSC2_ori,AUC_GDSC2_ori,Emax_GDSC2_ori,x_for_sig4_GDSC2,x_lin_GDSC2,y_drug_GDSC2)
+
+        AUC_GDSC1_All.append(AUC_GDSC1.flatten())
+        AUC_GDSC2_All.append(AUC_GDSC2.flatten())
+        Emax_GDSC1_All.append(Emax_GDSC1.flatten())
+        Emax_GDSC2_All.append(Emax_GDSC2.flatten())
+        IC50_GDSC1_All.append(IC50_GDSC1.flatten())
+        IC50_GDSC2_All.append(IC50_GDSC2.flatten())
+
+    AUC_GDSC1_cancer = np.concatenate((AUC_GDSC1_All[0],AUC_GDSC1_All[1]),axis=0)
+    AUC_GDSC2_cancer = np.concatenate((AUC_GDSC2_All[0],AUC_GDSC2_All[1]),axis=0)
+    Emax_GDSC1_cancer = np.concatenate((Emax_GDSC1_All[0],Emax_GDSC1_All[1]),axis=0)
+    Emax_GDSC2_cancer = np.concatenate((Emax_GDSC2_All[0],Emax_GDSC2_All[1]),axis=0)
+    IC50_GDSC1_cancer = np.concatenate((IC50_GDSC1_All[0],IC50_GDSC1_All[1]),axis=0)
+    IC50_GDSC2_cancer = np.concatenate((IC50_GDSC2_All[0],IC50_GDSC2_All[1]),axis=0)
+
+    diff_AUC_GDSC1_GDSC2 = AUC_GDSC1_cancer-AUC_GDSC2_cancer
+    diff_Emax_GDSC1_GDSC2 = Emax_GDSC1_cancer - Emax_GDSC2_cancer
+    diff_IC50_GDSC1_GDSC2 = IC50_GDSC1_cancer - IC50_GDSC2_cancer
+
+    Diff_AUC_5Cancers.append(diff_AUC_GDSC1_GDSC2)
+    Diff_Emax_5Cancers.append(diff_Emax_GDSC1_GDSC2)
+    Diff_IC50_5Cancers.append(diff_IC50_GDSC1_GDSC2)
+
+    print(f"{Sel_Cancer} MAE AUC: {np.mean(np.abs(diff_AUC_GDSC1_GDSC2))} ({np.std(np.abs(diff_AUC_GDSC1_GDSC2))})")
+    print(f"{Sel_Cancer} MAE Emax: {np.mean(np.abs(diff_Emax_GDSC1_GDSC2))} ({np.std(np.abs(diff_Emax_GDSC1_GDSC2))})")
+    print(f"{Sel_Cancer} MAE IC50: {np.mean(np.abs(diff_IC50_GDSC1_GDSC2))} ({np.std(np.abs(diff_IC50_GDSC1_GDSC2))})")
 
 plt.close('all')
+fig, axs = plt.subplots(2,3)
+for i in range(5):
+    plt.figure(20)
+    axs[1,0].errorbar(Cancer_Names[i],np.mean(np.abs(Diff_AUC_5Cancers[i])),np.std(np.abs(Diff_AUC_5Cancers[i])) , linestyle='None', marker='^',capsize=3)
+    #axs[1, 0].set_title("Bench Mark for MAE-AUC")
+    #plt.title("Bench Mark for MAE-AUC")
+    axs[1, 0].set_title("Mean and Std Deviation")
+    axs[1,0].set_ylim([-0.02,0.47])
+    axs[1,0].grid()
+    #plt.figure(21)
+    axs[1,1].errorbar(Cancer_Names[i], np.mean(np.abs(Diff_Emax_5Cancers[i])), np.std(np.abs(Diff_Emax_5Cancers[i])),linestyle='None', marker='^', capsize=3)
+    axs[1, 1].set_title("Mean and Std Deviation")
+    #plt.title("Bench Mark for MAE-Emax")
+    axs[1,1].set_ylim([-0.02, 0.86])
+    axs[1, 1].grid()
+    #plt.grid()
+    #plt.figure(22)
+    axs[1,2].errorbar(Cancer_Names[i], np.mean(np.abs(Diff_IC50_5Cancers[i])), np.std(np.abs(Diff_IC50_5Cancers[i])),linestyle='None', marker='^', capsize=3)
+    axs[1, 2].set_title("Mean and Std Deviation")
+    #plt.title("Bench Mark for MAE-IC50")
+    axs[1,2].set_ylim([-0.02, 1.45])
+    axs[1,2].grid()
 
-posy = 2
-plt.figure(1)
-x_dose_GDSC2_uM_log10 = np.log10(x_dose_GDSC2_uM)
-x_dose_GDSC1_uM_log10 = np.log10(x_dose_GDSC1_uM)
-plt.plot(x_dose_GDSC2_uM_log10[posy],y_drug_GDSC2[posy],'ro')
-plt.plot(x_dose_GDSC1_uM_log10[posy],y_drug_GDSC1[posy],'bo')
-plt.ylim([-0.1,1.5])
 
-plt.figure(2)
-x_lin_GDSC2 = np.linspace(0.142857143,1,7)
-x_lin_GDSC1 = np.linspace(0.111111,1,Ndoses_GDSC1)
-plt.plot(x_lin_GDSC2,y_drug_GDSC2[posy],'ro')
-plt.plot(x_lin_GDSC1,y_drug_GDSC1[posy],'bo')
-plt.ylim([-0.1,1.5])
+#plt.figure(23)
+data = [np.abs(Diff_AUC_5Cancers[i]) for i in range(5)]
+axs[0,0].boxplot(data,1,showmeans=True)
+plt.xticks([1, 2, 3, 4,5], Cancer_Names)
+axs[0,0].grid()
+axs[0,0].set_title("Benchmark for AE-AUC (Boxplot)")
 
-my_prop_log = (x_dose_GDSC2_uM_log10[posy][0]-x_dose_GDSC2_uM_log10[posy][-1])/(x_dose_GDSC1_uM_log10[posy][0]-x_dose_GDSC1_uM_log10[posy][-1])
-my_prop_orig = (x_lin_GDSC1[0]-x_lin_GDSC1[-1])/(x_lin_GDSC2[0]-x_lin_GDSC2[-1])
+#plt.figure(24)
+data = [np.abs(Diff_Emax_5Cancers[i]) for i in range(5)]
+axs[0,1].boxplot(data,1,showmeans=True)
+plt.xticks([1, 2, 3, 4,5], Cancer_Names)
+axs[0,1].grid()
+axs[0,1].set_title("Benchmark for AE-Emax (Boxplot)")
 
-x_lin_GDSC2_scaled = x_lin_GDSC2*my_prop_orig-(my_prop_orig-1.0)
-x_lin_GDSC2_scaled = x_lin_GDSC2_scaled*my_prop_log-(my_prop_log-1.0)
-
-plt.figure(3)
-plt.plot(x_lin_GDSC2_scaled,y_drug_GDSC2[posy],'ro')
-plt.plot(x_lin_GDSC1,y_drug_GDSC1[posy],'bo')
-plt.ylim([-0.1,1.5])
+#plt.figure(25)
+data = [np.abs(Diff_IC50_5Cancers[i]) for i in range(5)]
+axs[0,2].boxplot(data,1,showmeans=True)
+plt.xticks([1, 2, 3, 4,5], Cancer_Names)
+axs[0,2].grid()
+axs[0,2].set_title("Benchmark for AE-IC50 (Boxplot)")

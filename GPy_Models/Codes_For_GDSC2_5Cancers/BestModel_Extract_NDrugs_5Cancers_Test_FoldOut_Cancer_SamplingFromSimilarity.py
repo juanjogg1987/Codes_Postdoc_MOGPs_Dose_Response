@@ -23,7 +23,7 @@ def my_r2_score(y_true,y_pred):
     return r2_metric
 
 sel_cancers = [0]
-N5th_cancer = 9
+N5th_cancer = 45
 Num_drugs = 3
 N_CellLines = [12,24,48,96,144]
 Seeds_for_NCells = [1,2,3,4,5,6]
@@ -105,7 +105,7 @@ for Sel_cancer in sel_cancers:
             except:
                 print('Non existent path: ',path_to_test)
 
-with open('Test_Metrics_To_Plot_N_drugs_'+str(Num_drugs)+'_SamplingFromSimilarity_Cancer_'+str(sel_cancers[0])+'.pkl', 'wb') as f:
+with open('Test_Metrics_To_Plot_N_drugs_'+str(Num_drugs)+'_SamplingFromSimilarity_Cancer_'+str(sel_cancers[0])+'_N5thCancer_'+str(N5th_cancer)+'.pkl', 'wb') as f:
     pickle.dump([AUC_per_cell,Emax_per_cell,IC50_per_cell,AUCR2_per_cell,EmaxR2_per_cell,IC50R2_per_cell,AUC_CV_per_cell,Emax_CV_per_cell,IC50_CV_per_cell], f)
 
 "To load use:"

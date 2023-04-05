@@ -5,13 +5,15 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from scipy.interpolate import pchip_interpolate
 plt.close('all')
-sel_cancer = 3
+sel_cancer = 0
+N5th_cancer = 45
 #path_to_load = '/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/Test_Data_ToPlot_GDSC2_5Cancers/Three_drugs/'
 #AUC_per_cell,Emax_per_cell,IC50_per_cell,AUCR2_per_cell,EmaxR2_per_cell,IC50R2_per_cell = np.load(path_to_load+'Test_Metrics_To_Plot_Three_drugs.pkl',allow_pickle=True)
 
 #path_to_load = '/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/Test_Data_ToPlot_GDSC2_5Cancers/N_drugs_3/'
 path_to_load = '/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/Test_Data_ToPlot_GDSC2_5Cancers/N_drugs_3/SamplingFromSimilarity/Cancer_'+str(sel_cancer)+'/'
-AUC_per_cell,Emax_per_cell,IC50_per_cell,AUCR2_per_cell,EmaxR2_per_cell,IC50R2_per_cell,AUC_CV_per_cell,Emax_CV_per_cell,IC50_CV_per_cell = np.load(path_to_load+'Test_Metrics_To_Plot_N_drugs_3_SamplingFromSimilarity_Cancer_'+str(sel_cancer)+'.pkl',allow_pickle=True)
+#AUC_per_cell,Emax_per_cell,IC50_per_cell,AUCR2_per_cell,EmaxR2_per_cell,IC50R2_per_cell,AUC_CV_per_cell,Emax_CV_per_cell,IC50_CV_per_cell = np.load(path_to_load+'Test_Metrics_To_Plot_N_drugs_3_SamplingFromSimilarity_Cancer_'+str(sel_cancer)+'.pkl',allow_pickle=True)
+AUC_per_cell,Emax_per_cell,IC50_per_cell,AUCR2_per_cell,EmaxR2_per_cell,IC50R2_per_cell,AUC_CV_per_cell,Emax_CV_per_cell,IC50_CV_per_cell = np.load(path_to_load+'Test_Metrics_To_Plot_N_drugs_3_SamplingFromSimilarity_Cancer_'+str(sel_cancer)+'_N5thCancer_'+str(N5th_cancer)+'.pkl',allow_pickle=True)
 #IC50R2_per_cell[0][2]=0.0
 def get_mean_std(data_per_cell):
     data_std = np.array([np.std(data_per_cell[i][1:]) for i in range(data_per_cell.__len__()-1)])
@@ -96,20 +98,20 @@ elif sel_cancer == 4:
     ylimIC50 = [0.0073, 0.0343];    ylimIC50_CV = [0.04, 0.13]
 
 fig, axs = plt.subplots(2, 3,figsize = (15,10))
-myplot_fillbetween(axs,[0,0],N_Cells_lin,f_meanAUC,f_stdAUC,title='AUC-Interp. '+cancer+' (9-data in Training)',ylabel = True,ylim=ylimAUC)
-myplot_fillbetween(axs,[1,0],N_Cells,AUC_mean,AUC_std,title='AUC '+cancer+' (9-data in Training)',ylabel = True,ylim=ylimAUC)
-myplot_fillbetween(axs,[0,1],N_Cells_lin,f_meanEmax,f_stdEmax,title='Emax-Interp. '+cancer+' (9-data in Training)',ylabel = True,ylim=ylimEmax)
-myplot_fillbetween(axs,[1,1],N_Cells,Emax_mean,Emax_std,title='Emax '+cancer+' (9-data in Training)',ylabel = True,ylim=ylimEmax)
-myplot_fillbetween(axs,[0,2],N_Cells_lin,f_meanIC50,f_stdIC50,title='IC50-Interp. '+cancer+' (9-data in Training)',ylabel = True,ylim=ylimIC50)
-myplot_fillbetween(axs,[1,2],N_Cells,IC50_mean,IC50_std,title='IC50 '+cancer+' (9-data in Training)',ylabel = True,ylim=ylimIC50)
+myplot_fillbetween(axs,[0,0],N_Cells_lin,f_meanAUC,f_stdAUC,title='AUC-Interp. '+cancer+' (45-data in Training)',ylabel = True,ylim=ylimAUC)
+myplot_fillbetween(axs,[1,0],N_Cells,AUC_mean,AUC_std,title='AUC '+cancer+' (45-data in Training)',ylabel = True,ylim=ylimAUC)
+myplot_fillbetween(axs,[0,1],N_Cells_lin,f_meanEmax,f_stdEmax,title='Emax-Interp. '+cancer+' (45-data in Training)',ylabel = True,ylim=ylimEmax)
+myplot_fillbetween(axs,[1,1],N_Cells,Emax_mean,Emax_std,title='Emax '+cancer+' (45-data in Training)',ylabel = True,ylim=ylimEmax)
+myplot_fillbetween(axs,[0,2],N_Cells_lin,f_meanIC50,f_stdIC50,title='IC50-Interp. '+cancer+' (45-data in Training)',ylabel = True,ylim=ylimIC50)
+myplot_fillbetween(axs,[1,2],N_Cells,IC50_mean,IC50_std,title='IC50 '+cancer+' (45-data in Training)',ylabel = True,ylim=ylimIC50)
 
 fig, axs1 = plt.subplots(2, 3,figsize = (15,10))
-myplot_fillbetween(axs1,[0,0],N_Cells_lin,f_meanAUC_CV,f_stdAUC_CV,title='Validation AUC-Interp. ('+cancer+' 9-data in Train)',ylabel = True,ylim=ylimAUC_CV)
-myplot_fillbetween(axs1,[1,0],N_Cells,AUC_CV_mean,AUC_CV_std,title='Validation AUC ('+cancer+' 9-data in Training)',ylabel = True,ylim=ylimAUC_CV)
-myplot_fillbetween(axs1,[0,1],N_Cells_lin,f_meanEmax_CV,f_stdEmax_CV,title='Validation Emax-Interp. ('+cancer+' 9-data in Train)',ylabel = True,ylim=ylimEmax_CV)
-myplot_fillbetween(axs1,[1,1],N_Cells,Emax_CV_mean,Emax_CV_std,title='Validation Emax ('+cancer+' 9-data in Training)',ylabel = True,ylim=ylimEmax_CV)
-myplot_fillbetween(axs1,[0,2],N_Cells_lin,f_meanIC50_CV,f_stdIC50_CV,title='Validation IC50-Interp. ('+cancer+' 9-data in Train)',ylabel = True,ylim=ylimIC50_CV)
-myplot_fillbetween(axs1,[1,2],N_Cells,IC50_CV_mean,IC50_CV_std,title='Validation IC50 ('+cancer+' 9-data in Training)',ylabel = True,ylim=ylimIC50_CV)
+myplot_fillbetween(axs1,[0,0],N_Cells_lin,f_meanAUC_CV,f_stdAUC_CV,title='Validation AUC-Interp. ('+cancer+' 45-data in Train)',ylabel = True,ylim=ylimAUC_CV)
+myplot_fillbetween(axs1,[1,0],N_Cells,AUC_CV_mean,AUC_CV_std,title='Validation AUC ('+cancer+' 45-data in Training)',ylabel = True,ylim=ylimAUC_CV)
+myplot_fillbetween(axs1,[0,1],N_Cells_lin,f_meanEmax_CV,f_stdEmax_CV,title='Validation Emax-Interp. ('+cancer+' 45-data in Train)',ylabel = True,ylim=ylimEmax_CV)
+myplot_fillbetween(axs1,[1,1],N_Cells,Emax_CV_mean,Emax_CV_std,title='Validation Emax ('+cancer+' 45-data in Training)',ylabel = True,ylim=ylimEmax_CV)
+myplot_fillbetween(axs1,[0,2],N_Cells_lin,f_meanIC50_CV,f_stdIC50_CV,title='Validation IC50-Interp. ('+cancer+' 45-data in Train)',ylabel = True,ylim=ylimIC50_CV)
+myplot_fillbetween(axs1,[1,2],N_Cells,IC50_CV_mean,IC50_CV_std,title='Validation IC50 ('+cancer+' 45-data in Training)',ylabel = True,ylim=ylimIC50_CV)
 
 fig, axs2 = plt.subplots(2, 3,figsize = (15,10))
 myplot_fillbetween(axs2,[0,0],N_Cells_lin,f_meanAUCR2,f_stdAUCR2,title='R^2 AUC-Interpolated '+cancer)
