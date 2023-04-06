@@ -350,8 +350,10 @@ print("X all test data size:", X_test_features.shape)
 print("Y all test data size:", y_test_drug.shape)
 
 "Select the columns that actually are relevant for the experiment of Drugs 1036, 1061 and 1373"
-df_4Cancers_train = df_4Cancers_train[df_4Cancers_train.columns[indx_nozero]]
-df_4Cancers_test = df_4Cancers_test[df_4Cancers_test.columns[indx_nozero]]
+CellLinesID_plus_indx_nozero = np.concatenate((np.arange(0,25),indx_nozero))
+
+df_4Cancers_train = df_4Cancers_train[df_4Cancers_train.columns[CellLinesID_plus_indx_nozero]]
+df_4Cancers_test = df_4Cancers_test[df_4Cancers_test.columns[CellLinesID_plus_indx_nozero]]
 
 "Adding the AUC, Emax and IC50 to the Training and Testing datasets"
 df_4Cancers_train.insert(0, "AUC", AUC, True)
@@ -371,12 +373,16 @@ Cancer_Names = ['breast','COAD','LUAD','melanoma','SCLC']
 "Save the datasets"
 #final_path ='N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/'+str(config.sel_cancer)+'/N'+str(config.N_CellLines)+'/seed'+str(rand_state_N)+'/'
 Ntotal_Cells = int(config.N_CellLines)*4 + int(config.N_5thCancer_ToBe_Included)
-final_path = './Datasets_5Cancers_Increasing_TrainingData/'+str(Cancer_Names[int(config.sel_cancer)])+'_cancer/N5th_CancerInTrain_'+str(config.N_5thCancer_ToBe_Included)+'/NTrain_'+str(int(config.N_CellLines)*4)+'plus_'+str(int(config.N_5thCancer_ToBe_Included))+'/seed'+str(int(config.seed_for_N))+'/'
+final_path = './Datasets_5Cancers_Increasing_TrainingData/'+str(Cancer_Names[int(config.sel_cancer)])+'_cancer/N5th_CancerInTrain_'+str(config.N_5thCancer_ToBe_Included)+'/NTrain_'+str(int(config.N_CellLines)*4)+'_plus_'+str(int(config.N_5thCancer_ToBe_Included))+'/seed'+str(int(config.seed_for_N))+'/'
 if not os.path.exists(final_path):
    os.makedirs(final_path)
 
-df_4Cancers_train.to_csv(final_path+'Train_N5th_'+str(config.N_5thCancer_ToBe_Included)+'_seed'+str(int(config.seed_for_N))+'.csv')
-df_4Cancers_test.to_csv(final_path+'Test_N5th_'+str(config.N_5thCancer_ToBe_Included)+'_seed'+str(int(config.seed_for_N))+'.csv')
+df_4Cancers_train.to_csv(final_path+'Train_'+str(int(config.N_CellLines)*4)+'_plus_'+str(int(config.N_5thCancer_ToBe_Included))+'_seed'+str(int(config.seed_for_N))+'.csv')
+
+final_path_test = './Datasets_5Cancers_Increasing_TrainingData/'+str(Cancer_Names[int(config.sel_cancer)])+'_cancer/N5th_CancerInTrain_'+str(config.N_5thCancer_ToBe_Included)+'/'
+if not os.path.exists(final_path_test):
+   os.makedirs(final_path_test)
+df_4Cancers_test.to_csv(final_path_test+'Test_'+str(Cancer_Names[int(config.sel_cancer)])+'cancer_WhenDataInTrain_equals_'+str(config.N_5thCancer_ToBe_Included)+'.csv')
 
 
 
