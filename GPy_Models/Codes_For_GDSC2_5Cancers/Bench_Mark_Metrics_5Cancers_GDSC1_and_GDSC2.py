@@ -180,7 +180,6 @@ for which_cancer in range(0,5):
             Ydose50 = []
             Emax = []
             for i in range(params_4_sig_train.shape[0]):
-                "TO DO: put an if for the case of cut, replace x_lin_tile by new cutted and Ydose[indx_cut:]"
                 if cut_GDSC2:
                     "Here we compute the curve in the original space, but then the metrics are taken with x_scaled"
                     Ydose_res.append(sigmoid_4_param(x_lin_tile[i, :], *params_4_sig_train[i, :])[indx_cut:])
