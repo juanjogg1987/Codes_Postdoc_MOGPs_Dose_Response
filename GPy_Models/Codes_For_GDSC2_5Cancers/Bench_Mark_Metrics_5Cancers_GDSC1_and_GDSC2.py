@@ -85,6 +85,8 @@ indx_cancer_train = np.delete(indx_cancer,indx_cancer_test)
 Diff_AUC_5Cancers = []
 Diff_Emax_5Cancers = []
 Diff_IC50_5Cancers = []
+Diff_IC50_5Cancers_Res = []
+Diff_IC50_5Cancers_NoRes = []
 for which_cancer in range(0,5):
     AUC_GDSC1_All = []; AUC_GDSC2_All = []
     Emax_GDSC1_All = []; Emax_GDSC2_All = []
@@ -255,6 +257,15 @@ for which_cancer in range(0,5):
     Diff_Emax_5Cancers.append(diff_Emax_GDSC1_GDSC2)
     Diff_IC50_5Cancers.append(diff_IC50_GDSC1_GDSC2)
 
+    pos_Actual_IC50 = IC50_GDSC2_cancer != 1.5
+    pos_No_IC50 = IC50_GDSC2_cancer == 1.5
+
+    diff_IC50_GDSC1_GDSC2_Res = IC50_GDSC1_cancer[pos_Actual_IC50] - IC50_GDSC2_cancer[pos_Actual_IC50]
+    diff_IC50_GDSC1_GDSC2_NoRes = IC50_GDSC1_cancer[pos_No_IC50] - IC50_GDSC2_cancer[pos_No_IC50]
+
+    Diff_IC50_5Cancers_Res.append(diff_IC50_GDSC1_GDSC2_Res)
+    Diff_IC50_5Cancers_NoRes.append(diff_IC50_GDSC1_GDSC2_NoRes)
+
     print(f"{Sel_Cancer} MAE AUC: {np.mean(np.abs(diff_AUC_GDSC1_GDSC2))} ({np.std(np.abs(diff_AUC_GDSC1_GDSC2))})")
     print(f"{Sel_Cancer} MAE Emax: {np.mean(np.abs(diff_Emax_GDSC1_GDSC2))} ({np.std(np.abs(diff_Emax_GDSC1_GDSC2))})")
     print(f"{Sel_Cancer} MAE IC50: {np.mean(np.abs(diff_IC50_GDSC1_GDSC2))} ({np.std(np.abs(diff_IC50_GDSC1_GDSC2))})")
@@ -285,22 +296,40 @@ for i in range(5):
 
 
 #plt.figure(23)
-data = [np.abs(Diff_AUC_5Cancers[i]) for i in range(5)]
-axs[0,0].boxplot(data,1,showmeans=True)
+data_AUC = [np.abs(Diff_AUC_5Cancers[i]) for i in range(5)]
+axs[0,0].boxplot(data_AUC,1,showmeans=True)
 plt.xticks([1, 2, 3, 4,5], Cancer_Names)
 axs[0,0].grid()
 axs[0,0].set_title("Benchmark for AE-AUC (Boxplot)")
 
 #plt.figure(24)
-data = [np.abs(Diff_Emax_5Cancers[i]) for i in range(5)]
-axs[0,1].boxplot(data,1,showmeans=True)
+data_Emax = [np.abs(Diff_Emax_5Cancers[i]) for i in range(5)]
+axs[0,1].boxplot(data_Emax,1,showmeans=True)
 plt.xticks([1, 2, 3, 4,5], Cancer_Names)
 axs[0,1].grid()
 axs[0,1].set_title("Benchmark for AE-Emax (Boxplot)")
 
 #plt.figure(25)
-data = [np.abs(Diff_IC50_5Cancers[i]) for i in range(5)]
-axs[0,2].boxplot(data,1,showmeans=True)
+data_IC50 = [np.abs(Diff_IC50_5Cancers[i]) for i in range(5)]
+axs[0,2].boxplot(data_IC50,1,showmeans=True)
 plt.xticks([1, 2, 3, 4,5], Cancer_Names)
 axs[0,2].grid()
 axs[0,2].set_title("Benchmark for AE-IC50 (Boxplot)")
+
+fig, axs1 = plt.subplots(2,2)
+data_IC50_Res = [np.abs(Diff_IC50_5Cancers_Res[i]) for i in range(5)]
+axs1[0,0].boxplot(data_IC50_Res,1,showmeans=True)
+plt.xticks([1, 2, 3, 4,5], Cancer_Names)
+axs1[0,0].grid()
+axs1[0,0].set_title("Benchmark for AE-IC50 Responsive (Boxplot)")
+
+data_IC50_NoRes = [np.abs(Diff_IC50_5Cancers_NoRes[i]) for i in range(5)]
+axs1[0,1].boxplot(data_IC50_NoRes,1,showmeans=True)
+plt.xticks([1, 2, 3, 4,5], Cancer_Names)
+axs1[0,1].grid()
+axs1[0,1].set_title("Benchmark for AE-IC50 Non-Responsive (Boxplot)")
+
+import pickle
+
+with open('Bench_Mark_AUC_Emax_IC50.pkl', 'wb') as f:
+    pickle.dump([data_AUC,data_Emax,data_IC50,data_IC50_Res,data_IC50_NoRes], f)
