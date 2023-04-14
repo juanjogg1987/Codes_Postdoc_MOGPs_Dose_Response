@@ -87,10 +87,12 @@ Diff_Emax_5Cancers = []
 Diff_IC50_5Cancers = []
 Diff_IC50_5Cancers_Res = []
 Diff_IC50_5Cancers_NoRes = []
+Diff_Ydose_res_5Cancers = []
 for which_cancer in range(0,5):
     AUC_GDSC1_All = []; AUC_GDSC2_All = []
     Emax_GDSC1_All = []; Emax_GDSC2_All = []
     IC50_GDSC1_All = []; IC50_GDSC2_All = []
+    Ydose_res_GDSC1_All = []; Ydose_res_GDSC2_All = []
     for fold in range(2,5,2):
     #for fold in range(2,3):
         #fold = 4  #fold = 2 one is used for 9 doses, fold = 4 one is used for 5 doses (GDSC1)
@@ -241,6 +243,8 @@ for which_cancer in range(0,5):
         Emax_GDSC2_All.append(Emax_GDSC2.flatten())
         IC50_GDSC1_All.append(IC50_GDSC1.flatten())
         IC50_GDSC2_All.append(IC50_GDSC2.flatten())
+        Ydose_res_GDSC1_All.append(Ydose_res_GDSC1)
+        Ydose_res_GDSC2_All.append(Ydose_res_GDSC2[:,2:])
 
     AUC_GDSC1_cancer = np.concatenate((AUC_GDSC1_All[0],AUC_GDSC1_All[1]),axis=0)
     AUC_GDSC2_cancer = np.concatenate((AUC_GDSC2_All[0],AUC_GDSC2_All[1]),axis=0)
@@ -248,10 +252,16 @@ for which_cancer in range(0,5):
     Emax_GDSC2_cancer = np.concatenate((Emax_GDSC2_All[0],Emax_GDSC2_All[1]),axis=0)
     IC50_GDSC1_cancer = np.concatenate((IC50_GDSC1_All[0],IC50_GDSC1_All[1]),axis=0)
     IC50_GDSC2_cancer = np.concatenate((IC50_GDSC2_All[0],IC50_GDSC2_All[1]),axis=0)
+    Ydose_res_GDSC1_cancer = np.concatenate((Ydose_res_GDSC1_All[0], Ydose_res_GDSC1_All[1]), axis=0)
+    Ydose_res_GDSC2_cancer = np.concatenate((Ydose_res_GDSC2_All[0], Ydose_res_GDSC2_All[1]), axis=0)
 
     diff_AUC_GDSC1_GDSC2 = AUC_GDSC1_cancer-AUC_GDSC2_cancer
     diff_Emax_GDSC1_GDSC2 = Emax_GDSC1_cancer - Emax_GDSC2_cancer
     diff_IC50_GDSC1_GDSC2 = IC50_GDSC1_cancer - IC50_GDSC2_cancer
+
+    diff_Ydose_res_GDSC1_GDSC2 = Ydose_res_GDSC1_cancer - Ydose_res_GDSC2_cancer
+
+    Diff_Ydose_res_5Cancers.append(diff_Ydose_res_GDSC1_GDSC2)
 
     Diff_AUC_5Cancers.append(diff_AUC_GDSC1_GDSC2)
     Diff_Emax_5Cancers.append(diff_Emax_GDSC1_GDSC2)
@@ -273,7 +283,7 @@ for which_cancer in range(0,5):
 plt.close('all')
 fig, axs = plt.subplots(2,3)
 for i in range(5):
-    plt.figure(20)
+    #plt.figure(20)
     axs[1,0].errorbar(Cancer_Names[i],np.mean(np.abs(Diff_AUC_5Cancers[i])),np.std(np.abs(Diff_AUC_5Cancers[i])) , linestyle='None', marker='^',capsize=3)
     #axs[1, 0].set_title("Bench Mark for MAE-AUC")
     #plt.title("Bench Mark for MAE-AUC")
@@ -316,20 +326,31 @@ plt.xticks([1, 2, 3, 4,5], Cancer_Names)
 axs[0,2].grid()
 axs[0,2].set_title("Benchmark for AE-IC50 (Boxplot)")
 
-fig, axs1 = plt.subplots(2,2)
+fig, axs1 = plt.subplots(2,1)
 data_IC50_Res = [np.abs(Diff_IC50_5Cancers_Res[i]) for i in range(5)]
-axs1[0,0].boxplot(data_IC50_Res,1,showmeans=True)
-plt.xticks([1, 2, 3, 4,5], Cancer_Names)
-axs1[0,0].grid()
-axs1[0,0].set_title("Benchmark for AE-IC50 Responsive (Boxplot)")
+axs1[0].boxplot(data_IC50_Res,1,showmeans=True)
+plt.xticks([1, 2, 3, 4, 5], Cancer_Names)
+axs1[0].grid()
+axs1[0].set_title("Benchmark for AE-IC50 Responsive (Boxplot)")
+#plt.xticks([1, 2, 3, 4, 5], Cancer_Names)
 
 data_IC50_NoRes = [np.abs(Diff_IC50_5Cancers_NoRes[i]) for i in range(5)]
-axs1[0,1].boxplot(data_IC50_NoRes,1,showmeans=True)
+axs1[1].boxplot(data_IC50_NoRes,1,showmeans=True)
 plt.xticks([1, 2, 3, 4,5], Cancer_Names)
-axs1[0,1].grid()
-axs1[0,1].set_title("Benchmark for AE-IC50 Non-Responsive (Boxplot)")
+axs1[1].grid()
+axs1[1].set_title("Benchmark for AE-IC50 Non-Responsive (Boxplot)")
+
+fig, axs2 = plt.subplots(1,1)
+data_Ydose_res = [np.mean(np.abs(Diff_Ydose_res_5Cancers[i]),1) for i in range(5)]
+axs2.boxplot(data_Ydose_res,1,showmeans=True)
+plt.xticks([1, 2, 3, 4,5], Cancer_Names)
+axs2.grid()
+axs2.set_title("Benchmark for AE of All Curves (Boxplot)")
+
+
+#np.mean(np.abs(Diff_Ydose_res_5Cancers[0]),1)
 
 import pickle
 
 with open('Bench_Mark_AUC_Emax_IC50.pkl', 'wb') as f:
-    pickle.dump([data_AUC,data_Emax,data_IC50,data_IC50_Res,data_IC50_NoRes], f)
+    pickle.dump([data_AUC,data_Emax,data_IC50,data_IC50_Res,data_IC50_NoRes,data_Ydose_res], f)

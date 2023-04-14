@@ -43,6 +43,7 @@ IC50_Resp_r2_per_cell = [[i] for i in range(N_CellLines.__len__())]
 IC50_NoResp_r2_per_cell = [[i] for i in range(N_CellLines.__len__())]
 
 curve_MAE_per_cell = [[i] for i in range(N_CellLines.__len__())]
+per_Dose_MAE_per_cell = [[i] for i in range(N_CellLines.__len__())]
 
 AUC_CV_per_cell = [[i] for i in range(N_CellLines.__len__())]
 Emax_CV_per_cell = [[i] for i in range(N_CellLines.__len__())]
@@ -111,6 +112,9 @@ for Sel_cancer in sel_cancers:
                 print("curve_MAE:", curve_MAE)
                 curve_MAE_per_cell[cell_k].append(curve_MAE)
 
+                print("per_Dose_MAE:", per_Dose_MAE)
+                per_Dose_MAE_per_cell[cell_k].append(per_Dose_MAE)
+
                 df_CrossVal = pd.read_csv(path_to_CV, header=None, sep=' ')
                 IC50_CV = np.array([float(df_CrossVal[4].values[i].split("=")[1].split("(")[0]) for i in range(df_CrossVal.shape[0])])
                 AUC_CV = np.array([float(df_CrossVal[5].values[i].split("=")[1].split("(")[0]) for i in range(df_CrossVal.shape[0])])
@@ -128,7 +132,7 @@ for Sel_cancer in sel_cancers:
                 print('Non existent path: ',path_to_test)
 
 with open('Test_Metrics_To_Plot_N_drugs_'+str(Num_drugs)+'_SamplingFromSimilarity_Cancer_'+str(sel_cancers[0])+'_N5thCancer_'+str(N5th_cancer)+'.pkl', 'wb') as f:
-    pickle.dump([AUC_per_cell,Emax_per_cell,IC50_per_cell,IC50_Resp_MAE_per_cell, IC50_NoResp_MAE_per_cell,IC50_Resp_r2_per_cell,IC50_NoResp_r2_per_cell,curve_MAE_per_cell,AUC_CV_per_cell,Emax_CV_per_cell,IC50_CV_per_cell], f)
+    pickle.dump([AUC_per_cell,Emax_per_cell,IC50_per_cell,IC50_Resp_MAE_per_cell, IC50_NoResp_MAE_per_cell,IC50_Resp_r2_per_cell,IC50_NoResp_r2_per_cell,curve_MAE_per_cell,per_Dose_MAE_per_cell,AUC_CV_per_cell,Emax_CV_per_cell,IC50_CV_per_cell], f)
 
 "To load use:"
 #np.load('Test_Metrics_To_Plot.pkl',allow_pickle=True)
