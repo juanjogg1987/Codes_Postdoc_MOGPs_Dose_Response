@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from scipy.interpolate import pchip_interpolate
 plt.close('all')
-sel_cancer = 1
+sel_cancer = 2
 N5th_cancer = 9
 #path_to_load = '/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/Test_Data_ToPlot_GDSC2_5Cancers/Three_drugs/'
 #AUC_per_cell,Emax_per_cell,IC50_per_cell,AUCR2_per_cell,EmaxR2_per_cell,IC50R2_per_cell = np.load(path_to_load+'Test_Metrics_To_Plot_Three_drugs.pkl',allow_pickle=True)
@@ -59,14 +59,15 @@ f_stdcurve_MAE = pchip_interpolate(N_Cells,curve_MAE_std , N_Cells_lin) #interp1
 f_meanper_Dose_MAE = [pchip_interpolate(N_Cells, per_Dose_MAE_mean[:,i], N_Cells_lin) for i in range(7)]
 f_stdper_Dose_MAE = [pchip_interpolate(N_Cells,per_Dose_MAE_std[:,i] , N_Cells_lin) for i in range(7)]
 
-f_meanIC50_Res_MAE = pchip_interpolate(N_Cells, IC50_Resp_MAE_mean, N_Cells_lin) #interp1d(N_Cells, AUC_mean, kind='quadratic')
-f_stdIC50_Res_MAE = pchip_interpolate(N_Cells,IC50_Resp_MAE_std , N_Cells_lin) #interp1d(N_Cells, AUC_std, kind='quadratic')
+if sel_cancer !=4:
+    f_meanIC50_Res_MAE = pchip_interpolate(N_Cells, IC50_Resp_MAE_mean, N_Cells_lin) #interp1d(N_Cells, AUC_mean, kind='quadratic')
+    f_stdIC50_Res_MAE = pchip_interpolate(N_Cells,IC50_Resp_MAE_std , N_Cells_lin) #interp1d(N_Cells, AUC_std, kind='quadratic')
 
 f_meanIC50_NoRes_MAE = pchip_interpolate(N_Cells, IC50_NoResp_MAE_mean, N_Cells_lin) #interp1d(N_Cells, AUC_mean, kind='quadratic')
 f_stdIC50_NoRes_MAE = pchip_interpolate(N_Cells,IC50_NoResp_MAE_std , N_Cells_lin) #interp1d(N_Cells, AUC_std, kind='quadratic')
-
-f_meanIC50_Res_r2 = pchip_interpolate(N_Cells, IC50_Resp_r2_mean, N_Cells_lin) #interp1d(N_Cells, AUC_mean, kind='quadratic')
-f_stdIC50_Res_r2 = pchip_interpolate(N_Cells,IC50_Resp_r2_std , N_Cells_lin) #interp1d(N_Cells, AUC_std, kind='quadratic')
+if sel_cancer !=4:
+    f_meanIC50_Res_r2 = pchip_interpolate(N_Cells, IC50_Resp_r2_mean, N_Cells_lin) #interp1d(N_Cells, AUC_mean, kind='quadratic')
+    f_stdIC50_Res_r2 = pchip_interpolate(N_Cells,IC50_Resp_r2_std , N_Cells_lin) #interp1d(N_Cells, AUC_std, kind='quadratic')
 
 f_meanIC50_NoRes_r2 = pchip_interpolate(N_Cells, IC50_NoResp_r2_mean, N_Cells_lin) #interp1d(N_Cells, AUC_mean, kind='quadratic')
 f_stdIC50_NoRes_r2 = pchip_interpolate(N_Cells,IC50_NoResp_r2_std , N_Cells_lin) #interp1d(N_Cells, AUC_std, kind='quadratic')
@@ -135,6 +136,8 @@ cancer = cancer_names[sel_cancer]
 ylimAUC = [-0.05,0.3]; ylimAUC_CV = [-0.05,0.3]
 ylimEmax = [-0.05,0.3]; ylimEmax_CV = [-0.05,0.3]
 ylimIC50 = [-0.05,0.3]; ylimIC50_CV = [-0.05,0.3]
+if sel_cancer == 3:
+    ylimIC50 = [-0.05, 0.7]
 
 fig, axs = plt.subplots(2, 3,figsize = (15,10))
 myplot_fillbetween(axs,[0,0],N_Cells_lin,f_meanAUC,f_stdAUC,title='AUC-Interp. '+cancer,ylabel = True,ylim=ylimAUC)
@@ -159,18 +162,20 @@ myplot_fillbetween(axs1,[0,2],N_Cells_lin,f_meanIC50_CV,f_stdIC50_CV,title='Vali
 myplot_fillbetween(axs1,[1,2],N_Cells,IC50_CV_mean,IC50_CV_std,title='Validation IC50 ('+cancer+')',ylabel = True,ylim=ylimIC50_CV)
 
 fig, axs2 = plt.subplots(2, 2,figsize = (15,10))
-myplot_fillbetween(axs2,[0,0],N_Cells_lin,f_meanIC50_Res_MAE,f_stdIC50_Res_MAE,title='MAE IC50-Interpolated '+cancer+' Responsive',ylim=[-0.05,1.2])
-myplot_fillbetween(axs2,[1,0],N_Cells,IC50_Resp_MAE_mean,IC50_Resp_MAE_std,title='MAE IC50 '+cancer+' Responsive',ylim=[-0.05,1.2])
-plot_benchmark(axs2,[0,0],N_Cells_lin,data_IC50_Res[sel_cancer])
-plot_benchmark(axs2,[1,0],N_Cells_lin,data_IC50_Res[sel_cancer])
-myplot_fillbetween(axs2,[0,1],N_Cells_lin,f_meanIC50_NoRes_MAE,f_stdIC50_NoRes_MAE,title='MAE IC50-Interpolated '+cancer+' Non-Responsive',ylim=[-0.05,0.3])
-myplot_fillbetween(axs2,[1,1],N_Cells,IC50_NoResp_MAE_mean,IC50_NoResp_MAE_std,title='MAE IC50 '+cancer+' Non-Responsive',ylim=[-0.05,0.3])
+if sel_cancer !=4:
+    myplot_fillbetween(axs2,[0,0],N_Cells_lin,f_meanIC50_Res_MAE,f_stdIC50_Res_MAE,title='MAE IC50-Interpolated '+cancer+' Responsive',ylim=[-0.05,1.0])
+    myplot_fillbetween(axs2,[1,0],N_Cells,IC50_Resp_MAE_mean,IC50_Resp_MAE_std,title='MAE IC50 '+cancer+' Responsive',ylim=[-0.05,1.0])
+    plot_benchmark(axs2,[0,0],N_Cells_lin,data_IC50_Res[sel_cancer])
+    plot_benchmark(axs2,[1,0],N_Cells_lin,data_IC50_Res[sel_cancer])
+myplot_fillbetween(axs2,[0,1],N_Cells_lin,f_meanIC50_NoRes_MAE,f_stdIC50_NoRes_MAE,title='MAE IC50-Interpolated '+cancer+' Non-Responsive',ylim=[-0.05,1.0])
+myplot_fillbetween(axs2,[1,1],N_Cells,IC50_NoResp_MAE_mean,IC50_NoResp_MAE_std,title='MAE IC50 '+cancer+' Non-Responsive',ylim=[-0.05,1.0])
 plot_benchmark(axs2,[0,1],N_Cells_lin,data_IC50_NoRes[sel_cancer])
 plot_benchmark(axs2,[1,1],N_Cells_lin,data_IC50_NoRes[sel_cancer])
 
 fig, axs3 = plt.subplots(2, 2,figsize = (15,10))
-myplot_fillbetween(axs3,[0,0],N_Cells_lin,f_meanIC50_Res_r2,f_stdIC50_Res_r2,title='R² IC50-Interpolated '+cancer+' Responsive',ylim=[-32.0,32.0])
-myplot_fillbetween(axs3,[1,0],N_Cells,IC50_Resp_r2_mean,IC50_Resp_r2_std,title='R² IC50 '+cancer+' Responsive',ylim=[-32.0,32.0])
+if sel_cancer !=4:
+    myplot_fillbetween(axs3,[0,0],N_Cells_lin,f_meanIC50_Res_r2,f_stdIC50_Res_r2,title='R² IC50-Interpolated '+cancer+' Responsive',ylim=[-32.0,32.0])
+    myplot_fillbetween(axs3,[1,0],N_Cells,IC50_Resp_r2_mean,IC50_Resp_r2_std,title='R² IC50 '+cancer+' Responsive',ylim=[-32.0,32.0])
 myplot_fillbetween(axs3,[0,1],N_Cells_lin,f_meanIC50_NoRes_r2,f_stdIC50_NoRes_r2,title='R² IC50-Interpolated '+cancer+' Non-Responsive',ylim=[-0.3,1.5])
 myplot_fillbetween(axs3,[1,1],N_Cells,IC50_NoResp_r2_mean,IC50_NoResp_r2_std,title='R² IC50 '+cancer+' Non-Responsive',ylim=[-0.3,1.5])
 

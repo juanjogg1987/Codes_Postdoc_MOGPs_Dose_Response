@@ -543,7 +543,10 @@ def model_pred_test(path_to_read_bash,path_to_model):
     IC50_Resp_MAE = np.mean(np.abs(IC50_val[pos_Actual_IC50]- IC50_pred[pos_Actual_IC50]))
     IC50_NoResp_MAE = np.mean(np.abs(IC50_val[pos_No_IC50] - IC50_pred[pos_No_IC50]))
 
-    IC50_Resp_r2 = r2_score(IC50_val[pos_Actual_IC50],IC50_pred[pos_Actual_IC50])
+    if pos_Actual_IC50.sum() != 0:
+        IC50_Resp_r2 = r2_score(IC50_val[pos_Actual_IC50],IC50_pred[pos_Actual_IC50])
+    else:
+        IC50_Resp_r2 = np.nan
     IC50_NoResp_r2 = r2_score(IC50_val[pos_No_IC50],IC50_pred[pos_No_IC50])
 
     print("MAE IC50 Reponsive:",IC50_Resp_MAE)
