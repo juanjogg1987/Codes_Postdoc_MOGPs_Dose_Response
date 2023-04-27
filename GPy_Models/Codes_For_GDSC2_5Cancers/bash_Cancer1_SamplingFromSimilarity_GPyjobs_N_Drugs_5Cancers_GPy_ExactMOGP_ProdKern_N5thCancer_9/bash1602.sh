@@ -1,6 +1,6 @@
 #!/bin/bash
 #$ -P rse
-#$ -l rmem=25G #Ram memory
+#$ -l rmem=18G #Ram memory
 
 module load apps/python/conda
 source activate py38_gpflow

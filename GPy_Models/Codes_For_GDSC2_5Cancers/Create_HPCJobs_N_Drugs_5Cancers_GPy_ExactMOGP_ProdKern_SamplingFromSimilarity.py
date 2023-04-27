@@ -1,5 +1,8 @@
 
 import os
+
+import numpy as np
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 import getopt
@@ -10,7 +13,7 @@ class commandLine:
         opts, args = getopt.getopt(sys.argv[1:], 'c:t:n:')
         self.Test_cancer = 0
         self.N_5thCancer_ToBe_Included = 0 #Try to put this values as multiple of Num_drugs
-        self.N_CellLines = 'None'
+        self.N_CellLines = np.Inf
 
         for op, arg in opts:
             # print(op,arg)
@@ -19,7 +22,7 @@ class commandLine:
             if op == '-t':
                 self.N_5thCancer_ToBe_Included = arg
             if op == '-n':
-                self.N_CellLines = arg
+                self.N_CellLines = int(arg)
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 config = commandLine()
@@ -31,7 +34,7 @@ scales = [0.05,0.3,1.5]
 ranks = [2,3,4,5,6,7]   #Since GDSC2 has 7 outputs the maximun rank is 7.
 N_CellLines = [12,24,48,96,144]
 count = 0
-if int(config.N_CellLines) == 0:
+if config.N_CellLines == 0:
     N_CellLines = [0]
     count = 3240
 Seeds_for_N = [1,2,3,4,5,6]

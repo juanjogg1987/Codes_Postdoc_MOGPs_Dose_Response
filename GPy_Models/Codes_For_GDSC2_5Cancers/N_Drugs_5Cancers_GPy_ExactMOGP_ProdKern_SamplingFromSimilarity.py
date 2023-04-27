@@ -43,8 +43,8 @@ class commandLine:
         self.scale = 1
         self.weight = 1
         self.bash = "1"
-        self.N_CellLines = 12   #Try to put this values as multiple of Num_drugs
-        self.sel_cancer = 4
+        self.N_CellLines = 0   #Try to put this values as multiple of Num_drugs
+        self.sel_cancer = 1
         self.seed_for_N = 1
         self.N_5thCancer_ToBe_Included = 9 #Try to put this values as multiple of Num_drugs
 
@@ -374,7 +374,7 @@ SpearActualIC50_AllFolds = []
 All_Models = []
 Ntasks = 7
 list_folds = list(k_fold.split(Xall))
-for Nfold in range(nsplits,nsplits+1):
+for Nfold in range(0,nsplits+1):
     model = []
     "The first if below is for the cross-val"
     "Then the else is for using all data to save the model trained over all data"
