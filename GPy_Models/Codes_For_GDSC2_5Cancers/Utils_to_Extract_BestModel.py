@@ -584,8 +584,8 @@ def model_pred_test_csv(path_to_read_bash,path_to_model):
         if op == '-t':
             N_5thCancer_ToBe_Included = int(params_vect[k + 1])
 
-    #_FOLDER = "/home/ac1jjgg/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
-    _FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
+    _FOLDER = "/home/ac1jjgg/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
+    #_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     def sigmoid_4_param(x, x0, L, k, d):
@@ -1123,4 +1123,4 @@ def model_pred_test_csv(path_to_read_bash,path_to_model):
     #return AUC_abs, Emax_abs, IC50_abs, IC50_Resp_MAE, IC50_NoResp_MAE, IC50_Resp_r2,IC50_NoResp_r2, curve_MAE,per_Dose_MAE
     return df_4Cancers_test
 
-df_test = model_pred_test_csv(path_to_read_bash='/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/bash_Cancer1_SamplingFromSimilarity_GPyjobs_N_Drugs_5Cancers_GPy_ExactMOGP_ProdKern_N5thCancer_9/bash1.sh',path_to_model='')
+#df_test = model_pred_test_csv(path_to_read_bash='/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/bash_Cancer1_SamplingFromSimilarity_GPyjobs_N_Drugs_5Cancers_GPy_ExactMOGP_ProdKern_N5thCancer_9/bash1.sh',path_to_model='')
