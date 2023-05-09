@@ -88,6 +88,10 @@ Diff_IC50_5Cancers = []
 Diff_IC50_5Cancers_Res = []
 Diff_IC50_5Cancers_NoRes = []
 Diff_Ydose_res_5Cancers = []
+Diff_AUC_5Cancers_Res = []
+Diff_AUC_5Cancers_NoRes = []
+Diff_Emax_5Cancers_Res = []
+Diff_Emax_5Cancers_NoRes = []
 for which_cancer in range(0,5):
     AUC_GDSC1_All = []; AUC_GDSC2_All = []
     Emax_GDSC1_All = []; Emax_GDSC2_All = []
@@ -267,14 +271,33 @@ for which_cancer in range(0,5):
     Diff_Emax_5Cancers.append(diff_Emax_GDSC1_GDSC2)
     Diff_IC50_5Cancers.append(diff_IC50_GDSC1_GDSC2)
 
+    IC50_Squared = 2  # use 2 to square or 1 for Absolute
     pos_Actual_IC50 = IC50_GDSC2_cancer != 1.5
     pos_No_IC50 = IC50_GDSC2_cancer == 1.5
 
-    diff_IC50_GDSC1_GDSC2_Res = IC50_GDSC1_cancer[pos_Actual_IC50] - IC50_GDSC2_cancer[pos_Actual_IC50]
-    diff_IC50_GDSC1_GDSC2_NoRes = IC50_GDSC1_cancer[pos_No_IC50] - IC50_GDSC2_cancer[pos_No_IC50]
+    diff_IC50_GDSC1_GDSC2_Res = (IC50_GDSC1_cancer[pos_Actual_IC50] - IC50_GDSC2_cancer[pos_Actual_IC50])**IC50_Squared   #use 2 to square or 1 for Absolute
+    diff_IC50_GDSC1_GDSC2_NoRes = (IC50_GDSC1_cancer[pos_No_IC50] - IC50_GDSC2_cancer[pos_No_IC50])**IC50_Squared
+
+    pos_Res_AUC = AUC_GDSC2_cancer < 0.55
+    pos_NoRes_AUC = AUC_GDSC2_cancer >= 0.55
+
+    diff_AUC_GDSC1_GDSC2_Res = AUC_GDSC1_cancer[pos_Res_AUC] - AUC_GDSC2_cancer[pos_Res_AUC]
+    diff_AUC_GDSC1_GDSC2_NoRes = AUC_GDSC1_cancer[pos_NoRes_AUC] - AUC_GDSC2_cancer[pos_NoRes_AUC]
+
+    pos_Res_Emax = Emax_GDSC2_cancer < 0.5
+    pos_NoRes_Emax = Emax_GDSC2_cancer >= 0.5
+
+    diff_Emax_GDSC1_GDSC2_Res = Emax_GDSC1_cancer[pos_Res_Emax] - Emax_GDSC2_cancer[pos_Res_Emax]
+    diff_Emax_GDSC1_GDSC2_NoRes = Emax_GDSC1_cancer[pos_NoRes_Emax] - Emax_GDSC2_cancer[pos_NoRes_Emax]
 
     Diff_IC50_5Cancers_Res.append(diff_IC50_GDSC1_GDSC2_Res)
     Diff_IC50_5Cancers_NoRes.append(diff_IC50_GDSC1_GDSC2_NoRes)
+
+    Diff_AUC_5Cancers_Res.append(diff_AUC_GDSC1_GDSC2_Res)
+    Diff_AUC_5Cancers_NoRes.append(diff_AUC_GDSC1_GDSC2_NoRes)
+
+    Diff_Emax_5Cancers_Res.append(diff_Emax_GDSC1_GDSC2_Res)
+    Diff_Emax_5Cancers_NoRes.append(diff_Emax_GDSC1_GDSC2_NoRes)
 
     print(f"{Sel_Cancer} MAE AUC: {np.mean(np.abs(diff_AUC_GDSC1_GDSC2))} ({np.std(np.abs(diff_AUC_GDSC1_GDSC2))})")
     print(f"{Sel_Cancer} MAE Emax: {np.mean(np.abs(diff_Emax_GDSC1_GDSC2))} ({np.std(np.abs(diff_Emax_GDSC1_GDSC2))})")
@@ -326,6 +349,7 @@ plt.xticks([1, 2, 3, 4,5], Cancer_Names)
 axs[0,2].grid()
 axs[0,2].set_title("Benchmark for AE-IC50 (Boxplot)")
 
+"IC50"
 fig, axs1 = plt.subplots(2,1)
 data_IC50_Res = [np.abs(Diff_IC50_5Cancers_Res[i]) for i in range(5)]
 axs1[0].boxplot(data_IC50_Res,1,showmeans=True)
@@ -340,6 +364,36 @@ plt.xticks([1, 2, 3, 4,5], Cancer_Names)
 axs1[1].grid()
 axs1[1].set_title("Benchmark for AE-IC50 Non-Responsive (Boxplot)")
 
+"AUC"
+fig, axs3 = plt.subplots(2,1)
+data_AUC_Res = [np.abs(Diff_AUC_5Cancers_Res[i]) for i in range(5)]
+axs3[0].boxplot(data_AUC_Res,1,showmeans=True)
+plt.xticks([1, 2, 3, 4, 5], Cancer_Names)
+axs3[0].grid()
+axs3[0].set_title("Benchmark for AE-AUC Responsive (Boxplot)")
+#plt.xticks([1, 2, 3, 4, 5], Cancer_Names)
+
+data_AUC_NoRes = [np.abs(Diff_AUC_5Cancers_NoRes[i]) for i in range(5)]
+axs3[1].boxplot(data_AUC_NoRes,1,showmeans=True)
+plt.xticks([1, 2, 3, 4,5], Cancer_Names)
+axs3[1].grid()
+axs3[1].set_title("Benchmark for AE-AUC Non-Responsive (Boxplot)")
+
+"Emax"
+fig, axs4 = plt.subplots(2,1)
+data_Emax_Res = [np.abs(Diff_Emax_5Cancers_Res[i]) for i in range(5)]
+axs4[0].boxplot(data_Emax_Res,1,showmeans=True)
+plt.xticks([1, 2, 3, 4, 5], Cancer_Names)
+axs4[0].grid()
+axs4[0].set_title("Benchmark for AE-Emax Responsive (Boxplot)")
+#plt.xticks([1, 2, 3, 4, 5], Cancer_Names)
+
+data_Emax_NoRes = [np.abs(Diff_Emax_5Cancers_NoRes[i]) for i in range(5)]
+axs4[1].boxplot(data_Emax_NoRes,1,showmeans=True)
+plt.xticks([1, 2, 3, 4,5], Cancer_Names)
+axs4[1].grid()
+axs4[1].set_title("Benchmark for AE-Emax Non-Responsive (Boxplot)")
+
 fig, axs2 = plt.subplots(1,1)
 data_Ydose_res = [np.mean(np.abs(Diff_Ydose_res_5Cancers[i]),1) for i in range(5)]
 axs2.boxplot(data_Ydose_res,1,showmeans=True)
@@ -353,4 +407,4 @@ axs2.set_title("Benchmark for AE of All Curves (Boxplot)")
 import pickle
 
 with open('Bench_Mark_AUC_Emax_IC50.pkl', 'wb') as f:
-    pickle.dump([data_AUC,data_Emax,data_IC50,data_IC50_Res,data_IC50_NoRes,data_Ydose_res], f)
+    pickle.dump([data_AUC,data_Emax,data_IC50,data_IC50_Res,data_IC50_NoRes,data_AUC_Res,data_AUC_NoRes,data_Emax_Res,data_Emax_NoRes,data_Ydose_res], f)
