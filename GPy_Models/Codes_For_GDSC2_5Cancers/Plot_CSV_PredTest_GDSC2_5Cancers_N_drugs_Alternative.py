@@ -14,7 +14,7 @@ rc('font', weight='bold')
 
 #sel_cancer = 0
 cancers = [0,1,2,3,4]
-N5th_cancer = 45
+N5th_cancer = 9
 All_Nseed = [1,2,3,4,5,6]
 All_N_cells = np.array([0,12,24,48,96,144]) * 4
 #Ntotal_Cells = int(N_cells)*4 + int(N5th_cancer)
