@@ -15,11 +15,11 @@ cancer_names = {0:'breast_cancer',1:'COAD_cancer',2:'LUAD_cancer',3:'melanoma_ca
 rc('font', weight='bold')
 plt.close('all')
 #sel_cancer = 0
-cancers = [1]
+cancers = [0,1,2,3,4]
 "NOTE: if using 45 below you have to organise code to access 45 cases"
 N5th_cancer = 9    #CAREFUL HERE, TODO for 45
 All_Nseed = [1]
-All_N_cells = np.array([144]) * 4 #np.array([0,12,24,48,96,144]) * 4
+All_N_cells = np.array([12]) * 4 #np.array([0,12,24,48,96,144]) * 4
 #Ntotal_Cells = int(N_cells)*4 + int(N5th_cancer)
 
 Nth_dose = 7
@@ -30,7 +30,7 @@ for i in range(5):
     fig_i, axs_i = plt.subplots(3, 1,figsize = (15,10))
     fig.append(fig_i); axs.append(axs_i)
 
-for sel_cancer in cancers:
+for count,sel_cancer in enumerate(cancers):
     cancer = cancer_names[sel_cancer]
     AE_per_dose_Ncells = []
     MAE_per_dose_Ncells = []
@@ -75,20 +75,24 @@ for sel_cancer in cancers:
             else: use_bin=9;
             axs[sel_cancer][2].hist(YTrain_dose_Dth, bins=use_bin)
             axs[sel_cancer][2].set_xlim([0, 1.1])
+            axs[sel_cancer][2].set_title(f"Histogram of Dose {Nth_dose} (Training Values N={YTrain_dose_Dth.shape[0]})", fontsize=myfont)
+            axs[sel_cancer][2].set_ylabel(cancer, fontsize=myfont)
     #plt.figure(5)
     Num_cells = All_N_cells.__len__()
 
-from scipy import stats
-from fitter import Fitter
+    from scipy import stats
+    from fitter import Fitter
 
-plt.figure(7)
-dist_fitter = Fitter(Yall_dose_Dth,
-                   distributions = ["cauchy",
-                                    "rayleigh",
-                                    "gamma",
-                                    "beta",
-                                    "lognorm",
-                                    "norm",
-                                    "skewnorm"])
-dist_fitter.fit()
-dist_fitter.summary()
+    plt.figure(6+count)
+    plt.rcParams["figure.figsize"] = (15, 8)
+    dist_fitter = Fitter(Yall_dose_Dth,
+                       distributions = ["cauchy",
+                                        "rayleigh",
+                                        "gamma",
+                                        "beta",
+                                        "lognorm",
+                                        "norm",
+                                        "skewnorm"])
+    dist_fitter.fit()
+    dist_fitter.summary()
+    plt.title(f"Distribution Fitting for {cancer} Dose {Nth_dose}",fontsize=myfont)
