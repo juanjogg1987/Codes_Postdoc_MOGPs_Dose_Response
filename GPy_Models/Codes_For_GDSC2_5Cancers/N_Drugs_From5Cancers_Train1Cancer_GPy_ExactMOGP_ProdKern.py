@@ -42,10 +42,9 @@ class commandLine:
         self.scale = 1
         self.weight = 1
         self.bash = "1"
-        self.N_CellLines = 24   #Try to put this values as multiple of Num_drugs
-        self.sel_cancer = 0
-        self.seed_for_N = 5
-        self.N_5thCancer_ToBe_Included = 10 #Try to put this values as multiple of Num_drugs
+        self.N_CellLines_perc = 60   #Here we treat this variable as percentage. Try to put this values as multiple of Num_drugs?
+        self.sel_cancer = 3
+        self.seed_for_N = 1
 
         for op, arg in opts:
             # print(op,arg)
@@ -62,13 +61,11 @@ class commandLine:
             if op == '-w':
                 self.weight = arg
             if op == '-c':
-                self.N_CellLines = arg
+                self.N_CellLines_perc = arg
             if op == '-a':
                 self.sel_cancer = arg
             if op == '-n':
                 self.seed_for_N = arg
-            if op == '-t':
-                self.N_5thCancer_ToBe_Included = arg
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 config = commandLine()
@@ -76,68 +73,49 @@ config = commandLine()
 dict_cancers={0:'GDSC2_EGFR_PI3K_MAPK_Breast_1000FR.csv',1:'GDSC2_EGFR_PI3K_MAPK_COAD_1000FR.csv',
               2:'GDSC2_EGFR_PI3K_MAPK_LUAD.csv',3:'GDSC2_EGFR_PI3K_MAPK_melanoma.csv',4:'GDSC2_EGFR_PI3K_MAPK_SCLC.csv'}
 
-indx_cancer = np.array([0,1,2,3,4])
-indx_cancer_test = np.array([int(config.sel_cancer)])
-indx_cancer_train = np.delete(indx_cancer,indx_cancer_test)
+#indx_cancer = np.array([0,1,2,3,4])
+indx_cancer_train = np.array([int(config.sel_cancer)])
+#indx_cancer_train = np.delete(indx_cancer,indx_cancer_test)
 
 name_feat_file = "GDSC2_EGFR_PI3K_MAPK_allfeatures.csv"
 name_feat_file_nozero = "GDSC2_EGFR_PI3K_MAPK_features_NonZero_Drugs1036_1061_1373.csv" #"GDSC2_EGFR_PI3K_MAPK_features_NonZero.csv"
 Num_drugs = 3
-N_CellLines_perDrug = int(config.N_CellLines)//Num_drugs
-N_CellLines = int(config.N_CellLines)
+
+name_for_KLrelevance = dict_cancers[indx_cancer_train[0]]
+print(name_for_KLrelevance)
+
+df_to_read = pd.read_csv(_FOLDER + name_for_KLrelevance)#.sample(n=N_CellLines,random_state = rand_state_N)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"Split of Training and Testing data"
+df_4Cancers_traintest_d1 = df_to_read[df_to_read["DRUG_ID"]==1036]#.sample(n=N_CellLines,random_state = rand_state_N)
+df_4Cancers_traintest_d2 = df_to_read[df_to_read["DRUG_ID"]==1061]#.sample(n=N_CellLines,random_state = rand_state_N)
+df_4Cancers_traintest_d3 = df_to_read[df_to_read["DRUG_ID"] == 1373]#.sample(n=N_CellLines,random_state=rand_state_N)
+N_per_drug = [df_4Cancers_traintest_d1.shape[0],df_4Cancers_traintest_d2.shape[0],df_4Cancers_traintest_d3.shape[0]]
+np.random.seed(1)
+TrainTest_drugs_indexes = [np.random.permutation(np.arange(0, N_per_drug[myind])) for myind in range(Num_drugs)]
+
+indx_train = [TrainTest_drugs_indexes[myind][0:round(TrainTest_drugs_indexes[myind].shape[0]*0.7)] for myind in range(Num_drugs)]
+indx_test = [TrainTest_drugs_indexes[myind][round(TrainTest_drugs_indexes[myind].shape[0]*0.7):] for myind in range(Num_drugs)]
+"Training data by selecting desired percentage"
+df_4Cancers_train_d1 = df_4Cancers_traintest_d1.reset_index().drop(columns='index').iloc[indx_train[0]]
+df_4Cancers_train_d2 = df_4Cancers_traintest_d2.reset_index().drop(columns='index').iloc[indx_train[1]]
+df_4Cancers_train_d3 = df_4Cancers_traintest_d3.reset_index().drop(columns='index').iloc[indx_train[2]]
+N_per_drug_Tr = [df_4Cancers_train_d1.shape[0],df_4Cancers_train_d2.shape[0],df_4Cancers_train_d3.shape[0]]
+#N_CellLines_perDrug = int(config.N_CellLines)//Num_drugs
+N_CellLines_perc = int(config.N_CellLines_perc)
 rand_state_N = int(config.seed_for_N)
-for i in range(0,4):
-    name_for_KLrelevance = dict_cancers[indx_cancer_train[i]]
-    print(name_for_KLrelevance)
-    if i==0:
-        df_to_read = pd.read_csv(_FOLDER + name_for_KLrelevance)#.sample(n=N_CellLines,random_state = rand_state_N)
-        df_4Cancers_train_d1 = df_to_read[df_to_read["DRUG_ID"]==1036]#.sample(n=N_CellLines,random_state = rand_state_N)
-        df_4Cancers_train_d2 = df_to_read[df_to_read["DRUG_ID"]==1061]#.sample(n=N_CellLines,random_state = rand_state_N)
-        df_4Cancers_train_d3 = df_to_read[df_to_read["DRUG_ID"] == 1373]#.sample(n=N_CellLines,random_state=rand_state_N)
-        N_per_drug = [df_4Cancers_train_d1.shape[0],df_4Cancers_train_d2.shape[0],df_4Cancers_train_d3.shape[0]]
-        Nd1,Nd2,Nd3 = np.clip(N_CellLines_perDrug,1,N_per_drug[0]),np.clip(N_CellLines_perDrug,1,N_per_drug[1]),np.clip(N_CellLines_perDrug,1,N_per_drug[2])
-        df_4Cancers_train = pd.concat([df_4Cancers_train_d1.sample(n=Nd1,random_state = rand_state_N), df_4Cancers_train_d2.sample(n=Nd2,random_state = rand_state_N),df_4Cancers_train_d3.sample(n=Nd3,random_state = rand_state_N)])
-    else:
-        df_to_read = pd.read_csv(_FOLDER + name_for_KLrelevance)#.sample(n=N_CellLines,random_state = rand_state_N)
-        df_4Cancers_train_d1 = df_to_read[df_to_read["DRUG_ID"]==1036]#.sample(n=N_CellLines,random_state = rand_state_N)
-        df_4Cancers_train_d2 = df_to_read[df_to_read["DRUG_ID"] == 1061]#.sample(n=N_CellLines,random_state=rand_state_N)
-        df_4Cancers_train_d3 = df_to_read[df_to_read["DRUG_ID"] == 1373]#.sample(n=N_CellLines,random_state=rand_state_N)
-        N_per_drug = [df_4Cancers_train_d1.shape[0], df_4Cancers_train_d2.shape[0], df_4Cancers_train_d3.shape[0]]
-        Nd1, Nd2, Nd3 = np.clip(N_CellLines_perDrug, 1, N_per_drug[0]), np.clip(N_CellLines_perDrug, 1, N_per_drug[1]), np.clip(N_CellLines_perDrug, 1, N_per_drug[2])
-        df_4Cancers_train = pd.concat([df_4Cancers_train,df_4Cancers_train_d1.sample(n=Nd1,random_state = rand_state_N), df_4Cancers_train_d2.sample(n=Nd2,random_state = rand_state_N),df_4Cancers_train_d3.sample(n=Nd3,random_state = rand_state_N)])
+
+"Here we select the percentage of the cancer to be used for trainin; the variable N_CellLines_perc indicates the percentage"
+Nd1,Nd2,Nd3 = round(N_per_drug_Tr[0]*N_CellLines_perc/100.0),round(N_per_drug_Tr[1]*N_CellLines_perc/100.0),round(N_per_drug_Tr[2]*N_CellLines_perc/100.0)
+df_4Cancers_train = pd.concat([df_4Cancers_train_d1.sample(n=Nd1,random_state = rand_state_N), df_4Cancers_train_d2.sample(n=Nd2,random_state = rand_state_N),df_4Cancers_train_d3.sample(n=Nd3,random_state = rand_state_N)])
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"Here we extract the test dataframe for the one cancer left out"
-Name_cancer_test = dict_cancers[indx_cancer_test[0]]
-df_to_read = pd.read_csv(_FOLDER + Name_cancer_test)
-df_4Cancers_test_d1 = df_to_read[df_to_read["DRUG_ID"]==1036]
-df_4Cancers_test_d2 = df_to_read[df_to_read["DRUG_ID"]==1061]
-df_4Cancers_test_d3 = df_to_read[df_to_read["DRUG_ID"] == 1373]
+"Testing data"
+df_4Cancers_test_d1 = df_4Cancers_traintest_d1.reset_index().drop(columns='index').iloc[indx_test[0]]
+df_4Cancers_test_d2 = df_4Cancers_traintest_d2.reset_index().drop(columns='index').iloc[indx_test[1]]
+df_4Cancers_test_d3 = df_4Cancers_traintest_d3.reset_index().drop(columns='index').iloc[indx_test[2]]
 df_4Cancers_test = pd.concat([df_4Cancers_test_d1, df_4Cancers_test_d2,df_4Cancers_test_d3])
-
-"This section of code is to allow including few observations from the 5th Cancer as part of the training data"
-#a_bit_of_5thCancer = True
-
-if int(config.N_5thCancer_ToBe_Included)!=0:
-    N_ToInclude_per_Drug = int(config.N_5thCancer_ToBe_Included)//Num_drugs
-    N_ToInclude_per_Drug = np.clip(N_ToInclude_per_Drug, 1, df_4Cancers_test.shape[0] // 3 - 10)
-    df_4Cancers_test_d1 = df_to_read[df_to_read["DRUG_ID"]==1036].reset_index().drop(columns='index')
-    df_4Cancers_test_d2 = df_to_read[df_to_read["DRUG_ID"]==1061].reset_index().drop(columns='index')
-    df_4Cancers_test_d3 = df_to_read[df_to_read["DRUG_ID"] == 1373].reset_index().drop(columns='index')
-    N_per_drug = [df_4Cancers_test_d1.shape[0], df_4Cancers_test_d2.shape[0], df_4Cancers_test_d3.shape[0]]
-    #indx_test_to_include = [,np.random.permutation(np.arange(0,N_per_drug[1])),np.random.permutation(np.arange(0,N_per_drug[2]))]
-    "The seed below is to guarantee always having the same values of 5th cancer to be included in Training regardless"
-    "of all the different cross-validations, we do not want them to change at each different cross-validation of MOGP"
-    np.random.seed(6)
-    Test_drugs_indexes = [np.random.permutation(np.arange(0, N_per_drug[myind])) for myind in range(Num_drugs)]
-    indx_test_to_NotInclude = [np.delete(Test_drugs_indexes[myind],np.arange(0,N_ToInclude_per_Drug)) for myind in range(Num_drugs)]
-    indx_test_to_include = [Test_drugs_indexes[myind][np.arange(0,N_ToInclude_per_Drug)] for myind in range(Num_drugs)]
-    print("Indexes to Include:",indx_test_to_include)
-    df_4Cancers_test = pd.concat([df_4Cancers_test_d1.iloc[indx_test_to_NotInclude[0]], df_4Cancers_test_d2.iloc[indx_test_to_NotInclude[1]],df_4Cancers_test_d3.iloc[indx_test_to_NotInclude[2]]])
-    df_4Cancers_test_ToInclude = pd.concat([df_4Cancers_test_d1.iloc[indx_test_to_include[0]], df_4Cancers_test_d2.iloc[indx_test_to_include[1]],df_4Cancers_test_d3.iloc[indx_test_to_include[2]]])
-    df_4Cancers_train = pd.concat([df_4Cancers_train, df_4Cancers_test_ToInclude])
-
-print("Test cancer: ", Name_cancer_test)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 df_4Cancers_train = df_4Cancers_train.dropna()
@@ -153,13 +131,6 @@ indx_nozero = df_feat_Names_nozero['index'].values[start_pos_features:]
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-# "The lines below are particularly to generate the indexes for Non-zero features"
-# scaler = MinMaxScaler().fit(df_4Cancers_train[df_4Cancers_train.columns[25:]])
-# X_train_features = scaler.transform(df_4Cancers_train[df_4Cancers_train.columns[25:]])
-# ind_all = np.arange(0,X_train_features.shape[1])
-# ind_NonZero = ind_all[X_train_features.std(0)!=0.0]
-# ind_NonZero_final = np.concatenate((np.arange(0,25),ind_NonZero+25))
-
 scaler = MinMaxScaler().fit(df_4Cancers_train[df_4Cancers_train.columns[indx_nozero]])
 X_train_features = scaler.transform(df_4Cancers_train[df_4Cancers_train.columns[indx_nozero]])
 X_test_features = scaler.transform(df_4Cancers_test[df_4Cancers_test.columns[indx_nozero]])
@@ -188,6 +159,7 @@ import matplotlib.pyplot as plt
 from sklearn import metrics
 
 plt.close('all')
+#0.142857143
 "Be careful that x starts from 0.111111 for 9 drugs,"
 "but x starts from 0.142857143 for the case of 7 drugs"
 x_lin = np.linspace(0.142857143, 1, 1000)
@@ -237,10 +209,6 @@ def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_tra
 posy = 0
 #my_plot(posy,0,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_train_drug)
 #my_plot(posy,1,Ydose50_test,Ydose_res_test,IC50_test,AUC_test,Emax_test,x_lin,x_real_dose,y_test_drug)
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 AUC = np.array(AUC)
 IC50 = np.array(IC50)
 Emax = np.array(Emax)
@@ -298,7 +266,7 @@ SpearActualIC50_AllFolds = []
 All_Models = []
 Ntasks = 7
 list_folds = list(k_fold.split(Xall))
-for Nfold in range(0,nsplits+1):
+for Nfold in range(nsplits,nsplits+1):
     model = []
     "The first if below is for the cross-val"
     "Then the else is for using all data to save the model trained over all data"
@@ -547,29 +515,49 @@ for Nfold in range(0,nsplits+1):
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-path_cancer = './N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(N_CellLines)+'/seed'+str(rand_state_N)+'/'
-if not os.path.exists(path_cancer):
-    os.makedirs(path_cancer)
-f = open(path_cancer+"Metrics.txt","a+")
-f.write("bash"+str(config.bash)+f" Med_MSE={np.mean(Med_MSE_AllFolds):0.5f}({np.std(Med_MSE_AllFolds):0.5f}) Mean_MSE={np.mean(Mean_MSE_AllFolds):0.5f}({np.std(Mean_MSE_AllFolds):0.5f}) NegLPD={np.mean(NegMLL_AllFolds):0.5f}({np.std(NegMLL_AllFolds):0.5f}) IC50_MSE={np.mean(IC50_MSE_AllFolds):0.5f}({np.std(IC50_MSE_AllFolds):0.5f}) AUC_abs={np.mean(AUC_abs_AllFolds):0.5f}({np.std(AUC_abs_AllFolds):0.5f}) Emax_abs ={np.mean(Emax_abs_AllFolds):0.5f}({np.std(Emax_abs_AllFolds):0.5f})\n")
-f.close()
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"Here we just select the features related to ID and get rid of genomics features"
+df_4Cancers_test = df_4Cancers_test[df_4Cancers_test.columns[0:25]]
 
-f= open(path_cancer+"Average_Metrics_IC50_AUC_Emax.txt","a+")
-Aver_IC50_AUC_Emax_MSECurve = np.array([np.mean(IC50_MSE_AllFolds),np.mean(AUC_abs_AllFolds),np.mean(Emax_abs_AllFolds),np.mean(Mean_MSE_AllFolds)])
-f.write("bash"+str(config.bash)+f", {np.mean(Aver_IC50_AUC_Emax_MSECurve):0.5f} \n")
-f.close()
+for i in range(7):
+    df_4Cancers_test['norm_cell_'+str(i+1)+'_MOGP'] = m_pred_curve[:,i]
 
-f= open(path_cancer+"Test_Metrics_IC50_AUC_Emax.txt","a+")
-f.write("bash"+str(config.bash)+f" IC50_MSE={IC50_MSE:0.5f} AUC_abs={AUC_abs:0.5f} Emax_abs ={Emax_abs:0.5f}\n")
-f.close()
+df_4Cancers_test['AUC_MOGP'] = AUC_pred
+df_4Cancers_test['AUC_s4'] = AUC_val
+df_4Cancers_test['Emax_MOGP'] = Emax_pred
+df_4Cancers_test['Emax_s4'] = Emax_val
+df_4Cancers_test['IC50_MOGP'] = IC50_pred
+df_4Cancers_test['IC50_s4'] = IC50_val
 
-"The last model should have been trained over all dataset without splitting"
+# TODO: set a new path for the case From5Cancers_Train1Cancer
 
-#final_path = '/data/ac1jjgg/Data_Marina/GPy_results/Codes_for_GDSC2_5Cancers/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(config.N_CellLines)+'/seed'+str(rand_state_N)+'/'
-final_path ='Models_5Cancers/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(config.N_CellLines)+'/seed'+str(rand_state_N)+'/'
-if not os.path.exists(final_path):
-   os.makedirs(final_path)
-np.save(final_path+'m_'+str(config.bash)+'.npy', model.param_array)
+#df_test_pred.to_csv(final_path+'MOGP_Predict_C'+str(Sel_cancer)+'_Train_'+str(int(N_cells)*4)+'_plus_'+str(int(N5th_cancer))+'_seed'+str(int(Seed_N))+'.csv')
 
-dataframe_IC50_AUC_Emax = pd.DataFrame({'IC50_MOGP': IC50_pred.flatten(), 'AUC_MOGP': AUC_pred.flatten(),'Emax_MOGP': Emax_pred.flatten(), 'IC50_s4': IC50_val.flatten(), 'AUC_s4': AUC_val.flatten(),'Emax_s4': Emax_val.flatten()})
-dataframe_IC50_AUC_Emax.to_csv(final_path+'Results_Test_IC50_AUC_Emax_'+'m_'+str(config.bash)+'.csv')
+#
+# path_cancer = './N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(N_CellLines)+'/seed'+str(rand_state_N)+'/'
+# if not os.path.exists(path_cancer):
+#     os.makedirs(path_cancer)
+# f = open(path_cancer+"Metrics.txt","a+")
+# f.write("bash"+str(config.bash)+f" Med_MSE={np.mean(Med_MSE_AllFolds):0.5f}({np.std(Med_MSE_AllFolds):0.5f}) Mean_MSE={np.mean(Mean_MSE_AllFolds):0.5f}({np.std(Mean_MSE_AllFolds):0.5f}) NegLPD={np.mean(NegMLL_AllFolds):0.5f}({np.std(NegMLL_AllFolds):0.5f}) IC50_MSE={np.mean(IC50_MSE_AllFolds):0.5f}({np.std(IC50_MSE_AllFolds):0.5f}) AUC_abs={np.mean(AUC_abs_AllFolds):0.5f}({np.std(AUC_abs_AllFolds):0.5f}) Emax_abs ={np.mean(Emax_abs_AllFolds):0.5f}({np.std(Emax_abs_AllFolds):0.5f})\n")
+# f.close()
+#
+# f= open(path_cancer+"Average_Metrics_IC50_AUC_Emax.txt","a+")
+# Aver_IC50_AUC_Emax_MSECurve = np.array([np.mean(IC50_MSE_AllFolds),np.mean(AUC_abs_AllFolds),np.mean(Emax_abs_AllFolds),np.mean(Mean_MSE_AllFolds)])
+# f.write("bash"+str(config.bash)+f", {np.mean(Aver_IC50_AUC_Emax_MSECurve):0.5f} \n")
+# f.close()
+#
+# f= open(path_cancer+"Test_Metrics_IC50_AUC_Emax.txt","a+")
+# f.write("bash"+str(config.bash)+f" IC50_MSE={IC50_MSE:0.5f} AUC_abs={AUC_abs:0.5f} Emax_abs ={Emax_abs:0.5f}\n")
+# f.close()
+#
+# "The last model should have been trained over all dataset without splitting"
+#
+# final_path = '/data/ac1jjgg/Data_Marina/GPy_results/Codes_for_GDSC2_5Cancers/SamplingFromSimilarity/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(config.N_CellLines)+'/seed'+str(rand_state_N)+'/'
+# #final_path ='Models_5Cancers/SamplingFromSimilarity/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(config.N_CellLines)+'/seed'+str(rand_state_N)+'/'
+# if not os.path.exists(final_path):
+#    os.makedirs(final_path)
+# np.save(final_path+'m_'+str(config.bash)+'.npy', model.param_array)
+#
+# dataframe_IC50_AUC_Emax = pd.DataFrame({'IC50_MOGP': IC50_pred.flatten(), 'AUC_MOGP': AUC_pred.flatten(),'Emax_MOGP': Emax_pred.flatten(), 'IC50_s4': IC50_val.flatten(), 'AUC_s4': AUC_val.flatten(),'Emax_s4': Emax_val.flatten()})
+# dataframe_IC50_AUC_Emax.to_csv(final_path+'Results_Test_IC50_AUC_Emax_'+'m_'+str(config.bash)+'.csv')
