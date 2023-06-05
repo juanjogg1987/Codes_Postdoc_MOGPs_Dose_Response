@@ -7,8 +7,8 @@ warnings.filterwarnings("ignore")
 from sklearn.preprocessing import MinMaxScaler
 import os
 
-#_FOLDER = "/home/ac1jjgg/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
-_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
+_FOLDER = "/home/ac1jjgg/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
+#_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 def sigmoid_4_param(x, x0, L, k, d):
@@ -33,7 +33,7 @@ warnings.filterwarnings("ignore")
 
 class commandLine:
     def __init__(self):
-        opts, args = getopt.getopt(sys.argv[1:], 'i:s:k:w:r:p:c:a:n:t:')
+        opts, args = getopt.getopt(sys.argv[1:], 'i:s:k:w:r:p:c:a:n:')
         # opts = dict(opts)
         # print(opts)
         self.N_iter_epoch = 1200    #number of iterations
@@ -266,7 +266,7 @@ SpearActualIC50_AllFolds = []
 All_Models = []
 Ntasks = 7
 list_folds = list(k_fold.split(Xall))
-for Nfold in range(nsplits,nsplits+1):
+for Nfold in range(0,nsplits+1):
     model = []
     "The first if below is for the cross-val"
     "Then the else is for using all data to save the model trained over all data"
@@ -530,34 +530,30 @@ df_4Cancers_test['Emax_s4'] = Emax_val
 df_4Cancers_test['IC50_MOGP'] = IC50_pred
 df_4Cancers_test['IC50_s4'] = IC50_val
 
-# TODO: set a new path for the case From5Cancers_Train1Cancer
+"Save model and predictions"
 
-#df_test_pred.to_csv(final_path+'MOGP_Predict_C'+str(Sel_cancer)+'_Train_'+str(int(N_cells)*4)+'_plus_'+str(int(N5th_cancer))+'_seed'+str(int(Seed_N))+'.csv')
+path_cancer = './N_drugs_'+str(Num_drugs)+'/Cancer_'+str(config.sel_cancer)+'/Train'+str(N_CellLines_perc)+'/seed'+str(rand_state_N)+'/'
+if not os.path.exists(path_cancer):
+    os.makedirs(path_cancer)
+f = open(path_cancer+"Metrics.txt","a+")
+f.write("bash"+str(config.bash)+f" Med_MSE={np.mean(Med_MSE_AllFolds):0.5f}({np.std(Med_MSE_AllFolds):0.5f}) Mean_MSE={np.mean(Mean_MSE_AllFolds):0.5f}({np.std(Mean_MSE_AllFolds):0.5f}) NegLPD={np.mean(NegMLL_AllFolds):0.5f}({np.std(NegMLL_AllFolds):0.5f}) IC50_MSE={np.mean(IC50_MSE_AllFolds):0.5f}({np.std(IC50_MSE_AllFolds):0.5f}) AUC_abs={np.mean(AUC_abs_AllFolds):0.5f}({np.std(AUC_abs_AllFolds):0.5f}) Emax_abs ={np.mean(Emax_abs_AllFolds):0.5f}({np.std(Emax_abs_AllFolds):0.5f})\n")
+f.close()
 
-#
-# path_cancer = './N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(N_CellLines)+'/seed'+str(rand_state_N)+'/'
-# if not os.path.exists(path_cancer):
-#     os.makedirs(path_cancer)
-# f = open(path_cancer+"Metrics.txt","a+")
-# f.write("bash"+str(config.bash)+f" Med_MSE={np.mean(Med_MSE_AllFolds):0.5f}({np.std(Med_MSE_AllFolds):0.5f}) Mean_MSE={np.mean(Mean_MSE_AllFolds):0.5f}({np.std(Mean_MSE_AllFolds):0.5f}) NegLPD={np.mean(NegMLL_AllFolds):0.5f}({np.std(NegMLL_AllFolds):0.5f}) IC50_MSE={np.mean(IC50_MSE_AllFolds):0.5f}({np.std(IC50_MSE_AllFolds):0.5f}) AUC_abs={np.mean(AUC_abs_AllFolds):0.5f}({np.std(AUC_abs_AllFolds):0.5f}) Emax_abs ={np.mean(Emax_abs_AllFolds):0.5f}({np.std(Emax_abs_AllFolds):0.5f})\n")
-# f.close()
-#
-# f= open(path_cancer+"Average_Metrics_IC50_AUC_Emax.txt","a+")
-# Aver_IC50_AUC_Emax_MSECurve = np.array([np.mean(IC50_MSE_AllFolds),np.mean(AUC_abs_AllFolds),np.mean(Emax_abs_AllFolds),np.mean(Mean_MSE_AllFolds)])
-# f.write("bash"+str(config.bash)+f", {np.mean(Aver_IC50_AUC_Emax_MSECurve):0.5f} \n")
-# f.close()
-#
-# f= open(path_cancer+"Test_Metrics_IC50_AUC_Emax.txt","a+")
-# f.write("bash"+str(config.bash)+f" IC50_MSE={IC50_MSE:0.5f} AUC_abs={AUC_abs:0.5f} Emax_abs ={Emax_abs:0.5f}\n")
-# f.close()
-#
-# "The last model should have been trained over all dataset without splitting"
-#
-# final_path = '/data/ac1jjgg/Data_Marina/GPy_results/Codes_for_GDSC2_5Cancers/SamplingFromSimilarity/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(config.N_CellLines)+'/seed'+str(rand_state_N)+'/'
-# #final_path ='Models_5Cancers/SamplingFromSimilarity/N_drugs_'+str(Num_drugs)+'/N5thCancer_'+str(config.N_5thCancer_ToBe_Included)+'/Cancer_'+str(config.sel_cancer)+'/N'+str(config.N_CellLines)+'/seed'+str(rand_state_N)+'/'
-# if not os.path.exists(final_path):
-#    os.makedirs(final_path)
-# np.save(final_path+'m_'+str(config.bash)+'.npy', model.param_array)
-#
-# dataframe_IC50_AUC_Emax = pd.DataFrame({'IC50_MOGP': IC50_pred.flatten(), 'AUC_MOGP': AUC_pred.flatten(),'Emax_MOGP': Emax_pred.flatten(), 'IC50_s4': IC50_val.flatten(), 'AUC_s4': AUC_val.flatten(),'Emax_s4': Emax_val.flatten()})
-# dataframe_IC50_AUC_Emax.to_csv(final_path+'Results_Test_IC50_AUC_Emax_'+'m_'+str(config.bash)+'.csv')
+f= open(path_cancer+"Average_Metrics_IC50_AUC_Emax.txt","a+")
+Aver_IC50_AUC_Emax_MSECurve = np.array([np.mean(IC50_MSE_AllFolds),np.mean(AUC_abs_AllFolds),np.mean(Emax_abs_AllFolds),np.mean(Mean_MSE_AllFolds)])
+f.write("bash"+str(config.bash)+f", {np.mean(Aver_IC50_AUC_Emax_MSECurve):0.5f} \n")
+f.close()
+
+f= open(path_cancer+"Test_Metrics_IC50_AUC_Emax.txt","a+")
+f.write("bash"+str(config.bash)+f" IC50_MSE={IC50_MSE:0.5f} AUC_abs={AUC_abs:0.5f} Emax_abs ={Emax_abs:0.5f}\n")
+f.close()
+
+"The last model should have been trained over all dataset without splitting"
+
+final_path = '/data/ac1jjgg/Data_Marina/GPy_results/Codes_for_GDSC2_5Cancers/Train1Cancer/N_drugs_'+str(Num_drugs)+'/Cancer_'+str(config.sel_cancer)+'/Train'+str(config.N_CellLines_perc)+'/seed'+str(rand_state_N)+'/'
+#final_path ='Models_5Cancers/Train1Cancer/N_drugs_'+str(Num_drugs)+'/Cancer_'+str(config.sel_cancer)+'/Train'+str(config.N_CellLines_perc)+'/seed'+str(rand_state_N)+'/'
+if not os.path.exists(final_path):
+   os.makedirs(final_path)
+np.save(final_path+'m_'+str(config.bash)+'.npy', model.param_array)
+
+df_4Cancers_test.to_csv(final_path+'MOGP_Predict_C'+str(config.sel_cancer)+'_Train'+str(N_CellLines_perc)+'_m_'+str(config.bash)+'.csv')
