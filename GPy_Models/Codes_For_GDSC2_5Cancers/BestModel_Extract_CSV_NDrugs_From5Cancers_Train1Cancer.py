@@ -28,7 +28,7 @@ def my_r2_score(y_true,y_pred):
 
 sel_cancers = [3]
 Num_drugs = 3
-N_CellLines = [20,40,60,80,100]
+N_CellLines = [10,20,35,55,75,95]
 Seeds_for_NCells = [1,2,3,4,5,6]
 
 for Sel_cancer in sel_cancers:

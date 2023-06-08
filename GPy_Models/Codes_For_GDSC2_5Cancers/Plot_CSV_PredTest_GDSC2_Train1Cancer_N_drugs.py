@@ -9,14 +9,15 @@ from scipy.interpolate import pchip_interpolate
 
 _FOLDER = '/home/juanjo/Work_Postdoc/my_codes_postdoc/FilesCSV_Predict_Train1Cancer_IncreasingCellLines/'
 cancer_names = {0:'breast_cancer',1:'COAD_cancer',2:'LUAD_cancer',3:'melanoma_cancer',4:'SCLC_cancer'}
+cancer_Ntrain = {0:round(110*0.7),1:round(108*0.7),2:round(139*0.7),3:round(142*0.7),4:round(133*0.7)}
 
 rc('font', weight='bold')
 
 #sel_cancer = 0
-cancers = [3]
+cancers = [0,1,2,3,4]
 #N5th_cancer = 9
 All_Nseed = [1,2,3,4,5,6]
-All_N_cells = np.array([20,40,60,80,100])
+All_N_cells = np.array([10,20,35,55,75,95])
 #Ntotal_Cells = int(N_cells)*4 + int(N5th_cancer)
 
 fig, axs = plt.subplots(5, 7,figsize = (25,20))
@@ -41,9 +42,10 @@ for sel_cancer in cancers:
             path_to_read = _FOLDER + cancer+'/Train'+str(N_cells)+'/MOGP_Predict_C'+str(sel_cancer)+'_Train'+str(N_cells)+'_seed'+str(Nseed)+'.csv'
 
             df_pred = pd.read_csv(path_to_read)
-
+            cols_label = ["norm_cells_" + str(i) for i in range(1, 8)]
+            cols_pred = ["norm_cell_" + str(i)+"_MOGP" for i in range(1, 8)]
             if Nseed == 1:
-                AE_per_dose = np.abs(df_pred[df_pred.columns[15:22]].values-df_pred[df_pred.columns[26:33]].values)
+                AE_per_dose = np.abs(df_pred[cols_label].values-df_pred[cols_pred].values)
                 MAE_per_dose = np.mean(AE_per_dose,0)[None,:]
 
                 AUC_Res_indx = df_pred['AUC_s4'].values < 0.55
@@ -71,7 +73,7 @@ for sel_cancer in cancers:
                 MAE_IC50_Res = np.array([np.mean(AE_IC50_Res)])
                 MAE_IC50_NoRes = np.array([np.mean(AE_IC50_NoRes)])
             else:
-                AE_per_dose_aux = np.abs(df_pred[df_pred.columns[15:22]].values - df_pred[df_pred.columns[26:33]].values)
+                AE_per_dose_aux = np.abs(df_pred[cols_label].values - df_pred[cols_pred].values)
                 AE_per_dose = np.concatenate((AE_per_dose,AE_per_dose_aux))
                 MAE_per_dose = np.concatenate((MAE_per_dose,np.mean(AE_per_dose_aux,0)[None,:]),0)
 
@@ -117,7 +119,7 @@ for sel_cancer in cancers:
     #plt.figure(5)
     Num_cells = All_N_cells.__len__()
 
-    def plot_Nth_dose(sel_cancer,axs,sel_dose,Num_cells,AE_per_dose_Ncells,MAE_per_dose_Ncells,Responsive = True,my_ylim=None,my_title=None,force_title=False):
+    def plot_Nth_dose(indx_plot,axs,sel_dose,Num_cells,AE_per_dose_Ncells,MAE_per_dose_Ncells,Responsive = True,my_ylim=None,my_title=None,force_title=False):
         AE_per_Nthdose_Ncells = np.zeros((AE_per_dose_Ncells[0].shape[0], Num_cells))
         MeanAE_per_Nthdose_Ncells = np.zeros((MAE_per_dose_Ncells[0].shape[0], Num_cells))
         Nth_dose = sel_dose - 1  #start with dose 1, i.e., 1 - 1 = 0
@@ -132,10 +134,16 @@ for sel_cancer in cancers:
 
         MAE_per_Nthdose_Ncells = AE_per_Nthdose_Ncells.mean(0)
         stdAE_per_Nthdose_Ncells = AE_per_Nthdose_Ncells.std(0)
-        Total_Ncell = All_N_cells
+        Total_Ncell = All_N_cells * cancer_Ntrain[sel_cancer] * 0.01
+        print("Total_Ncell",Total_Ncell)
         New_X = np.linspace(Total_Ncell[0],Total_Ncell[-1],1000)
         f_MAE_per_Nthdose_Ncells = pchip_interpolate(Total_Ncell, MAE_per_Nthdose_Ncells,New_X)
         f_stdAE_per_Nthdose_Ncells = pchip_interpolate(Total_Ncell, stdAE_per_Nthdose_Ncells,New_X)
+        Ntest = AE_per_Nthdose_Ncells.shape[0]/All_Nseed.__len__()
+        MAE_per_seed = [AE_per_Nthdose_Ncells[int(Ntest)*nseed:int(Ntest)*nseed+int(Ntest), :].mean(0)[:,None] for nseed in range(All_Nseed.__len__())]
+        MAE_per_seed = np.array(MAE_per_seed)[:,:,0]
+        print(f"{sel_cancer} MAE_per_seed",MAE_per_seed)
+        New_X_per_seed = Total_Ncell.reshape(1, -1).repeat(6, axis=0)
 
         Mean_MAE_per_Nthdose_Ncells = MeanAE_per_Nthdose_Ncells.mean(0)
         std_MAE_per_Nthdose_Ncells = MeanAE_per_Nthdose_Ncells.std(0)
@@ -145,16 +153,18 @@ for sel_cancer in cancers:
         global line_averMAE
 
         if Responsive is True:
-            axs[sel_cancer, Nth_dose].boxplot(AE_per_Nthdose_Ncells,medianprops = dict(color = "orangered", linewidth = 1.8),positions=Total_Ncell,widths=10.0,notch=True,flierprops={'marker': 'o', 'markersize': 1, 'markerfacecolor': 'black'})
+            #axs[sel_cancer, Nth_dose].boxplot(AE_per_Nthdose_Ncells,medianprops = dict(color = "orangered", linewidth = 1.8),positions=Total_Ncell,widths=4.0,notch=True,flierprops={'marker': 'o', 'markersize': 1, 'markerfacecolor': 'black'})
             #plt.fill_between(New_X, f_MAE_per_Nthdose_Ncells - f_stdAE_per_Nthdose_Ncells, f_MAE_per_Nthdose_Ncells + f_stdAE_per_Nthdose_Ncells,alpha=0.2)
-            axs[sel_cancer, Nth_dose].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells, f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,alpha=0.2)
-            line2, = axs[sel_cancer, Nth_dose].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells,'-',color='blue',linewidth=0.7,label = 'Average Mean-Error ± Std')
+            #AE_per_Nthdose_Ncells
+            axs[indx_plot, Nth_dose].plot(New_X_per_seed, MAE_per_seed, '.',color='black',alpha=0.4)
+            axs[indx_plot, Nth_dose].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells, f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,alpha=0.2)
+            line2, = axs[indx_plot, Nth_dose].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells,'-',color='blue',linewidth=0.7,label = 'Average Mean-Error ± Std')
             if my_ylim is None:
-                axs[sel_cancer, Nth_dose].set_ylim([-0.01,0.3])
+                axs[indx_plot, Nth_dose].set_ylim([-0.01,0.27])
             else:
-                axs[sel_cancer, Nth_dose].set_ylim(my_ylim)
-            axs[sel_cancer, Nth_dose].grid()
-            if sel_cancer==0 or force_title==True:
+                axs[indx_plot, Nth_dose].set_ylim(my_ylim)
+            axs[indx_plot, Nth_dose].grid()
+            if indx_plot==0 or force_title==True:
                 if Nth_dose == 1:
                     line_averMAE = line2
                     #global line_boxAll
@@ -163,25 +173,24 @@ for sel_cancer in cancers:
                 #Nole = '_nolegend_'
                 #axs[sel_cancer, Nth_dose].legend(labels=[Nole,Nole,Nole,Nole,Nole,Nole,Nole,Nole,"abd"])
                 if my_title is None:
-                    axs[sel_cancer, Nth_dose].set_title(f"Dose {Nth_dose+1}",fontsize=15)
+                    axs[indx_plot, Nth_dose].set_title(f"Dose {Nth_dose+1}",fontsize=15)
                 else:
-                    axs[sel_cancer, Nth_dose].set_title(my_title)
+                    axs[indx_plot, Nth_dose].set_title(my_title)
         else:
-            axs[sel_cancer].boxplot(AE_per_Nthdose_Ncells, medianprops=dict(color="orangered", linewidth=1.8),
-                                              positions=Total_Ncell, widths=10.0, notch=True,
-                                              flierprops={'marker': 'o', 'markersize': 1, 'markerfacecolor': 'black'})
+            #axs[sel_cancer].boxplot(AE_per_Nthdose_Ncells, medianprops=dict(color="orangered", linewidth=1.8),positions=Total_Ncell, widths=4.0, notch=True,flierprops={'marker': 'o', 'markersize': 1, 'markerfacecolor': 'black'})
             # plt.fill_between(New_X, f_MAE_per_Nthdose_Ncells - f_stdAE_per_Nthdose_Ncells, f_MAE_per_Nthdose_Ncells + f_stdAE_per_Nthdose_Ncells,alpha=0.2)
-            axs[sel_cancer].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells,
+            axs[indx_plot].plot(New_X_per_seed, MAE_per_seed, '.', color='black', alpha=0.4)
+            axs[indx_plot].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells,
                                                    f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,
                                                    alpha=0.2)
-            line2, = axs[sel_cancer].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells, '-', color='blue',
+            line2, = axs[indx_plot].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells, '-', color='blue',
                                                     linewidth=0.7, label='Average Mean-Error ± Std')
             if my_ylim is None:
-                axs[sel_cancer].set_ylim([-0.01, 0.3])
+                axs[indx_plot].set_ylim([-0.01, 0.27])
             else:
-                axs[sel_cancer].set_ylim(my_ylim)
-            axs[sel_cancer].grid()
-            if sel_cancer == 0 or force_title == True:
+                axs[indx_plot].set_ylim(my_ylim)
+            axs[indx_plot].grid()
+            if indx_plot == 0 or force_title == True:
                 if Nth_dose == 1:
                     #global line_averMAE
                     line_averMAE = line2
@@ -191,14 +200,14 @@ for sel_cancer in cancers:
                 # Nole = '_nolegend_'
                 # axs[sel_cancer, Nth_dose].legend(labels=[Nole,Nole,Nole,Nole,Nole,Nole,Nole,Nole,"abd"])
                 if my_title is None:
-                    axs[sel_cancer].set_title(f"Dose {Nth_dose + 1}")
+                    axs[indx_plot].set_title(f"Dose {Nth_dose + 1}")
                 else:
-                    axs[sel_cancer].set_title(my_title)
+                    axs[indx_plot].set_title(my_title)
 
     for Ndose in range(1,8):
         plot_Nth_dose(sel_cancer,axs,Ndose,Num_cells,AE_per_dose_Ncells,MAE_per_dose_Ncells)
 
-    #axs[0,0].legend(handles=[line_averMAE], loc='upper right', bbox_to_anchor=(1.0, 1.4), ncol=1, fancybox=True, shadow=True)
+    axs[0,0].legend(handles=[line_averMAE], loc='upper right', bbox_to_anchor=(1.0, 1.4), ncol=1, fancybox=True, shadow=True)
 
 
     def plot_benchmark(axs, loc, N_Cells_lin, data,alpha = 0.5, Responsive = True):
@@ -218,24 +227,24 @@ for sel_cancer in cancers:
             axs[0].legend(handles=[line_mean, line_averMAE, line_Q3, line_Q2, line_Q1], loc='upper right',bbox_to_anchor=(1.1, 1.25), ncol=5, fancybox=True, shadow=True)
 
     data_AUC, data_Emax, data_IC50, data_IC50_Res, data_IC50_NoRes,data_AUC_Res,data_AUC_NoRes,data_Emax_Res,data_Emax_NoRes, data_Ydose_res = np.load('Bench_Mark_AUC_Emax_IC50.pkl', allow_pickle=True)
-    N_Cells_lin = np.linspace(20, 100, 1000)
+    N_Cells_lin = np.linspace(6, 95, 1000)
 
     IsRes = True
     if sel_cancer == 2 or sel_cancer == 4: IsRes = False;
     print(f"AUC Cancer {sel_cancer}:",AE_AUC_Res_Ncells)
     if AE_AUC_Res_Ncells[0].shape[0] != 0:
-        plot_Nth_dose(0, axs_all[sel_cancer], 2, Num_cells, AE_AUC_Res_Ncells, MAE_AUC_Res_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.8],my_title="AUC Responsive (AE)")
+        plot_Nth_dose(0, axs_all[sel_cancer], 2, Num_cells, AE_AUC_Res_Ncells, MAE_AUC_Res_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.42],my_title="AUC Responsive (AE)")
         if data_AUC_Res[sel_cancer].shape[0] != 0:
             plot_benchmark(axs_all[sel_cancer], [0, 1], N_Cells_lin, data_AUC_Res[sel_cancer],alpha=0.5,Responsive = IsRes)
-    plot_Nth_dose(0, axs_all[sel_cancer], 1, Num_cells, AE_AUC_NoRes_Ncells, MAE_AUC_NoRes_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.8],my_title="AUC Non-Responsive (AE)")
+    plot_Nth_dose(0, axs_all[sel_cancer], 1, Num_cells, AE_AUC_NoRes_Ncells, MAE_AUC_NoRes_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.42],my_title="AUC Non-Responsive (AE)")
     plot_benchmark(axs_all[sel_cancer], [0, 0], N_Cells_lin, data_AUC_NoRes[sel_cancer], alpha=0.5,Responsive = IsRes)
 
     print(f"Emax Cancer {sel_cancer}:", AE_Emax_Res_Ncells)
     if AE_Emax_Res_Ncells[0].shape[0] != 0:
-        plot_Nth_dose(1, axs_all[sel_cancer], 2, Num_cells, AE_Emax_Res_Ncells, MAE_Emax_Res_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.8],my_title="Emax Responsive (AE)",force_title=True)
+        plot_Nth_dose(1, axs_all[sel_cancer], 2, Num_cells, AE_Emax_Res_Ncells, MAE_Emax_Res_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.9],my_title="Emax Responsive (AE)",force_title=True)
         if data_Emax_Res[sel_cancer].shape[0] != 0:
             plot_benchmark(axs_all[sel_cancer], [1, 1], N_Cells_lin, data_Emax_Res[sel_cancer],alpha=0.5,Responsive = IsRes)
-    plot_Nth_dose(1, axs_all[sel_cancer], 1, Num_cells, AE_Emax_NoRes_Ncells, MAE_Emax_NoRes_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.8],my_title="Emax Non-Responsive (AE)",force_title=True)
+    plot_Nth_dose(1, axs_all[sel_cancer], 1, Num_cells, AE_Emax_NoRes_Ncells, MAE_Emax_NoRes_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.9],my_title="Emax Non-Responsive (AE)",force_title=True)
     plot_benchmark(axs_all[sel_cancer], [1, 0], N_Cells_lin, data_Emax_NoRes[sel_cancer], alpha=0.5,Responsive = IsRes)
 
     print(f"IC50 Cancer {sel_cancer}:", AE_IC50_Res_Ncells)
@@ -253,7 +262,7 @@ for i in range(5):
     axs[i, 0].set_ylabel(cancer_name_plot_abs[i], fontsize=12)
 axs[4, 3].set_xlabel("Number of dose response curves in training", fontsize=13)
 
-for i in range(cancers.__len__()):
+for i in range(5):
     for j in range(3):
         if i == 2 or i == 4:
             if j < 2:
@@ -266,7 +275,7 @@ for i in range(cancers.__len__()):
             else:
                 axs_all[i][j, 0].set_ylabel(cancer_name_plot_abs[i][:-12]+'(Squared Error)', fontsize=14)
 
-for i in range(cancers.__len__()):
+for i in range(5):
     if i == 2 or i == 4:
         axs_all[i][2].set_xlabel("    Number of dose response curves in training",fontsize=15)
     else:

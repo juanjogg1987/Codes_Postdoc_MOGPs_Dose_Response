@@ -42,8 +42,8 @@ class commandLine:
         self.scale = 1
         self.weight = 1
         self.bash = "1"
-        self.N_CellLines_perc = 60   #Here we treat this variable as percentage. Try to put this values as multiple of Num_drugs?
-        self.sel_cancer = 3
+        self.N_CellLines_perc = 100   #Here we treat this variable as percentage. Try to put this values as multiple of Num_drugs?
+        self.sel_cancer = 0
         self.seed_for_N = 1
 
         for op, arg in opts:
@@ -92,7 +92,17 @@ df_4Cancers_traintest_d1 = df_to_read[df_to_read["DRUG_ID"]==1036]#.sample(n=N_C
 df_4Cancers_traintest_d2 = df_to_read[df_to_read["DRUG_ID"]==1061]#.sample(n=N_CellLines,random_state = rand_state_N)
 df_4Cancers_traintest_d3 = df_to_read[df_to_read["DRUG_ID"] == 1373]#.sample(n=N_CellLines,random_state=rand_state_N)
 N_per_drug = [df_4Cancers_traintest_d1.shape[0],df_4Cancers_traintest_d2.shape[0],df_4Cancers_traintest_d3.shape[0]]
-np.random.seed(1)
+if int(config.sel_cancer) == 3:
+    np.random.seed(1)
+elif int(config.sel_cancer) == 0:
+    np.random.seed(10)
+elif int(config.sel_cancer) == 1:
+    np.random.seed(3)
+elif int(config.sel_cancer) == 2:
+    np.random.seed(1)
+elif int(config.sel_cancer) == 4:
+    np.random.seed(1)
+
 TrainTest_drugs_indexes = [np.random.permutation(np.arange(0, N_per_drug[myind])) for myind in range(Num_drugs)]
 
 indx_train = [TrainTest_drugs_indexes[myind][0:round(TrainTest_drugs_indexes[myind].shape[0]*0.7)] for myind in range(Num_drugs)]
@@ -209,6 +219,7 @@ def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_tra
 posy = 0
 #my_plot(posy,0,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_train_drug)
 #my_plot(posy,1,Ydose50_test,Ydose_res_test,IC50_test,AUC_test,Emax_test,x_lin,x_real_dose,y_test_drug)
+
 AUC = np.array(AUC)
 IC50 = np.array(IC50)
 Emax = np.array(Emax)
