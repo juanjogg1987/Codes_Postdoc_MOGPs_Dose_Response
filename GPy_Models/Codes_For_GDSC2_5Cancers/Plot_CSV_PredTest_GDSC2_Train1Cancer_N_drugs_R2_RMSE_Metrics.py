@@ -48,21 +48,22 @@ for sel_cancer in cancers:
                 AE_per_dose = np.abs(df_pred[cols_label].values-df_pred[cols_pred].values)
                 MAE_per_dose = np.mean(AE_per_dose,0)[None,:]
 
+                Metric_Squared = 2
                 AUC_Res_indx = df_pred['AUC_s4'].values < 0.55
                 AUC_NoRes_indx = df_pred['AUC_s4'].values >= 0.55
                 "TODO: REMEMBER THE CASE WHEN THERE ARE NOT RESPONSIVE EVER"
-                AE_AUC_Res = np.abs(df_pred['AUC_MOGP'].values[AUC_Res_indx] - df_pred['AUC_s4'].values[AUC_Res_indx])
-                AE_AUC_NoRes = np.abs(df_pred['AUC_MOGP'].values[AUC_NoRes_indx] - df_pred['AUC_s4'].values[AUC_NoRes_indx])
-                MAE_AUC_Res = np.array( [np.mean(AE_AUC_Res)] )
-                MAE_AUC_NoRes = np.array( [np.mean(AE_AUC_NoRes)] )
+                AE_AUC_Res = np.abs(df_pred['AUC_MOGP'].values[AUC_Res_indx] - df_pred['AUC_s4'].values[AUC_Res_indx])**Metric_Squared
+                AE_AUC_NoRes = np.abs(df_pred['AUC_MOGP'].values[AUC_NoRes_indx] - df_pred['AUC_s4'].values[AUC_NoRes_indx])**Metric_Squared
+                MAE_AUC_Res = np.array( [np.sqrt(np.mean(AE_AUC_Res))] )
+                MAE_AUC_NoRes = np.array( [np.sqrt(np.mean(AE_AUC_NoRes))] )
 
                 Emax_Res_indx = df_pred['Emax_s4'].values < 0.5
                 Emax_NoRes_indx = df_pred['Emax_s4'].values >= 0.5
                 "TODO: REMEMBER THE CASE WHEN THERE ARE NOT RESPONSIVE EVER"
-                AE_Emax_Res = np.abs(df_pred['Emax_MOGP'].values[Emax_Res_indx] - df_pred['Emax_s4'].values[Emax_Res_indx])
-                AE_Emax_NoRes = np.abs(df_pred['Emax_MOGP'].values[Emax_NoRes_indx] - df_pred['Emax_s4'].values[Emax_NoRes_indx])
-                MAE_Emax_Res = np.array([np.mean(AE_Emax_Res)])
-                MAE_Emax_NoRes = np.array([np.mean(AE_Emax_NoRes)])
+                AE_Emax_Res = np.abs(df_pred['Emax_MOGP'].values[Emax_Res_indx] - df_pred['Emax_s4'].values[Emax_Res_indx])**Metric_Squared
+                AE_Emax_NoRes = np.abs(df_pred['Emax_MOGP'].values[Emax_NoRes_indx] - df_pred['Emax_s4'].values[Emax_NoRes_indx])**Metric_Squared
+                MAE_Emax_Res = np.array([np.sqrt(np.mean(AE_Emax_Res))])
+                MAE_Emax_NoRes = np.array([np.sqrt(np.mean(AE_Emax_NoRes))])
 
                 IC50_Squared = 2   #use 2 to square or 1 for Absolute
                 IC50_Res_indx = df_pred['IC50_s4'].values < 1.5
@@ -70,33 +71,33 @@ for sel_cancer in cancers:
                 "TODO: REMEMBER THE CASE WHEN THERE ARE NOT RESPONSIVE EVER"
                 AE_IC50_Res = np.abs(df_pred['IC50_MOGP'].values[IC50_Res_indx] - df_pred['IC50_s4'].values[IC50_Res_indx])**IC50_Squared
                 AE_IC50_NoRes = np.abs( df_pred['IC50_MOGP'].values[IC50_NoRes_indx] - df_pred['IC50_s4'].values[IC50_NoRes_indx])**IC50_Squared
-                MAE_IC50_Res = np.array([np.mean(AE_IC50_Res)])
-                MAE_IC50_NoRes = np.array([np.mean(AE_IC50_NoRes)])
+                MAE_IC50_Res = np.array([np.sqrt(np.mean(AE_IC50_Res))])
+                MAE_IC50_NoRes = np.array([np.sqrt(np.mean(AE_IC50_NoRes))])
             else:
                 AE_per_dose_aux = np.abs(df_pred[cols_label].values - df_pred[cols_pred].values)
                 AE_per_dose = np.concatenate((AE_per_dose,AE_per_dose_aux))
                 MAE_per_dose = np.concatenate((MAE_per_dose,np.mean(AE_per_dose_aux,0)[None,:]),0)
 
-                AE_AUC_Res_aux = np.abs(df_pred['AUC_MOGP'].values[AUC_Res_indx] - df_pred['AUC_s4'].values[AUC_Res_indx])
-                AE_AUC_NoRes_aux = np.abs(df_pred['AUC_MOGP'].values[AUC_NoRes_indx] - df_pred['AUC_s4'].values[AUC_NoRes_indx])
+                AE_AUC_Res_aux = np.abs(df_pred['AUC_MOGP'].values[AUC_Res_indx] - df_pred['AUC_s4'].values[AUC_Res_indx])**Metric_Squared
+                AE_AUC_NoRes_aux = np.abs(df_pred['AUC_MOGP'].values[AUC_NoRes_indx] - df_pred['AUC_s4'].values[AUC_NoRes_indx])**Metric_Squared
                 AE_AUC_Res = np.concatenate((AE_AUC_Res, AE_AUC_Res_aux),0)
-                MAE_AUC_Res = np.concatenate((MAE_AUC_Res, np.array([np.mean(AE_AUC_Res_aux)])), 0)
+                MAE_AUC_Res = np.concatenate((MAE_AUC_Res, np.array([np.sqrt(np.mean(AE_AUC_Res_aux))])), 0)
                 AE_AUC_NoRes = np.concatenate((AE_AUC_NoRes, AE_AUC_NoRes_aux))
-                MAE_AUC_NoRes = np.concatenate((MAE_AUC_NoRes, np.array([np.mean(AE_AUC_NoRes_aux)])), 0)
+                MAE_AUC_NoRes = np.concatenate((MAE_AUC_NoRes, np.array([np.sqrt(np.mean(AE_AUC_NoRes_aux))])), 0)
 
-                AE_Emax_Res_aux = np.abs(df_pred['Emax_MOGP'].values[Emax_Res_indx] - df_pred['Emax_s4'].values[Emax_Res_indx])
-                AE_Emax_NoRes_aux = np.abs(df_pred['Emax_MOGP'].values[Emax_NoRes_indx] - df_pred['Emax_s4'].values[Emax_NoRes_indx])
+                AE_Emax_Res_aux = np.abs(df_pred['Emax_MOGP'].values[Emax_Res_indx] - df_pred['Emax_s4'].values[Emax_Res_indx])**Metric_Squared
+                AE_Emax_NoRes_aux = np.abs(df_pred['Emax_MOGP'].values[Emax_NoRes_indx] - df_pred['Emax_s4'].values[Emax_NoRes_indx])**Metric_Squared
                 AE_Emax_Res = np.concatenate((AE_Emax_Res, AE_Emax_Res_aux), 0)
-                MAE_Emax_Res = np.concatenate((MAE_Emax_Res, np.array([np.mean(AE_Emax_Res_aux)])), 0)
+                MAE_Emax_Res = np.concatenate((MAE_Emax_Res, np.array([np.sqrt(np.mean(AE_Emax_Res_aux))])), 0)
                 AE_Emax_NoRes = np.concatenate((AE_Emax_NoRes, AE_Emax_NoRes_aux))
-                MAE_Emax_NoRes = np.concatenate((MAE_Emax_NoRes, np.array([np.mean(AE_Emax_NoRes_aux)])), 0)
+                MAE_Emax_NoRes = np.concatenate((MAE_Emax_NoRes, np.array([np.sqrt(np.mean(AE_Emax_NoRes_aux))])), 0)
 
                 AE_IC50_Res_aux = np.abs(df_pred['IC50_MOGP'].values[IC50_Res_indx] - df_pred['IC50_s4'].values[IC50_Res_indx])**IC50_Squared
                 AE_IC50_NoRes_aux = np.abs(df_pred['IC50_MOGP'].values[IC50_NoRes_indx] - df_pred['IC50_s4'].values[IC50_NoRes_indx])**IC50_Squared
                 AE_IC50_Res = np.concatenate((AE_IC50_Res, AE_IC50_Res_aux), 0)
-                MAE_IC50_Res = np.concatenate((MAE_IC50_Res, np.array([np.mean(AE_IC50_Res_aux)])), 0)
+                MAE_IC50_Res = np.concatenate((MAE_IC50_Res, np.array([np.sqrt(np.mean(AE_IC50_Res_aux))])), 0)
                 AE_IC50_NoRes = np.concatenate((AE_IC50_NoRes, AE_IC50_NoRes_aux))
-                MAE_IC50_NoRes = np.concatenate((MAE_IC50_NoRes, np.array([np.mean(AE_IC50_NoRes_aux)])), 0)
+                MAE_IC50_NoRes = np.concatenate((MAE_IC50_NoRes, np.array([np.sqrt(np.mean(AE_IC50_NoRes_aux))])), 0)
 
         AE_per_dose_Ncells.append(AE_per_dose)
         MAE_per_dose_Ncells.append(MAE_per_dose)
@@ -132,15 +133,15 @@ for sel_cancer in cancers:
                 AE_per_Nthdose_Ncells[:,i] = AE_per_dose_Ncells[i][:,Nth_dose]
                 MeanAE_per_Nthdose_Ncells[:, i] = MAE_per_dose_Ncells[i][:, Nth_dose]
 
-        MAE_per_Nthdose_Ncells = AE_per_Nthdose_Ncells.mean(0)
+        MAE_per_Nthdose_Ncells = np.sqrt(AE_per_Nthdose_Ncells.mean(0))
         stdAE_per_Nthdose_Ncells = AE_per_Nthdose_Ncells.std(0)
         Total_Ncell = All_N_cells * cancer_Ntrain[sel_cancer] * 0.01
         print("Total_Ncell",Total_Ncell)
         New_X = np.linspace(Total_Ncell[0],Total_Ncell[-1],1000)
-        f_MAE_per_Nthdose_Ncells = pchip_interpolate(Total_Ncell, MAE_per_Nthdose_Ncells,New_X)
-        f_stdAE_per_Nthdose_Ncells = pchip_interpolate(Total_Ncell, stdAE_per_Nthdose_Ncells,New_X)
+        #f_MAE_per_Nthdose_Ncells = pchip_interpolate(Total_Ncell, MAE_per_Nthdose_Ncells,New_X)
+        #f_stdAE_per_Nthdose_Ncells = pchip_interpolate(Total_Ncell, stdAE_per_Nthdose_Ncells,New_X)
         Ntest = AE_per_Nthdose_Ncells.shape[0]/All_Nseed.__len__()
-        MAE_per_seed = [AE_per_Nthdose_Ncells[int(Ntest)*nseed:int(Ntest)*nseed+int(Ntest), :].mean(0)[:,None] for nseed in range(All_Nseed.__len__())]
+        MAE_per_seed = [np.sqrt(AE_per_Nthdose_Ncells[int(Ntest)*nseed:int(Ntest)*nseed+int(Ntest), :].mean(0)[:,None]) for nseed in range(All_Nseed.__len__())]
         MAE_per_seed = np.array(MAE_per_seed)[:,:,0]
         print(f"{sel_cancer} MAE_per_seed",MAE_per_seed)
         New_X_per_seed = Total_Ncell.reshape(1, -1).repeat(6, axis=0)
@@ -206,10 +207,10 @@ for sel_cancer in cancers:
                 else:
                     axs[indx_plot].set_title(my_title)
 
-    for Ndose in range(1,8):
-        plot_Nth_dose(sel_cancer,axs,Ndose,Num_cells,AE_per_dose_Ncells,MAE_per_dose_Ncells)
-
-    axs[0,0].legend(handles=[line_averMAE,line_Seeds[0]], loc='upper right', bbox_to_anchor=(1.0, 1.5), ncol=1, fancybox=True, shadow=True,fontsize=13)
+    # for Ndose in range(1,8):
+    #     plot_Nth_dose(sel_cancer,axs,Ndose,Num_cells,AE_per_dose_Ncells,MAE_per_dose_Ncells)
+    #
+    # axs[0,0].legend(handles=[line_averMAE,line_Seeds[0]], loc='upper right', bbox_to_anchor=(1.0, 1.5), ncol=1, fancybox=True, shadow=True,fontsize=13)
 
 
     def plot_benchmark(axs, loc, N_Cells_lin, data,alpha = 0.5, Responsive = True):
@@ -288,3 +289,5 @@ fig.tight_layout(w_pad=-2.2)
 for i in range(1,7):
     for j in range(5):
         axs[j,i].yaxis.set_tick_params(labelleft=False)
+
+print("TODO: Generate the Benchmark Lines!!!!!!!!!!!! for RMSE")

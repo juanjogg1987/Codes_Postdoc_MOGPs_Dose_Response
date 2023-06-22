@@ -56,7 +56,7 @@ class commandLine:
         self.scale = 1
         self.weight = 1
         self.bash = "None"
-        self.drug_name = "1036"
+        self.drug_name = "1373"
 
         for op, arg in opts:
             # print(op,arg)
