@@ -486,7 +486,7 @@ for Nfold in range(nsplits,nsplits+1):
     for i in range(100):
         y_sampled = np.random.multivariate_normal(Y_pred_interp_all[posy][x_ind_7], Cov_pred[posy::43,posy::43])
         y_interp_sampled = pchip_interpolate(x_dose, y_sampled, x_dose_new)
-        plt.plot(x_dose_new, y_interp_sampled, alpha=0.12, color='grey')
+        plt.plot(x_dose_new, y_interp_sampled, alpha=0.12)#, color='grey')
     plt.grid()
     plt.xlim([0.125,1.02])
     plt.xticks(fontsize=20)
