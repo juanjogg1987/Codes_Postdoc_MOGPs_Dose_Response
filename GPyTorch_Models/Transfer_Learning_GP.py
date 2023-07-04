@@ -7,12 +7,25 @@ from matplotlib import pyplot as plt
 # %load_ext autoreload
 # %autoreload 2
 
-train_x1 = torch.rand(100)
-train_x2 = torch.rand(20)
+# Initialize plots
+f, (y1_ax, y2_ax) = plt.subplots(1, 2, figsize=(8, 3))
 
-train_y1 = torch.sin(train_x1 * (2 * math.pi)) + torch.randn(train_x1.size()) * 0.2
+Nsize = 50
+train_x1 = torch.rand(Nsize)
+torch.manual_seed(10)
+import random
+random.seed(10)
+
+#train_x2 = torch.rand(20)
+indx = torch.randint(0, Nsize, (15,))
+print(indx)
+train_x2 = train_x1[indx]
+train_y2 = torch.sin(-0.3-2*train_x2 * (2 * math.pi))*torch.cos(0.3+2*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.02 + train_x2
+Many_x2 = torch.rand(500)
+
+train_y1 = torch.sin(train_x1 * (2 * math.pi)) + torch.randn(train_x1.size()) * 0.01
 #train_y2 = -torch.cos(train_x1*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.2
-train_y2 = torch.cos(0.3+2*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.2 + train_x2
+Many_y2 = torch.sin(-0.3-2*Many_x2 * (2 * math.pi))*torch.cos(0.3+2*Many_x2 * (2 * math.pi)) + torch.randn(Many_x2.size()) * 0.02 + Many_x2
 
 # train_x1 = torch.rand(100,2)
 # train_x2 = torch.rand(30,2)
@@ -157,7 +170,7 @@ class TL_GPModel(gpytorch.models.ExactGP):
 likelihood = gpytorch.likelihoods.GaussianLikelihood()
 #likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=2)
 
-likelihood.noise = 1.01  # Some small value, but don't make it too small or numerical performance will suffer. I recommend 1e-4.
+likelihood.noise = 0.01  # Some small value, but don't make it too small or numerical performance will suffer. I recommend 1e-4.
 #likelihood.noise_covar.raw_noise.requires_grad_(False)  # Mark that we don't want to train the noise.
 
 train_i_task1 = torch.full((train_x1.shape[0],1), dtype=torch.long, fill_value=0)
@@ -179,7 +192,7 @@ model.covar_module.lengthscale=0.1
 # this is for running the notebook in our testing framework
 import os
 smoke_test = ('CI' in os.environ)
-training_iterations = 2 if smoke_test else 500
+training_iterations = 2 if smoke_test else 700
 
 
 # Find optimal model hyperparameters
@@ -205,9 +218,6 @@ for i in range(training_iterations):
 # Set into eval mode
 model.eval()
 likelihood.eval()
-
-# Initialize plots
-f, (y1_ax, y2_ax) = plt.subplots(1, 2, figsize=(8, 3))
 
 # Test points every 0.02 in [0,1]
 #test_x = torch.rand(30,2)
@@ -246,9 +256,10 @@ def ax_plot(ax, train_y, train_x, rand_var, title):
 # Plot both tasks
 #ax_plot(y1_ax, train_y1, train_x1, observed_pred_y1, 'Observed Values (Likelihood)')
 ax_plot(y2_ax, train_y2, train_x2, observed_pred_y2, 'Observed Values (Likelihood)')
+y2_ax.plot(Many_x2,Many_y2,'r.')
 
-mystd = observed_pred_y2.variance**0.5
-
+""
+#mystd = observed_pred_y2.variance**0.5
 # plt.plot(train_x2,train_y2,'x')
 # plt.plot(test_x,observed_pred_y2.mean,'b.')
 # plt.plot(test_x,observed_pred_y2.mean+2*mystd,'.',color='cyan')
@@ -258,3 +269,75 @@ mystd = observed_pred_y2.variance**0.5
 # plt.plot(observed_pred_y2.mean,'b.')
 # plt.plot(observed_pred_y2.mean+2*mystd,'.',color='cyan')
 # plt.plot(observed_pred_y2.mean-2*mystd,'.',color='cyan')
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+## We will use the simplest form of GP model, exact inference
+class ExactGPModel(gpytorch.models.ExactGP):
+    def __init__(self, train_x, train_y, likelihood):
+        super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
+        self.mean_module = gpytorch.means.ConstantMean()
+        self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
+
+    def forward(self, x):
+        mean_x = self.mean_module(x)
+        covar_x = self.covar_module(x)
+        return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
+
+# initialize likelihood and model
+likelihood_2 = gpytorch.likelihoods.GaussianLikelihood()
+likelihood_2.noise = 0.001
+model_2 = ExactGPModel(train_x2, train_y2, likelihood_2)
+
+training_iter = 800
+
+# Find optimal model hyperparameters
+model_2.train()
+likelihood_2.train()
+
+# Use the adam optimizer
+optimizer_2 = torch.optim.Adam(model_2.parameters(), lr=0.01)  # Includes GaussianLikelihood parameters
+
+# "Loss" for GPs - the marginal log likelihood
+mll_2 = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood_2, model_2)
+
+for i in range(training_iter):
+    # Zero gradients from previous iteration
+    optimizer_2.zero_grad()
+    # Output from model
+    output_2 = model_2(train_x2)
+    # Calc loss and backprop gradients
+    loss_2 = -mll_2(output_2, train_y2)
+    loss_2.backward()
+    print('Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f' % (
+        i + 1, training_iter, loss_2.item(),
+        model_2.covar_module.base_kernel.lengthscale.item(),
+        model_2.likelihood.noise.item()
+    ))
+    optimizer_2.step()
+
+model_2.eval()
+likelihood_2.eval()
+
+# Test points are regularly spaced along [0,1]
+# Make predictions by feeding model through likelihood
+with torch.no_grad(), gpytorch.settings.fast_pred_var():
+    test_x = torch.linspace(0, 1, 51)
+    observed_pred_2 = likelihood_2(model_2(test_x))
+
+with torch.no_grad():
+    # Initialize plot
+    #f, ax = plt.subplots(1, 1, figsize=(4, 3))
+
+    # Get upper and lower confidence bounds
+    lower, upper = observed_pred_2.confidence_region()
+    # Plot training data as black stars
+    y1_ax.plot(train_x2.numpy(), train_y2.numpy(), 'k*')
+    # Plot predictive means as blue line
+    y1_ax.plot(test_x.numpy(), observed_pred_2.mean.numpy(), 'b')
+    # Shade between the lower and upper confidence bounds
+    y1_ax.fill_between(test_x.numpy(), lower.numpy(), upper.numpy(), alpha=0.5)
+    y1_ax.set_ylim([-3, 3])
+    y1_ax.legend(['Observed Data', 'Mean', 'Confidence'])
+
+y1_ax.plot(Many_x2,Many_y2,'r.')
