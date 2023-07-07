@@ -10,22 +10,30 @@ from matplotlib import pyplot as plt
 # Initialize plots
 f, (y1_ax, y2_ax) = plt.subplots(1, 2, figsize=(8, 3))
 
-Nsize = 150
-train_x1 = torch.rand(Nsize)
-torch.manual_seed(11)
+Nsize = 200
+Nseed = 0
+torch.manual_seed(Nseed)
 import random
-random.seed(11)
+random.seed(Nseed)
+#train_x1 = torch.linspace(0,1,Nsize)
+train_x1 = torch.rand(Nsize)
+torch.manual_seed(Nseed)
+random.seed(Nseed)
 
-#train_x2 = torch.rand(20)
-indx = torch.randint(0, Nsize, (15,))
+indx = torch.randint(0, Nsize, (25,))
+indx0 = torch.randint(0, Nsize, (Nsize//2,))
+#indx = indx0[0:30]
 print(indx)
+train_x0 = train_x1[indx0]
 train_x2 = train_x1[indx]
-train_y2 = torch.sin(-0.3-5*train_x2 * (2 * math.pi))*torch.cos(0.3+2*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.02 + train_x2
+
+train_y2 = train_x2*torch.sin(-8*train_x2 * (2 * math.pi))*torch.cos(0.3+2*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.02 + train_x2
 Many_x2 = torch.rand(500)
 
-train_y1 = torch.sin(train_x1 * (2 * math.pi)) + torch.randn(train_x1.size()) * 0.01
+train_y0 = torch.cos(7*train_x0 * (2 * math.pi)) + torch.randn(train_x0.size()) * 0.01
+train_y1 = torch.sin(4*train_x1 * (2 * math.pi))*torch.sin(3*train_x1 * (2 * math.pi)) + torch.randn(train_x1.size()) * 0.01
 #train_y2 = -torch.cos(train_x1*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.2
-Many_y2 = torch.sin(-0.3-5*Many_x2 * (2 * math.pi))*torch.cos(0.3+2*Many_x2 * (2 * math.pi)) + torch.randn(Many_x2.size()) * 0.02 + Many_x2
+Many_y2 = Many_x2*torch.sin(-8*Many_x2 * (2 * math.pi))*torch.cos(0.3+2*Many_x2 * (2 * math.pi)) + torch.randn(Many_x2.size()) * 0.02 + Many_x2
 
 # train_x1 = torch.rand(100,2)
 # train_x2 = torch.rand(30,2)
@@ -129,7 +137,7 @@ class TL_GPModel(gpytorch.models.ExactGP):
         # We learn an IndexKernel for 2 tasksT = {Tensor: (1000,)} tensor([0.4005, 0.1535, 0.0994, 0.4777, 0.9611, 0.4716, 0.8745, 0.5570, 0.5175,\n        0.5066, 0.7989, 0.2964, 0.6281, 0.3874, 0.6797, 0.3161, 0.6082, 0.9790,\n        0.8192, 0.8591, 0.2998, 0.0856, 0.3485, 0.5403, 0.7131, 0.7362, 0.9797,\n        0.2136, 0.4425, 0.0171, 0.8181, 0.9462, 0.3013, 0.2165, 0.6909, 0.9003,\n        0.3088, 0.3639, 0.3246, 0.8997, 0.1554, 0.8359, 0.8999, 0.1437, 0.4792,\n        0.8246, 0.3231, 0.9210, 0.9165, 0.1418, 0.0692, 0.7277, 0.3422, 0.4344,\n        0.5298, 0.4167, 0.0920, 0.7126, 0.6037, 0.9610, 0.3977, 0.8877, 0.9717,\n        0.1467, 0.8345, 0.8467, 0.9623, 0.2985, 0.0996, 0.8530, 0.9099, 0.3528,\n        0.0913, 0.8560, 0.2538, 0.5059, 0.9356, 0.4866, 0.6034, 0.7542, 0.3961,\n        0.6874, 0.5145, 0.4162, 0.0784, 0.0827, 0.9629, 0.1104, 0.4972, 0.3561,\n        0.6250, 0.8727, 0.6935, 0.8392, 0.5786, 0.9030, 0.6588, 0.2742, 0.9786,\n        0.9282, 0.9814, 0.1917, 0.8979, 0.0526, 0.1060, 0.6497, 0.8511, 0.4860,\n        0.3762, 0.7926, 0.9123, 0.6993, ...... View
         # (so we'll actually learn 2x2=4 tasks with correlations)
         #self.task_covar_module = gpytorch.kernels.IndexKernel(num_tasks=2, rank=1, var_constraint=MyInterval)
-        self.task_covar_module = TL_Kernel(num_tasks=2, rank=1)#, lambda_constraint=MyInterval)
+        self.task_covar_module = TL_Kernel(num_tasks=num_tasks, rank=1)#, lambda_constraint=MyInterval)
 
     def forward(self,x):
         #mean_x = self.mean_module(x)
@@ -173,15 +181,16 @@ likelihood = gpytorch.likelihoods.GaussianLikelihood()
 likelihood.noise = 0.01  # Some small value, but don't make it too small or numerical performance will suffer. I recommend 1e-4.
 #likelihood.noise_covar.raw_noise.requires_grad_(False)  # Mark that we don't want to train the noise.
 
-train_i_task1 = torch.full((train_x1.shape[0],1), dtype=torch.long, fill_value=0)
-train_i_task2 = torch.full((train_x2.shape[0],1), dtype=torch.long, fill_value=1)
+train_i_task0 = torch.full((train_x0.shape[0],1), dtype=torch.long, fill_value=0)
+train_i_task1 = torch.full((train_x1.shape[0],1), dtype=torch.long, fill_value=1)
+train_i_task2 = torch.full((train_x2.shape[0],1), dtype=torch.long, fill_value=2)
 
-full_train_x = torch.cat([train_x1, train_x2])
-full_train_i = torch.cat([train_i_task1, train_i_task2])
-full_train_y = torch.cat([train_y1, train_y2])
+full_train_x = torch.cat([train_x0,train_x1, train_x2])
+full_train_i = torch.cat([train_i_task0,train_i_task1, train_i_task2])
+full_train_y = torch.cat([train_y0,train_y1, train_y2])
 
 # Here we have two iterms that we're passing in as train_inputs
-model = TL_GPModel((full_train_x, full_train_i), full_train_y, train_x2,train_y2,likelihood, num_tasks = 2)
+model = TL_GPModel((full_train_x, full_train_i), full_train_y, train_x2,train_y2,likelihood, num_tasks = 3)
 model.covar_module.lengthscale=0.1
 #model.covar_module.lengthscale = 0.3
 #model.covar_module.raw_lengthscale.requires_grad_(False)
@@ -192,7 +201,7 @@ model.covar_module.lengthscale=0.1
 # this is for running the notebook in our testing framework
 import os
 smoke_test = ('CI' in os.environ)
-training_iterations = 2 if smoke_test else 700
+training_iterations = 2 if smoke_test else 1000
 
 
 # Find optimal model hyperparameters
@@ -221,10 +230,11 @@ likelihood.eval()
 
 # Test points every 0.02 in [0,1]
 #test_x = torch.rand(30,2)
-test_x = torch.linspace(0, 1, 80)
+test_x = torch.linspace(0, 1, 200)
 #test_x = train_x2
-test_i_task1 = torch.full((test_x.shape[0],1), dtype=torch.long, fill_value=0)
-test_i_task2 = torch.full((test_x.shape[0],1), dtype=torch.long, fill_value=1)
+test_i_task0 = torch.full((test_x.shape[0],1), dtype=torch.long, fill_value=0)
+test_i_task1 = torch.full((test_x.shape[0],1), dtype=torch.long, fill_value=1)
+test_i_task2 = torch.full((test_x.shape[0],1), dtype=torch.long, fill_value=2)
 
 # Make predictions - one task at a time
 # We control the task we cae about using the indices
@@ -286,10 +296,10 @@ class ExactGPModel(gpytorch.models.ExactGP):
 
 # initialize likelihood and model
 likelihood_2 = gpytorch.likelihoods.GaussianLikelihood()
-likelihood_2.noise = 0.001
+likelihood_2.noise = 0.01
 model_2 = ExactGPModel(train_x2, train_y2, likelihood_2)
 
-training_iter = 800
+training_iter = 1000
 
 # Find optimal model hyperparameters
 model_2.train()
@@ -322,7 +332,7 @@ likelihood_2.eval()
 # Test points are regularly spaced along [0,1]
 # Make predictions by feeding model through likelihood
 with torch.no_grad(), gpytorch.settings.fast_pred_var():
-    test_x = torch.linspace(0, 1, 51)
+    test_x = torch.linspace(0, 1, 200)
     observed_pred_2 = likelihood_2(model_2(test_x))
 
 with torch.no_grad():
