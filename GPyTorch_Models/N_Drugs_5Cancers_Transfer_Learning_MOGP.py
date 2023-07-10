@@ -44,7 +44,7 @@ class commandLine:
         self.weight = 1
         self.bash = "1"
         self.N_CellLines = 144   #Try to put this values as multiple of Num_drugs
-        self.sel_cancer = 0
+        self.sel_cancer = 3
         self.seed_for_N = 3
         self.N_5thCancer_ToBe_Included = 9 #Try to put this values as multiple of Num_drugs
 
@@ -563,14 +563,14 @@ model = TL_GPModel((full_train_x, full_train_i), full_train_y, replicate_train_x
 # this is for running the notebook in our testing framework
 import os
 smoke_test = ('CI' in os.environ)
-training_iterations = 2 if smoke_test else 140
+training_iterations = 2 if smoke_test else 150
 
 # Find optimal model hyperparameters
 model.train()
 likelihood.train()
 
 # Use the adam optimizer
-optimizer = torch.optim.Adam(model.parameters(), lr=0.03)  # Includes GaussianLikelihood parameters
+optimizer = torch.optim.Adam(model.parameters(), lr=0.2)  # Includes GaussianLikelihood parameters
 
 # "Loss" for GPs - the marginal log likelihood
 mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
@@ -580,10 +580,20 @@ for i in range(training_iterations):
     #output = model(full_train_x, full_train_i)
     output = model(replicate_train_x5)#, full_train_i)
     #loss = -mll(output, full_train_y)
+    if i > 0: loss_old = loss.item();
+    else: loss_old = 10000;
     loss = -mll(output, train_y5.reshape(-1))
     loss.backward()
-    print('Iter %d/50 - Loss: %.3f' % (i + 1, loss.item()))
-    optimizer.step()
+    print('Iter %d/50 - Loss: %.6f' % (i + 1, loss.item()))
+    if np.abs(loss_old-loss.item())<1e-2:
+        print("Stopped by Epsilon")
+        break
+    try:
+        optimizer.step()
+    except:
+        print("change step-size")
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.01)  # Includes GaussianLikelihood parameters
+
 
 # Set into eval mode
 model.eval()
@@ -603,7 +613,8 @@ mean = mean.reshape(-1,mynum_doses)
 lower = lower.reshape(-1,mynum_doses)
 upper = upper.reshape(-1,mynum_doses)
 
-for posy in range(test_y.shape[0]):
+print(f"Showing only 20 figure out of {test_y.shape[0]} to avoid crash in plot")
+for posy in range(0,20):
     plt.figure(posy)
     #posy = 88
     # Plot training data as black stars
