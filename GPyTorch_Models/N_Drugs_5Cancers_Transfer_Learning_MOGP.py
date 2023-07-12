@@ -44,7 +44,7 @@ class commandLine:
         self.weight = 1
         self.bash = "1"
         self.N_CellLines = 144   #Try to put this values as multiple of Num_drugs
-        self.sel_cancer = 3
+        self.sel_cancer = 1
         self.seed_for_N = 3
         self.N_5thCancer_ToBe_Included = 9 #Try to put this values as multiple of Num_drugs
 
@@ -523,7 +523,7 @@ class TL_GPModel(gpytorch.models.ExactGP):
 likelihood = gpytorch.likelihoods.GaussianLikelihood()
 #likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=mynum_doses,rank=myrank)
 
-likelihood.noise = 0.01  # Some small value, but don't make it too small or numerical performance will suffer. I recommend 1e-4.
+likelihood.noise = 0.0001  # Some small value, but don't make it too small or numerical performance will suffer. I recommend 1e-4.
 #likelihood.noise_covar.raw_noise.requires_grad_(False)  # Mark that we don't want to train the noise.
 
 "We need to pass the data to the model where each label identifies the cancer type"
@@ -563,36 +563,39 @@ model = TL_GPModel((full_train_x, full_train_i), full_train_y, replicate_train_x
 # this is for running the notebook in our testing framework
 import os
 smoke_test = ('CI' in os.environ)
-training_iterations = 2 if smoke_test else 150
+training_iterations = 2 if smoke_test else 85
 
 # Find optimal model hyperparameters
 model.train()
 likelihood.train()
 
 # Use the adam optimizer
-optimizer = torch.optim.Adam(model.parameters(), lr=0.2)  # Includes GaussianLikelihood parameters
+mylr = 0.05
+optimizer = torch.optim.Adam(model.parameters(), lr=mylr)  # Includes GaussianLikelihood parameters
 
 # "Loss" for GPs - the marginal log likelihood
 mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
 
 for i in range(training_iterations):
-    optimizer.zero_grad()
-    #output = model(full_train_x, full_train_i)
-    output = model(replicate_train_x5)#, full_train_i)
-    #loss = -mll(output, full_train_y)
-    if i > 0: loss_old = loss.item();
-    else: loss_old = 10000;
-    loss = -mll(output, train_y5.reshape(-1))
-    loss.backward()
-    print('Iter %d/50 - Loss: %.6f' % (i + 1, loss.item()))
-    if np.abs(loss_old-loss.item())<1e-2:
-        print("Stopped by Epsilon")
-        break
     try:
+        optimizer.zero_grad()
+        #output = model(full_train_x, full_train_i)
+        output = model(replicate_train_x5)#, full_train_i)
+        #loss = -mll(output, full_train_y)
+        if i > 0: loss_old = loss.item();
+        else: loss_old = 10000;
+        loss = -mll(output, train_y5.reshape(-1))
+        loss.backward()
+        print('Iter %d/50 - Loss: %.6f' % (i + 1, loss.item()))
+        if np.abs(loss_old-loss.item())<1e-4:
+            print("Stopped by Epsilon")
+            break
+
         optimizer.step()
     except:
         print("change step-size")
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.01)  # Includes GaussianLikelihood parameters
+        mylr = mylr*0.95
+        optimizer = torch.optim.Adam(model.parameters(), lr=mylr)  # Includes GaussianLikelihood parameters
 
 
 # Set into eval mode
@@ -618,11 +621,11 @@ for posy in range(0,20):
     plt.figure(posy)
     #posy = 88
     # Plot training data as black stars
-    plt.plot(torch.linspace(0.111111,1.0,7),test_y[posy, :].numpy(), 'k*')
+    plt.plot(torch.linspace(0.142857,1.0,7),test_y[posy, :].numpy(), 'k*')
     # Predictive mean as blue line
-    plt.plot(torch.linspace(0.111111,1.0,7),mean[posy, :].numpy(), 'b.')
-    plt.plot(torch.linspace(0.111111,1.0,7),lower[posy, :].numpy(), 'c.')
-    plt.plot(torch.linspace(0.111111,1.0,7),upper[posy, :].numpy(), 'c.')
+    plt.plot(torch.linspace(0.142857,1.0,7),mean[posy, :].numpy(), 'b.')
+    plt.plot(torch.linspace(0.142857,1.0,7),lower[posy, :].numpy(), 'c.')
+    plt.plot(torch.linspace(0.142857,1.0,7),upper[posy, :].numpy(), 'c.')
     plt.ylim([-0.1,1.2])
 
 #y1_ax.legend(['Observed Data', 'Mean', 'Confidence'])

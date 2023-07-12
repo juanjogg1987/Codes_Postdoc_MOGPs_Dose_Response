@@ -2,6 +2,7 @@ import math
 import torch
 import gpytorch
 from matplotlib import pyplot as plt
+import numpy as np
 
 # %matplotlib inline
 # %load_ext autoreload
@@ -10,8 +11,8 @@ from matplotlib import pyplot as plt
 # Initialize plots
 f, (y1_ax, y2_ax) = plt.subplots(1, 2, figsize=(8, 3))
 
-Nsize = 200
-Nseed = 0
+Nsize = 50
+Nseed = 1
 torch.manual_seed(Nseed)
 import random
 random.seed(Nseed)
@@ -20,9 +21,10 @@ train_x1 = torch.rand(Nsize)
 torch.manual_seed(Nseed)
 random.seed(Nseed)
 
-indx = torch.randint(0, Nsize, (25,))
-indx0 = torch.randint(0, Nsize, (Nsize//2,))
-#indx = indx0[0:30]
+#indx = torch.randint(0, Nsize, (15,))
+#indx0 = torch.randint(0, Nsize, (Nsize,))
+indx = torch.arange(0,14)
+indx0 = torch.arange(0,25)
 print(indx)
 train_x0 = train_x1[indx0]
 train_x2 = train_x1[indx]
@@ -57,48 +59,48 @@ class TL_Kernel(gpytorch.kernels.Kernel):
             num_tasks: int,
             rank: Optional[int] = 1,
             prior: Optional[Prior] = None,
-            lambda_constraint: Optional[Interval] = None,
+            var_constraint: Optional[Interval] = None,
             **kwargs,
     ):
         if rank > num_tasks:
             raise RuntimeError("Cannot create a task covariance matrix larger than the number of tasks")
         super().__init__(**kwargs)
 
-        # if var_constraint is None:
-        #     var_constraint = Positive()
+        if var_constraint is None:
+            var_constraint = Positive()
 
-        if lambda_constraint is None:
-            lambda_constraint = Interval(-100.0,100.0)
+        # if lambda_constraint is None:
+        #     lambda_constraint = Interval(-100.0,100.0)
 
         self.register_parameter(
-            name="covar_factor", parameter=torch.nn.Parameter(2*torch.rand(*self.batch_shape, num_tasks, rank)-1)
+            name="covar_factor", parameter=torch.nn.Parameter(2 * torch.rand(*self.batch_shape, num_tasks, rank) - 1)
         )
-        #self.register_parameter(name="raw_var", parameter=torch.nn.Parameter(torch.randn(*self.batch_shape, num_tasks)))
+        self.register_parameter(name="raw_var", parameter=torch.nn.Parameter(torch.randn(*self.batch_shape, num_tasks)))
         if prior is not None:
             if not isinstance(prior, Prior):
                 raise TypeError("Expected gpytorch.priors.Prior but got " + type(prior).__name__)
             self.register_prior("IndexKernelPrior", prior, lambda m: m._eval_covar_matrix())
 
-        #self.register_constraint("raw_var", var_constraint)
-        self.register_constraint("covar_factor", lambda_constraint)
+        self.register_constraint("raw_var", var_constraint)
+        # self.register_constraint("covar_factor", lambda_constraint)
 
-    # @property
-    # def var(self):
-    #     return self.raw_var_constraint.transform(self.raw_var)
-    #
-    # @var.setter
-    # def var(self, value):
-    #     self._set_var(value)
-    #
-    # def _set_var(self, value):
-    #     self.initialize(raw_var=self.raw_var_constraint.inverse_transform(value))
+    @property
+    def var(self):
+        return self.raw_var_constraint.transform(self.raw_var)
+
+    @var.setter
+    def var(self, value):
+        self._set_var(value)
+
+    def _set_var(self, value):
+        self.initialize(raw_var=self.raw_var_constraint.inverse_transform(value))
 
     def _eval_covar_matrix(self):
-        cf = 2.0/(1+torch.exp(-self.covar_factor))-1.0
-        #print(cf)
+        cf = 2.0 / (1 + torch.exp(-self.covar_factor)) - 1.0
+        # print(cf)
         num_tasks = cf.shape[0]
-        res_aux = (cf @ cf.transpose(-1, -2)) * (torch.ones((num_tasks,num_tasks)) - torch.eye(num_tasks)) + torch.eye(num_tasks) #+ torch.diag_embed(self.var)
-        #print(res_aux)
+        res_aux = (cf @ cf.transpose(-1, -2)) * (torch.ones((num_tasks, num_tasks)) - torch.eye(num_tasks)) + torch.eye(num_tasks) + torch.diag_embed(self.var)
+        # print(res_aux)
         return res_aux
 
     # @property
@@ -178,7 +180,7 @@ class TL_GPModel(gpytorch.models.ExactGP):
 likelihood = gpytorch.likelihoods.GaussianLikelihood()
 #likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=2)
 
-likelihood.noise = 0.01  # Some small value, but don't make it too small or numerical performance will suffer. I recommend 1e-4.
+likelihood.noise = 0.001  # Some small value, but don't make it too small or numerical performance will suffer. I recommend 1e-4.
 #likelihood.noise_covar.raw_noise.requires_grad_(False)  # Mark that we don't want to train the noise.
 
 train_i_task0 = torch.full((train_x0.shape[0],1), dtype=torch.long, fill_value=0)
@@ -201,7 +203,7 @@ model.covar_module.lengthscale=0.1
 # this is for running the notebook in our testing framework
 import os
 smoke_test = ('CI' in os.environ)
-training_iterations = 2 if smoke_test else 1000
+training_iterations = 3500
 
 
 # Find optimal model hyperparameters
@@ -218,10 +220,15 @@ for i in range(training_iterations):
     optimizer.zero_grad()
     #output = model(full_train_x, full_train_i)
     output = model(train_x2)#, full_train_i)
+    if i > 0: loss_old = loss.item();
+    else: loss_old = 10000;
     #loss = -mll(output, full_train_y)
     loss = -mll(output, train_y2)
     loss.backward()
-    print('Iter %d/50 - Loss: %.3f' % (i + 1, loss.item()))
+    print('Iter %d/50 - Loss: %.5f' % (i + 1, loss.item()))
+    if np.abs(loss_old-loss.item())<1e-6:
+        print("Stopped by Epsilon")
+        break
     optimizer.step()
 
 # Set into eval mode
@@ -296,17 +303,17 @@ class ExactGPModel(gpytorch.models.ExactGP):
 
 # initialize likelihood and model
 likelihood_2 = gpytorch.likelihoods.GaussianLikelihood()
-likelihood_2.noise = 0.01
+likelihood_2.noise = 0.0001
 model_2 = ExactGPModel(train_x2, train_y2, likelihood_2)
 
-training_iter = 1000
+training_iter = 3500
 
 # Find optimal model hyperparameters
 model_2.train()
 likelihood_2.train()
 
 # Use the adam optimizer
-optimizer_2 = torch.optim.Adam(model_2.parameters(), lr=0.01)  # Includes GaussianLikelihood parameters
+optimizer_2 = torch.optim.Adam(model_2.parameters(), lr=0.1)  # Includes GaussianLikelihood parameters
 
 # "Loss" for GPs - the marginal log likelihood
 mll_2 = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood_2, model_2)
@@ -316,14 +323,19 @@ for i in range(training_iter):
     optimizer_2.zero_grad()
     # Output from model
     output_2 = model_2(train_x2)
+    if i > 0: loss_2_old = loss_2.item();
+    else: loss_2_old = 10000;
     # Calc loss and backprop gradients
     loss_2 = -mll_2(output_2, train_y2)
     loss_2.backward()
-    print('Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f' % (
+    print('Iter %d/%d - Loss: %.5f   lengthscale: %.3f   noise: %.3f' % (
         i + 1, training_iter, loss_2.item(),
         model_2.covar_module.base_kernel.lengthscale.item(),
         model_2.likelihood.noise.item()
     ))
+    if np.abs(loss_2_old-loss_2.item())<1e-5:
+        print("Stopped by Epsilon")
+        break
     optimizer_2.step()
 
 model_2.eval()
