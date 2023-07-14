@@ -43,9 +43,9 @@ class commandLine:
         self.scale = 1
         self.weight = 1
         self.bash = "1"
-        self.N_CellLines = 144   #Try to put this values as multiple of Num_drugs
-        self.sel_cancer = 1
-        self.seed_for_N = 3
+        self.N_CellLines = 99   #Try to put this values as multiple of Num_drugs
+        self.sel_cancer = 3
+        self.seed_for_N = 1
         self.N_5thCancer_ToBe_Included = 9 #Try to put this values as multiple of Num_drugs
 
         for op, arg in opts:
@@ -190,8 +190,8 @@ M_dist_d1_norm = M_dist_d1.max()/M_dist_d1
 M_dist_d2_norm = M_dist_d2.max()/M_dist_d2
 M_dist_d3_norm = M_dist_d3.max()/M_dist_d3
 
-#prob_drugs = [M_dist_d1_norm/M_dist_d1_norm.sum(0),M_dist_d2_norm/M_dist_d2_norm.sum(0),M_dist_d3_norm/M_dist_d3_norm.sum(0)]
-prob_drugs = [np.ones(M_dist_d1_norm.shape[0])*1.0/M_dist_d1_norm.shape[0],np.ones(M_dist_d2_norm.shape[0])*1.0/M_dist_d2_norm.shape[0],np.ones(M_dist_d3_norm.shape[0])*1.0/M_dist_d3_norm.shape[0]]
+prob_drugs = [M_dist_d1_norm/M_dist_d1_norm.sum(0),M_dist_d2_norm/M_dist_d2_norm.sum(0),M_dist_d3_norm/M_dist_d3_norm.sum(0)]
+#prob_drugs = [np.ones(M_dist_d1_norm.shape[0])*1.0/M_dist_d1_norm.shape[0],np.ones(M_dist_d2_norm.shape[0])*1.0/M_dist_d2_norm.shape[0],np.ones(M_dist_d3_norm.shape[0])*1.0/M_dist_d3_norm.shape[0]]
 "Here I just set the different seed to sample from My_Categorical"
 np.random.seed(rand_state_N)
 ind_d1 = My_Categorical(prob_drugs[0],N_All_Cell//Num_drugs)
@@ -250,8 +250,8 @@ import matplotlib.pyplot as plt
 from sklearn import metrics
 
 plt.close('all')
-x_lin = np.linspace(0.111111, 1, 1000)
-x_real_dose = np.linspace(0.111111, 1, 7)  #Here is 7 due to using GDSC2 that has 7 doses
+x_lin = np.linspace(0.142857, 1, 1000)
+x_real_dose = np.linspace(0.142857, 1, 7)  #Here is 7 due to using GDSC2 that has 7 doses
 def Get_IC50_AUC_Emax(params_4_sig_train,x_lin,x_real_dose):
     x_lin_tile = np.tile(x_lin, (params_4_sig_train.shape[0], 1))
     # (x_lin,params_4_sig_train.shape[0],1).shape
@@ -563,7 +563,7 @@ model = TL_GPModel((full_train_x, full_train_i), full_train_y, replicate_train_x
 # this is for running the notebook in our testing framework
 import os
 smoke_test = ('CI' in os.environ)
-training_iterations = 2 if smoke_test else 85
+training_iterations = 2 if smoke_test else 107
 
 # Find optimal model hyperparameters
 model.train()
@@ -587,7 +587,7 @@ for i in range(training_iterations):
         loss = -mll(output, train_y5.reshape(-1))
         loss.backward()
         print('Iter %d/50 - Loss: %.6f' % (i + 1, loss.item()))
-        if np.abs(loss_old-loss.item())<1e-4:
+        if np.abs(loss_old-loss.item())<1e-5:
             print("Stopped by Epsilon")
             break
 
@@ -630,3 +630,5 @@ for posy in range(0,20):
 
 #y1_ax.legend(['Observed Data', 'Mean', 'Confidence'])
 #y1_ax.set_title('Observed Values (Likelihood)')
+MAE_test = torch.mean(torch.abs(test_y-mean),0)
+print(f"MSE over test: {MAE_test}")
