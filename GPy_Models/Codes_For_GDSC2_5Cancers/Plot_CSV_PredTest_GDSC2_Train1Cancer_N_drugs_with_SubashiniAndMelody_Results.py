@@ -15,7 +15,7 @@ cancer_Ntrain = {0:round(110*0.7),1:round(108*0.7),2:round(139*0.7),3:round(142*
 rc('font', weight='bold')
 
 #sel_cancer = 0
-cancers = [0]#,1,2,3,4]
+cancers = [0,1,3]
 #N5th_cancer = 9
 All_Nseed = [1,2,3,4,5,6]
 All_N_cells = np.array([10,20,35,55,75,95])
@@ -77,7 +77,7 @@ for sel_cancer in cancers:
     for N_cells in All_N_cells:
         for Nseed in All_Nseed:
             path_to_read = _FOLDER + cancer+'/Train'+str(N_cells)+'/MOGP_Predict_C'+str(sel_cancer)+'_Train'+str(N_cells)+'_seed'+str(Nseed)+'.csv'
-            path_to_read_Subha = _FOLDER_subha + cancer + '/Train' + str(N_cells) + '/BR_s'+str(Nseed)+'_prediction.csv'
+            path_to_read_Subha = _FOLDER_subha + cancer + '/Train' + str(N_cells) + '/s'+str(Nseed)+'_prediction.csv'
 
             df_pred = pd.read_csv(path_to_read)
             df_pred_Subha = pd.read_csv(path_to_read_Subha)
