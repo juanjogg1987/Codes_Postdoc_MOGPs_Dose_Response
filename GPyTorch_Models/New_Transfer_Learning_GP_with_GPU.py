@@ -24,12 +24,11 @@ class TL_Kernel(gpytorch.kernels.Kernel):
             length_constraint = Positive()
 
         # register the raw parameter
-        for i in range(NDomains):
-            self.register_parameter(
-                name='raw_length'+str(i+1), parameter=torch.nn.Parameter(torch.zeros(*self.batch_shape, 1, 1))
-            )
-            # register the constraint
-            self.register_constraint("raw_length"+str(i+1), length_constraint)
+        self.register_parameter(
+            name='raw_length', parameter=torch.nn.Parameter(torch.zeros(*self.batch_shape, NDomains, 1))
+        )
+        # register the constraint
+        self.register_constraint("raw_length", length_constraint)
 
         #self.raw_length_list = [self.raw_length1,self.raw_length2] [exec("'self.raw_length'+str(i+1)) for i in range(Ntasks)"]
         #self.raw_length_list = exec("['self.raw_length'+str(i+1) for i in range(Ntasks)]")
@@ -50,62 +49,52 @@ class TL_Kernel(gpytorch.kernels.Kernel):
     @property
     def length(self):
         # when accessing the parameter, apply the constraint transform
-        # self.raw_length1_constraint.transform(self.raw_length1)
-        return exec("['self.raw_length'+str(i+1)+'_constraint.transform(self.raw_length'+str(i+1)+')' for i in range(self.NDomains)]")
+        return self.raw_length_constraint.transform(self.raw_length)
 
     #['self.raw_length'+str(i+1) for i in range(Ntasks)]
 
-    # @length.setter
-    # def length(self, value):
-    #     return self._set_length(value)
-
     @length.setter
-    def length(self, value, i_domain = None):
-        if i_domain is None:
-            print("Remeber values has to be a unique value or a vector of NDomains size")
-            assert value.shape == self.NDomains
-        return [self._set_length(value,i=i) for i in range(self.NDomains)]
+    def length(self, value):
+        return self._set_length(value)
 
 
-    def _set_length(self, value,i=0):
+    def _set_length(self, value):
         if not torch.is_tensor(value):
-            value = exec("'torch.as_tensor(value).to(self.raw_length'+str(i+1)+')'")
+            value = torch.as_tensor(value).to(self.raw_length)
         # when setting the paramater, transform the actual value to a raw one by applying the inverse transform
-        #self.initialize(raw_length1=self.raw_length1_constraint.inverse_transform(value))
-        exec("'self.initialize(raw_length'+str(i+1)+'=self.raw_length'+str(i+1)+'_constraint.inverse_transform(value))'")
-
-    # def _set_length(self, value,i_domain=None):
-    #     if i_domain is None:
-    #         for i in range(self.NDomains):
-    #             if not torch.is_tensor(value[i]):
-    #                 value_aux = exec("'torch.as_tensor(value[i]).to(self.raw_length'+str(i+1)+')'")
-    #         # when setting the paramater, transform the actual value to a raw one by applying the inverse transform
-    #     #self.initialize(raw_length1=self.raw_length1_constraint.inverse_transform(value))
-    #             #self.initialize(raw_length1=self.raw_length1_constraint.inverse_transform(value))
-    #             exec("'self.initialize(raw_length'+str(i+1)+'=self.raw_length'+str(i+1)+'_constraint.inverse_transform(value_aux))'")
+        self.initialize(raw_length=self.raw_length_constraint.inverse_transform(value))
 
     # this is the kernel function
-    def forward(self, x1, x2, **params):
+    def forward(self, x1, x2, idx1=None,idx2=None,square_dist=True, diag=False,**params):
         # apply lengthscale
-        x1_ = x1.div(self.length[0])
-        x2_ = x2.div(self.length[0])
+        A, B = torch.meshgrid(self.length[indx1].flatten() ** 2.0, self.length[indx2].flatten() ** 2.0)
+        #x1_ = x1.div(torch.sqrt(self.length[idx1]**2.0+self.length[idx2]**2.0))#/torch.sqrt(torch.tensor(2.0)))#.div(torch.sqrt(torch.tensor(2.0)))
+        #x2_ = x2.div(torch.sqrt(self.length[idx1]**2.0+self.length[idx2]**2.0))#/torch.sqrt(torch.tensor(2.0)))#.div(torch.sqrt(torch.tensor(2.0)))
+        #x1_ = x1.div(self.length[0])
+        #x2_ = x2.div(self.length[0])
         # calculate the distance between inputs
-        diff = self.covar_dist(x1_, x2_, **params)
+        diff = -1.0/(A+B) * self.covar_dist(x1, x2, square_dist=square_dist, diag=diag, **params)
+        #diff = -1.0*self.covar_dist(x1_, x2_, square_dist=square_dist, diag=diag,**params)
         # prevent divide by 0 errors
-        diff.where(diff == 0, torch.as_tensor(1e-20))
+        #diff.where(diff == 0, torch.as_tensor(1e-20))
         # return sinc(diff) = sin(diff) / diff
-        return torch.sin(diff).div(diff)
+        return diff.exp_() #torch.sin(diff).div(diff)
 
 #gpytorch.kernels.RBFKernel()
+Nseed = 1
+torch.manual_seed(Nseed)
+import random
+random.seed(Nseed)
+x1 = torch.randn(3,2)
+x2 = torch.randn(3,2)
 
-x = torch.randn(5,2)
-
-covar = TL_Kernel(NDomains= 1) #gpytorch.kernels.RBFKernel()
+covar = TL_Kernel(NDomains= 3) #gpytorch.kernels.RBFKernel()
 print(covar)
-covar._set_length(0.5,i=0)
-
-#MyK = covar(x).evaluate()
-
+covar._set_length([0.8,0.1,0.4])
+indx1 = [0,0,1]
+indx2 = [0,0,1]
+MyK = covar(x1,x2,idx1=indx1,idx2=indx2).evaluate()
+print(MyK)
 #We could try to build kernel per region: KSS, KTS and KTT, maybe use idea from the kernel index of MOGP
 #something like
 #def forward(self, x1, x2, ind_1,ind_2,**params):
