@@ -9,6 +9,7 @@ plt.close('all')
 
 _FOLDER = '/home/juanjo/Work_Postdoc/my_codes_postdoc/FilesCSV_Predict_Train1Cancer_IncreasingCellLines/'
 _FOLDER_subha = _FOLDER + 'Subhashini_QSAR/'
+_FOLDER_melody = _FOLDER + 'Melody_SRMF/'
 cancer_names = {0:'breast_cancer',1:'COAD_cancer',2:'LUAD_cancer',3:'melanoma_cancer',4:'SCLC_cancer'}
 cancer_Ntrain = {0:round(110*0.7),1:round(108*0.7),2:round(139*0.7),3:round(142*0.7),4:round(133*0.7)}
 
@@ -47,6 +48,12 @@ def Compute_Metric(df_pred, Ini_Metrics=None,metric_name='IC50', thresh=0.5,sel_
 
         AE_Metric_Res_aux = np.abs(df_pred['Prediction ('+metric_name+')'].values[Metric_Res_indx] - df_pred[metric_name].values[Metric_Res_indx]) ** Val_Squared
         AE_Metric_NoRes_aux = np.abs(df_pred['Prediction ('+metric_name+')'].values[Metric_NoRes_indx] - df_pred[metric_name].values[Metric_NoRes_indx]) ** Val_Squared
+    elif sel_res == 'Melody':
+        Metric_Res_indx = df_pred[metric_name].values < thresh
+        Metric_NoRes_indx = df_pred[metric_name].values >= thresh
+
+        AE_Metric_Res_aux = np.abs(df_pred['SRMF_'+metric_name].values[Metric_Res_indx] - df_pred[metric_name].values[Metric_Res_indx]) ** Val_Squared
+        AE_Metric_NoRes_aux = np.abs(df_pred['SRMF_'+metric_name].values[Metric_NoRes_indx] - df_pred[metric_name].values[Metric_NoRes_indx]) ** Val_Squared
     if (Ini_Metrics is None):
         AE_Metric_Res = AE_Metric_Res_aux.copy()
         AE_Metric_NoRes = AE_Metric_NoRes_aux.copy()
@@ -69,18 +76,28 @@ for sel_cancer in cancers:
     MAE_AUC_Res_Ncells = [] ; MAE_Emax_Res_Ncells = [] ; MAE_IC50_Res_Ncells = []
     AE_AUC_NoRes_Ncells = [] ; AE_Emax_NoRes_Ncells = [] ; AE_IC50_NoRes_Ncells = []
     MAE_AUC_NoRes_Ncells = [] ; MAE_Emax_NoRes_Ncells = [] ; MAE_IC50_NoRes_Ncells = []
-    "Variables for Subhashini results"
-    AE_IC50_Res_Ncells_Subha = []
-    MAE_IC50_Res_Ncells_Subha = []
-    AE_IC50_NoRes_Ncells_Subha = []
-    MAE_IC50_NoRes_Ncells_Subha = []
+    "Variables for Subhashini and Melody results"
+    AE_IC50_Res_Ncells_Subha = [] ; AE_IC50_Res_Ncells_Melody = []
+    MAE_IC50_Res_Ncells_Subha = [] ; MAE_IC50_Res_Ncells_Melody = []
+    AE_IC50_NoRes_Ncells_Subha = [] ; AE_IC50_NoRes_Ncells_Melody = []
+    MAE_IC50_NoRes_Ncells_Subha = [] ; MAE_IC50_NoRes_Ncells_Melody = []
+    AE_AUC_Res_Ncells_Melody = [] ; AE_Emax_Res_Ncells_Melody = []
+    MAE_AUC_Res_Ncells_Melody = [] ; MAE_Emax_Res_Ncells_Melody = []
+    AE_AUC_NoRes_Ncells_Melody = [] ; AE_Emax_NoRes_Ncells_Melody = []
+    MAE_AUC_NoRes_Ncells_Melody = [] ; MAE_Emax_NoRes_Ncells_Melody = []
     for N_cells in All_N_cells:
         for Nseed in All_Nseed:
             path_to_read = _FOLDER + cancer+'/Train'+str(N_cells)+'/MOGP_Predict_C'+str(sel_cancer)+'_Train'+str(N_cells)+'_seed'+str(Nseed)+'.csv'
             path_to_read_Subha = _FOLDER_subha + cancer + '/Train' + str(N_cells) + '/s'+str(Nseed)+'_prediction.csv'
+            path_to_read_Melody_IC50 = _FOLDER_melody + cancer + '/Train' + str(N_cells) + '/seed'+str(Nseed)+'/IC50_s' + str(Nseed) + '_prediction.csv'
+            path_to_read_Melody_AUC = _FOLDER_melody + cancer + '/Train' + str(N_cells) + '/seed' + str(Nseed) + '/AUC_s' + str(Nseed) + '_prediction.csv'
+            path_to_read_Melody_Emax = _FOLDER_melody + cancer + '/Train' + str(N_cells) + '/seed' + str(Nseed) + '/Emax_s' + str(Nseed) + '_prediction.csv'
 
             df_pred = pd.read_csv(path_to_read)
             df_pred_Subha = pd.read_csv(path_to_read_Subha)
+            df_pred_Melody_IC50 = pd.read_csv(path_to_read_Melody_IC50)
+            df_pred_Melody_AUC = pd.read_csv(path_to_read_Melody_AUC)
+            df_pred_Melody_Emax = pd.read_csv(path_to_read_Melody_Emax)
             cols_label = ["norm_cells_" + str(i) for i in range(1, 8)]
             cols_pred = ["norm_cell_" + str(i)+"_MOGP" for i in range(1, 8)]
             if Nseed == 1:
@@ -88,22 +105,28 @@ for sel_cancer in cancers:
                 MAE_per_dose = np.mean(AE_per_dose,0)[None,:]
 
                 AE_AUC_Res,AE_AUC_NoRes,MAE_AUC_Res, MAE_AUC_NoRes,AUC_Res_indx,AUC_NoRes_indx = Compute_Metric(df_pred,Ini_Metrics= None,metric_name = 'AUC',thresh = 0.55,sel_res='Juan',Squared=False)
+                AE_AUC_Res_Melody, AE_AUC_NoRes_Melody, MAE_AUC_Res_Melody, MAE_AUC_NoRes_Melody, AUC_Res_indx_Melody, AUC_NoRes_indx_Melody = Compute_Metric(df_pred_Melody_AUC, Ini_Metrics=None, metric_name='AUC', thresh=0.55, sel_res='Melody', Squared=False)
 
                 AE_Emax_Res, AE_Emax_NoRes, MAE_Emax_Res, MAE_Emax_NoRes, Emax_Res_indx, Emax_NoRes_indx = Compute_Metric(df_pred,Ini_Metrics= None, metric_name='Emax', thresh=0.5, sel_res='Juan',Squared=False)
+                AE_Emax_Res_Melody, AE_Emax_NoRes_Melody, MAE_Emax_Res_Melody, MAE_Emax_NoRes_Melody, Emax_Res_indx_Melody, Emax_NoRes_indx_Melody = Compute_Metric(df_pred_Melody_Emax, Ini_Metrics=None, metric_name='Emax', thresh=0.5, sel_res='Melody', Squared=False)
 
                 AE_IC50_Res, AE_IC50_NoRes, MAE_IC50_Res, MAE_IC50_NoRes, IC50_Res_indx, IC50_NoRes_indx = Compute_Metric(df_pred,Ini_Metrics= None, metric_name='IC50', thresh=1.5, sel_res='Juan',Squared=True)
                 AE_IC50_Res_Subha, AE_IC50_NoRes_Subha, MAE_IC50_Res_Subha, MAE_IC50_NoRes_Subha, IC50_Res_indx_Subha, IC50_NoRes_indx_Subha = Compute_Metric(df_pred_Subha, Ini_Metrics=None, metric_name='IC50', thresh=1.5,sel_res='Subha', Squared=True)
+                AE_IC50_Res_Melody, AE_IC50_NoRes_Melody, MAE_IC50_Res_Melody, MAE_IC50_NoRes_Melody, IC50_Res_indx_Melody, IC50_NoRes_indx_Melody = Compute_Metric(df_pred_Melody_IC50, Ini_Metrics=None, metric_name='IC50', thresh=1.5, sel_res='Melody', Squared=True)
             else:
                 AE_per_dose_aux = np.abs(df_pred[cols_label].values - df_pred[cols_pred].values)
                 AE_per_dose = np.concatenate((AE_per_dose,AE_per_dose_aux))
                 MAE_per_dose = np.concatenate((MAE_per_dose,np.mean(AE_per_dose_aux,0)[None,:]),0)
 
                 AE_AUC_Res, AE_AUC_NoRes, MAE_AUC_Res, MAE_AUC_NoRes, AUC_Res_indx, AUC_NoRes_indx = Compute_Metric(df_pred, Ini_Metrics=[AE_AUC_Res.copy(),AE_AUC_NoRes.copy(),MAE_AUC_Res.copy(),MAE_AUC_NoRes.copy()], metric_name='AUC', thresh=0.55, Squared=False)
+                AE_AUC_Res_Melody, AE_AUC_NoRes_Melody, MAE_AUC_Res_Melody, MAE_AUC_NoRes_Melody, AUC_Res_indx_Melody, AUC_NoRes_indx_Melody = Compute_Metric(df_pred_Melody_AUC, Ini_Metrics=[AE_AUC_Res_Melody.copy(), AE_AUC_NoRes_Melody.copy(), MAE_AUC_Res_Melody.copy(), MAE_AUC_NoRes_Melody.copy()],metric_name='AUC', thresh=0.55,sel_res='Melody',Squared=False)
 
                 AE_Emax_Res, AE_Emax_NoRes, MAE_Emax_Res, MAE_Emax_NoRes, Emax_Res_indx, Emax_NoRes_indx = Compute_Metric(df_pred,Ini_Metrics=[AE_Emax_Res.copy(), AE_Emax_NoRes.copy(), MAE_Emax_Res.copy(), MAE_Emax_NoRes.copy()],metric_name='Emax', thresh=0.5, Squared=False)
+                AE_Emax_Res_Melody, AE_Emax_NoRes_Melody, MAE_Emax_Res_Melody, MAE_Emax_NoRes_Melody, Emax_Res_indx_Melody, Emax_NoRes_indx_Melody = Compute_Metric(df_pred_Melody_Emax,Ini_Metrics=[AE_Emax_Res_Melody.copy(), AE_Emax_NoRes_Melody.copy(), MAE_Emax_Res_Melody.copy(), MAE_Emax_NoRes_Melody.copy()],metric_name='Emax', thresh=0.5,sel_res='Melody',Squared=False)
 
                 AE_IC50_Res, AE_IC50_NoRes, MAE_IC50_Res, MAE_IC50_NoRes, IC50_Res_indx, IC50_NoRes_indx = Compute_Metric(df_pred,Ini_Metrics=[AE_IC50_Res.copy(), AE_IC50_NoRes.copy(), MAE_IC50_Res.copy(), MAE_IC50_NoRes.copy()],metric_name='IC50', thresh=1.5, Squared=True)
                 AE_IC50_Res_Subha, AE_IC50_NoRes_Subha, MAE_IC50_Res_Subha, MAE_IC50_NoRes_Subha, IC50_Res_indx_Subha, IC50_NoRes_indx_Subha = Compute_Metric(df_pred_Subha,Ini_Metrics=[AE_IC50_Res_Subha.copy(), AE_IC50_NoRes_Subha.copy(), MAE_IC50_Res_Subha.copy(), MAE_IC50_NoRes_Subha.copy()], metric_name='IC50', thresh=1.5, sel_res='Subha', Squared=True)
+                AE_IC50_Res_Melody, AE_IC50_NoRes_Melody, MAE_IC50_Res_Melody, MAE_IC50_NoRes_Melody, IC50_Res_indx_Melody, IC50_NoRes_indx_Melody = Compute_Metric(df_pred_Melody_IC50,Ini_Metrics=[AE_IC50_Res_Melody.copy(), AE_IC50_NoRes_Melody.copy(), MAE_IC50_Res_Melody.copy(),MAE_IC50_NoRes_Melody.copy()], metric_name='IC50', thresh=1.5, sel_res='Melody', Squared=True)
 
         AE_per_dose_Ncells.append(AE_per_dose)
         MAE_per_dose_Ncells.append(MAE_per_dose)
@@ -127,6 +150,21 @@ for sel_cancer in cancers:
         MAE_IC50_Res_Ncells_Subha.append(MAE_IC50_Res_Subha)
         AE_IC50_NoRes_Ncells_Subha.append(AE_IC50_NoRes_Subha)
         MAE_IC50_NoRes_Ncells_Subha.append(MAE_IC50_NoRes_Subha)
+
+        AE_IC50_Res_Ncells_Melody.append(AE_IC50_Res_Melody)
+        MAE_IC50_Res_Ncells_Melody.append(MAE_IC50_Res_Melody)
+        AE_IC50_NoRes_Ncells_Melody.append(AE_IC50_NoRes_Melody)
+        MAE_IC50_NoRes_Ncells_Melody.append(MAE_IC50_NoRes_Melody)
+
+        AE_AUC_Res_Ncells_Melody.append(AE_AUC_Res_Melody)
+        MAE_AUC_Res_Ncells_Melody.append(MAE_AUC_Res_Melody)
+        AE_AUC_NoRes_Ncells_Melody.append(AE_AUC_NoRes_Melody)
+        MAE_AUC_NoRes_Ncells_Melody.append(MAE_AUC_NoRes_Melody)
+
+        AE_Emax_Res_Ncells_Melody.append(AE_Emax_Res_Melody)
+        MAE_Emax_Res_Ncells_Melody.append(MAE_Emax_Res_Melody)
+        AE_Emax_NoRes_Ncells_Melody.append(AE_Emax_NoRes_Melody)
+        MAE_Emax_NoRes_Ncells_Melody.append(MAE_Emax_NoRes_Melody)
 
     #plt.figure(5)
     Num_cells = All_N_cells.__len__()
@@ -168,8 +206,8 @@ for sel_cancer in cancers:
             #axs[sel_cancer, Nth_dose].boxplot(AE_per_Nthdose_Ncells,medianprops = dict(color = "orangered", linewidth = 1.8),positions=Total_Ncell,widths=4.0,notch=True,flierprops={'marker': 'o', 'markersize': 1, 'markerfacecolor': 'black'})
             #plt.fill_between(New_X, f_MAE_per_Nthdose_Ncells - f_stdAE_per_Nthdose_Ncells, f_MAE_per_Nthdose_Ncells + f_stdAE_per_Nthdose_Ncells,alpha=0.2)
             #AE_per_Nthdose_Ncells
-            axs[indx_plot, Nth_dose].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells, f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,alpha=0.2)
-            line3 = axs[indx_plot, Nth_dose].plot(New_X_per_seed, MAE_per_seed, '.', color=mycolor[0], alpha=0.4,label='Mean-Error per seed')
+            axs[indx_plot, Nth_dose].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells, f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,color=mycolor[0],alpha=0.1)
+            line3 = axs[indx_plot, Nth_dose].plot(New_X_per_seed, MAE_per_seed, '.', color=mycolor[0], alpha=0.2,label='Mean-Error per seed')
             line2, = axs[indx_plot, Nth_dose].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells,'-',color=mycolor[1],linewidth=0.7,label = 'Avg. Mean-Error ± Std')
             if my_ylim is None:
                 axs[indx_plot, Nth_dose].set_ylim([-0.01,0.27])
@@ -192,10 +230,8 @@ for sel_cancer in cancers:
         else:
             #axs[sel_cancer].boxplot(AE_per_Nthdose_Ncells, medianprops=dict(color="orangered", linewidth=1.8),positions=Total_Ncell, widths=4.0, notch=True,flierprops={'marker': 'o', 'markersize': 1, 'markerfacecolor': 'black'})
             # plt.fill_between(New_X, f_MAE_per_Nthdose_Ncells - f_stdAE_per_Nthdose_Ncells, f_MAE_per_Nthdose_Ncells + f_stdAE_per_Nthdose_Ncells,alpha=0.2)
-            axs[indx_plot].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells,
-                                                   f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,
-                                                   alpha=0.2)
-            line3 = axs[indx_plot].plot(New_X_per_seed, MAE_per_seed, '.', color=mycolor[0], alpha=0.4,label='Mean-Error per seed')
+            axs[indx_plot].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells,f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,color=mycolor[0],alpha=0.1)
+            line3 = axs[indx_plot].plot(New_X_per_seed, MAE_per_seed, '.', color=mycolor[0], alpha=0.2,label='Mean-Error per seed')
             line2, = axs[indx_plot].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells, '-', color=mycolor[1], linewidth=0.7, label='Avg. Mean-Error ± Std')
             if my_ylim is None:
                 axs[indx_plot].set_ylim([-0.01, 0.27])
@@ -247,26 +283,32 @@ for sel_cancer in cancers:
     print(f"AUC Cancer {sel_cancer}:",AE_AUC_Res_Ncells)
     if AE_AUC_Res_Ncells[0].shape[0] != 0:
         plot_Nth_dose(0, axs_all[sel_cancer], 2, Num_cells, AE_AUC_Res_Ncells, MAE_AUC_Res_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.42],my_title="AUC Responsive (AE)")
+        plot_Nth_dose(0, axs_all[sel_cancer], 2, Num_cells, AE_AUC_Res_Ncells_Melody, MAE_AUC_Res_Ncells_Melody,mycolor=['green','green'], Responsive=IsRes, my_ylim=[-0.01, 0.42], my_title="AUC Responsive (AE)",force_title=True)
         if data_AUC_Res[sel_cancer].shape[0] != 0:
             plot_benchmark(axs_all[sel_cancer], [0, 1], N_Cells_lin, data_AUC_Res[sel_cancer],alpha=0.5,Responsive = IsRes)
     plot_Nth_dose(0, axs_all[sel_cancer], 1, Num_cells, AE_AUC_NoRes_Ncells, MAE_AUC_NoRes_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.42],my_title="AUC Non-Responsive (AE)")
+    plot_Nth_dose(0, axs_all[sel_cancer], 1, Num_cells, AE_AUC_NoRes_Ncells_Melody, MAE_AUC_NoRes_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 0.42], my_title="AUC Non-Responsive (AE)",force_title=True)
     plot_benchmark(axs_all[sel_cancer], [0, 0], N_Cells_lin, data_AUC_NoRes[sel_cancer], alpha=0.5,Responsive = IsRes)
 
     print(f"Emax Cancer {sel_cancer}:", AE_Emax_Res_Ncells)
     if AE_Emax_Res_Ncells[0].shape[0] != 0:
         plot_Nth_dose(1, axs_all[sel_cancer], 2, Num_cells, AE_Emax_Res_Ncells, MAE_Emax_Res_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.9],my_title="Emax Responsive (AE)",force_title=True)
+        plot_Nth_dose(1, axs_all[sel_cancer], 2, Num_cells, AE_Emax_Res_Ncells_Melody, MAE_Emax_Res_Ncells_Melody,mycolor=['green','green'], Responsive=IsRes, my_ylim=[-0.01, 0.9],my_title="Emax Responsive (AE)", force_title=True)
         if data_Emax_Res[sel_cancer].shape[0] != 0:
             plot_benchmark(axs_all[sel_cancer], [1, 1], N_Cells_lin, data_Emax_Res[sel_cancer],alpha=0.5,Responsive = IsRes)
     plot_Nth_dose(1, axs_all[sel_cancer], 1, Num_cells, AE_Emax_NoRes_Ncells, MAE_Emax_NoRes_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.9],my_title="Emax Non-Responsive (AE)",force_title=True)
+    plot_Nth_dose(1, axs_all[sel_cancer], 1, Num_cells, AE_Emax_NoRes_Ncells_Melody, MAE_Emax_NoRes_Ncells_Melody,mycolor=['green','green'], Responsive=IsRes, my_ylim=[-0.01, 0.9], my_title="Emax Non-Responsive (AE)",force_title=True)
     plot_benchmark(axs_all[sel_cancer], [1, 0], N_Cells_lin, data_Emax_NoRes[sel_cancer], alpha=0.5,Responsive = IsRes)
 
     print(f"IC50 Cancer {sel_cancer}:", AE_IC50_Res_Ncells)
     if AE_IC50_Res_Ncells[0].shape[0] != 0:
         plot_Nth_dose(2, axs_all[sel_cancer], 2, Num_cells, AE_IC50_Res_Ncells, MAE_IC50_Res_Ncells,Responsive = IsRes, my_ylim=[-0.01, 1.2],my_title="IC50 Responsive (SE)",force_title=True)
         plot_Nth_dose(2, axs_all[sel_cancer], 2, Num_cells, AE_IC50_Res_Ncells_Subha, MAE_IC50_Res_Ncells_Subha,mycolor=['red','red'], Responsive=IsRes,my_ylim=[-0.01, 1.2], my_title="IC50 Responsive (SE)", force_title=True)
+        plot_Nth_dose(2, axs_all[sel_cancer], 2, Num_cells, AE_IC50_Res_Ncells_Melody, MAE_IC50_Res_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 1.2], my_title="IC50 Responsive (SE)",force_title=True)
         plot_benchmark(axs_all[sel_cancer], [2, 1], N_Cells_lin, data_IC50_Res[sel_cancer],alpha=0.5,Responsive = IsRes)
     plot_Nth_dose(2, axs_all[sel_cancer], 1, Num_cells, AE_IC50_NoRes_Ncells, MAE_IC50_NoRes_Ncells,Responsive = IsRes, my_ylim=[-0.01, 1.2],my_title="IC50 Non-Responsive (SE)",force_title=True)
     plot_Nth_dose(2, axs_all[sel_cancer], 1, Num_cells, AE_IC50_NoRes_Ncells_Subha, MAE_IC50_NoRes_Ncells_Subha,mycolor=['red','red'], Responsive=IsRes,  my_ylim=[-0.01, 1.2], my_title="IC50 Non-Responsive (SE)", force_title=True)
+    plot_Nth_dose(2, axs_all[sel_cancer], 1, Num_cells, AE_IC50_NoRes_Ncells_Melody, MAE_IC50_NoRes_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 1.2], my_title="IC50 Non-Responsive (SE)", force_title=True)
     plot_benchmark(axs_all[sel_cancer], [2, 0], N_Cells_lin, data_IC50_NoRes[sel_cancer],alpha=0.5,Responsive = IsRes)
 
 #cancer_names = {0:'breast_cancer',1:'COAD_cancer',2:'LUAD_cancer',3:'melanoma_cancer',4:'SCLC_cancer'}
