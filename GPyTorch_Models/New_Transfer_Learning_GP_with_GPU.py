@@ -91,8 +91,8 @@ x2 = torch.randn(3,2)
 covar = TL_Kernel(NDomains= 3) #gpytorch.kernels.RBFKernel()
 print(covar)
 covar._set_length([0.8,0.1,0.4])
-indx1 = [0,0,1]
-indx2 = [0,0,1]
+indx1 = [0,1,2]
+indx2 = [0,1,2]
 MyK = covar(x1,x2,idx1=indx1,idx2=indx2).evaluate()
 print(MyK)
 #We could try to build kernel per region: KSS, KTS and KTT, maybe use idea from the kernel index of MOGP

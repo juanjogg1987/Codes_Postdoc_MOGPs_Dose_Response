@@ -96,6 +96,15 @@ for sel_cancer in cancers:
             df_pred = pd.read_csv(path_to_read)
             df_pred_Subha = pd.read_csv(path_to_read_Subha)
             df_pred_Melody_IC50 = pd.read_csv(path_to_read_Melody_IC50)
+
+            "Replace the values higher than 1.0 to 1.5 to be fair with the method"
+            indxSubha_higher_than_1 = np.where(df_pred_Subha['Prediction (IC50)']>1.0)[0]
+            indxMelody_higher_than_1 = np.where(df_pred_Melody_IC50['SRMF_IC50'] > 1.0)[0]
+            df_pred_Melody_IC50.iloc[indxMelody_higher_than_1, [df_pred_Melody_IC50.columns.__len__() - 1]] = 1.5
+            df_pred_Subha.iloc[indxSubha_higher_than_1, [df_pred_Subha.columns.__len__() - 1]] = 1.5
+            print("Melody df:",df_pred_Melody_IC50)
+            print("Subha df:",df_pred_Subha)
+
             df_pred_Melody_AUC = pd.read_csv(path_to_read_Melody_AUC)
             df_pred_Melody_Emax = pd.read_csv(path_to_read_Melody_Emax)
             cols_label = ["norm_cells_" + str(i) for i in range(1, 8)]
@@ -206,7 +215,7 @@ for sel_cancer in cancers:
             #axs[sel_cancer, Nth_dose].boxplot(AE_per_Nthdose_Ncells,medianprops = dict(color = "orangered", linewidth = 1.8),positions=Total_Ncell,widths=4.0,notch=True,flierprops={'marker': 'o', 'markersize': 1, 'markerfacecolor': 'black'})
             #plt.fill_between(New_X, f_MAE_per_Nthdose_Ncells - f_stdAE_per_Nthdose_Ncells, f_MAE_per_Nthdose_Ncells + f_stdAE_per_Nthdose_Ncells,alpha=0.2)
             #AE_per_Nthdose_Ncells
-            axs[indx_plot, Nth_dose].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells, f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,color=mycolor[0],alpha=0.1)
+            axs[indx_plot, Nth_dose].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells, f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,color=mycolor[0],alpha=0.05)
             line3 = axs[indx_plot, Nth_dose].plot(New_X_per_seed, MAE_per_seed, '.', color=mycolor[0], alpha=0.2,label='Mean-Error per seed')
             line2, = axs[indx_plot, Nth_dose].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells,'-',color=mycolor[1],linewidth=0.7,label = 'Avg. Mean-Error ± Std')
             if my_ylim is None:
@@ -230,7 +239,7 @@ for sel_cancer in cancers:
         else:
             #axs[sel_cancer].boxplot(AE_per_Nthdose_Ncells, medianprops=dict(color="orangered", linewidth=1.8),positions=Total_Ncell, widths=4.0, notch=True,flierprops={'marker': 'o', 'markersize': 1, 'markerfacecolor': 'black'})
             # plt.fill_between(New_X, f_MAE_per_Nthdose_Ncells - f_stdAE_per_Nthdose_Ncells, f_MAE_per_Nthdose_Ncells + f_stdAE_per_Nthdose_Ncells,alpha=0.2)
-            axs[indx_plot].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells,f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,color=mycolor[0],alpha=0.1)
+            axs[indx_plot].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells,f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,color=mycolor[0],alpha=0.05)
             line3 = axs[indx_plot].plot(New_X_per_seed, MAE_per_seed, '.', color=mycolor[0], alpha=0.2,label='Mean-Error per seed')
             line2, = axs[indx_plot].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells, '-', color=mycolor[1], linewidth=0.7, label='Avg. Mean-Error ± Std')
             if my_ylim is None:
@@ -261,22 +270,20 @@ for sel_cancer in cancers:
 
     def plot_benchmark(axs, loc, N_Cells_lin, data,alpha = 0.5, Responsive = True):
         if Responsive is True:
-            line_Q1, = axs[loc[0], loc[1]].plot(N_Cells_lin, np.percentile(data, 25) * np.ones_like(N_Cells_lin), 'm--',linewidth=1.1,alpha=alpha,label='BERK Q1')
-            line_Q2, = axs[loc[0], loc[1]].plot(N_Cells_lin, np.percentile(data, 50) * np.ones_like(N_Cells_lin), 'm',linewidth=1.1,alpha=alpha,label='BERK Q2')
-            line_Q3, = axs[loc[0], loc[1]].plot(N_Cells_lin, np.percentile(data, 75) * np.ones_like(N_Cells_lin), 'm--',linewidth=1.1,alpha=alpha,label='BERK Q3')
-            line_mean, = axs[loc[0], loc[1]].plot(N_Cells_lin, np.mean(data) * np.ones_like(N_Cells_lin), 'green',linewidth=1.1,alpha=alpha,label='BERK Mean-Error')
-            #line_median, = axs[loc[0], loc[1]].plot(1000*N_Cells_lin, np.mean(data) * np.ones_like(N_Cells_lin), 'm',alpha=1.0, label='Boxplot Median')
-            axs[0, 0].legend(handles=[line_averMAE,line_Seeds[0],line_mean,line_Q3,line_Q2,line_Q1],loc='upper right', bbox_to_anchor=(2.03, 1.3),ncol=6, fancybox=True, shadow=True)
+            #line_Q1, = axs[loc[0], loc[1]].plot(N_Cells_lin, np.percentile(data, 25) * np.ones_like(N_Cells_lin), '--',color='magenta',linewidth=1.1,alpha=alpha,label='BERK Q1')
+            line_Q2, = axs[loc[0], loc[1]].plot(N_Cells_lin, np.percentile(data, 50) * np.ones_like(N_Cells_lin), '--',color='darkgoldenrod',linewidth=1.1,alpha=alpha,label='BERK Q2')
+            #line_Q3, = axs[loc[0], loc[1]].plot(N_Cells_lin, np.percentile(data, 75) * np.ones_like(N_Cells_lin), '--',color='magenta',linewidth=1.1,alpha=alpha,label='BERK Q3')
+            line_mean, = axs[loc[0], loc[1]].plot(N_Cells_lin, np.mean(data) * np.ones_like(N_Cells_lin), color='darkgoldenrod',linewidth=1.1,alpha=alpha,label='BERK Mean-Error')
+            #axs[0, 0].legend(handles=[line_averMAE,line_Seeds[0],line_mean,line_Q3,line_Q2,line_Q1],loc='upper right', bbox_to_anchor=(2.03, 1.3),ncol=6, fancybox=True, shadow=True)
         else:
-            line_Q1, = axs[loc[0]].plot(N_Cells_lin, np.percentile(data, 25) * np.ones_like(N_Cells_lin), 'm--',linewidth=1.1, alpha=alpha, label='BERK Q1')
-            line_Q2, = axs[loc[0]].plot(N_Cells_lin, np.percentile(data, 50) * np.ones_like(N_Cells_lin), 'm',linewidth=1.1, alpha=alpha, label='BERK Q2')
-            line_Q3, = axs[loc[0]].plot(N_Cells_lin, np.percentile(data, 75) * np.ones_like(N_Cells_lin), 'm--',linewidth=1.1, alpha=alpha, label='BERK Q3')
-            line_mean, = axs[loc[0]].plot(N_Cells_lin, np.mean(data) * np.ones_like(N_Cells_lin), 'green',linewidth=1.1, alpha=alpha, label='BERK Mean-Error')
-            # line_median, = axs[loc[0], loc[1]].plot(1000*N_Cells_lin, np.mean(data) * np.ones_like(N_Cells_lin), 'm',alpha=1.0, label='Boxplot Median')
-            axs[0].legend(handles=[line_averMAE,line_Seeds[0],line_mean, line_Q3, line_Q2, line_Q1], loc='upper right',bbox_to_anchor=(1.1, 1.25), ncol=6, fancybox=True, shadow=True)
+            #line_Q1, = axs[loc[0]].plot(N_Cells_lin, np.percentile(data, 25) * np.ones_like(N_Cells_lin), '--',color='magenta',linewidth=1.1, alpha=alpha, label='BERK Q1')
+            line_Q2, = axs[loc[0]].plot(N_Cells_lin, np.percentile(data, 50) * np.ones_like(N_Cells_lin),'--',color='darkgoldenrod' ,linewidth=1.1, alpha=alpha, label='BERK Q2')
+            #line_Q3, = axs[loc[0]].plot(N_Cells_lin, np.percentile(data, 75) * np.ones_like(N_Cells_lin), '--',color='magenta',linewidth=1.1, alpha=alpha, label='BERK Q3')
+            line_mean, = axs[loc[0]].plot(N_Cells_lin, np.mean(data) * np.ones_like(N_Cells_lin), color='darkgoldenrod',linewidth=1.1, alpha=alpha, label='BERK Mean-Error')
+            #axs[0].legend(handles=[line_averMAE,line_Seeds[0],line_mean, line_Q3, line_Q2, line_Q1], loc='upper right',bbox_to_anchor=(1.1, 1.25), ncol=6, fancybox=True, shadow=True)
 
     data_AUC, data_Emax, data_IC50, data_IC50_Res, data_IC50_NoRes,data_AUC_Res,data_AUC_NoRes,data_Emax_Res,data_Emax_NoRes, data_Ydose_res = np.load('Bench_Mark_AUC_Emax_IC50.pkl', allow_pickle=True)
-    N_Cells_lin = np.linspace(6, 95, 1000)
+    N_Cells_lin = np.linspace(0, 100, 1000)
 
     IsRes = True
     if sel_cancer == 2 or sel_cancer == 4: IsRes = False;
@@ -326,6 +333,7 @@ for i in range(5):
                 axs_all[i][j].set_ylabel(cancer_name_plot_abs[i], fontsize=12)
             else:
                 axs_all[i][j].set_ylabel(cancer_name_plot_abs[i][:-12] + '(Squared Error)', fontsize=12)
+
         else:
             if j<2:
                 axs_all[i][j, 0].set_ylabel(cancer_name_plot_abs[i], fontsize=14)
@@ -343,3 +351,12 @@ fig.tight_layout(w_pad=-2.2)
 for i in range(1,7):
     for j in range(5):
         axs[j,i].yaxis.set_tick_params(labelleft=False)
+
+for i in range(5):
+    for j in range(3):
+        for k in range(2):
+            if i == 2 or i == 4:
+                #axs_all[i][j,k].set_xlim([0, 100])
+                print('Here we would assign the x_lim for Non-Responsive Cancers')
+            else:
+                axs_all[i][j, k].set_xlim([0, 100])
