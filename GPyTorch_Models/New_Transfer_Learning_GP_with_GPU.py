@@ -98,3 +98,8 @@ print(MyK)
 #We could try to build kernel per region: KSS, KTS and KTT, maybe use idea from the kernel index of MOGP
 #something like
 #def forward(self, x1, x2, ind_1,ind_2,**params):
+
+# likelihood = gpytorch.likelihoods.GaussianLikelihood()
+# model = ExactGPModel(train_x, train_y, likelihood)
+# mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
+# mll = gpytorch.mlls.VariationalELBO(likelihood, model, num_data=train_y.numel())
