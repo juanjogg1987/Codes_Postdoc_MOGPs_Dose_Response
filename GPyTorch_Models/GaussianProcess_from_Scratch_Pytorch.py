@@ -26,7 +26,8 @@ class GaussianProcess(nn.Module):
             self.L = torch.linalg.cholesky(Knn_noise)
             return self.L  #here we might return the mean and covariance (or just covar if mean is zeros)
         else:
-            alpha = torch.linalg.solve(self.L.t(), torch.linalg.solve(self.L, self.y))
+            alpha1 = torch.linalg.solve(self.L, self.y)
+            alpha = torch.linalg.solve(self.L.t(), alpha1)
             K_xnew_x = self.covariance(x,self.x).evaluate()
             K_xnew_xnew = self.covariance(x).evaluate()
             f_mu = torch.matmul(K_xnew_x,alpha)
@@ -50,7 +51,7 @@ print(model(x))
 
 "Training process below"
 myLr = 1e-2
-Niter = 1000
+Niter = 500
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 

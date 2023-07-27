@@ -271,21 +271,30 @@ for which_cancer in range(0,5):
     Diff_Emax_5Cancers.append(diff_Emax_GDSC1_GDSC2)
     Diff_IC50_5Cancers.append(diff_IC50_GDSC1_GDSC2)
 
+    if which_cancer != 3:
+        theshIC50 = 0.0
+        theshAUC = 0.0
+        theshEmax = 0.0
+    else:
+        theshIC50 = 1.5
+        theshAUC = 0.55
+        theshEmax = 0.5
+
     IC50_Squared = 2  # use 2 to square or 1 for Absolute
-    pos_Actual_IC50 = IC50_GDSC2_cancer != 1.5
-    pos_No_IC50 = IC50_GDSC2_cancer == 1.5
+    pos_Actual_IC50 = IC50_GDSC2_cancer < theshIC50
+    pos_No_IC50 = IC50_GDSC2_cancer >= theshIC50
 
     diff_IC50_GDSC1_GDSC2_Res = (IC50_GDSC1_cancer[pos_Actual_IC50] - IC50_GDSC2_cancer[pos_Actual_IC50])**IC50_Squared   #use 2 to square or 1 for Absolute
     diff_IC50_GDSC1_GDSC2_NoRes = (IC50_GDSC1_cancer[pos_No_IC50] - IC50_GDSC2_cancer[pos_No_IC50])**IC50_Squared
 
-    pos_Res_AUC = AUC_GDSC2_cancer < 0.55
-    pos_NoRes_AUC = AUC_GDSC2_cancer >= 0.55
+    pos_Res_AUC = AUC_GDSC2_cancer < theshAUC
+    pos_NoRes_AUC = AUC_GDSC2_cancer >= theshAUC
 
     diff_AUC_GDSC1_GDSC2_Res = AUC_GDSC1_cancer[pos_Res_AUC] - AUC_GDSC2_cancer[pos_Res_AUC]
     diff_AUC_GDSC1_GDSC2_NoRes = AUC_GDSC1_cancer[pos_NoRes_AUC] - AUC_GDSC2_cancer[pos_NoRes_AUC]
 
-    pos_Res_Emax = Emax_GDSC2_cancer < 0.5
-    pos_NoRes_Emax = Emax_GDSC2_cancer >= 0.5
+    pos_Res_Emax = Emax_GDSC2_cancer < theshEmax
+    pos_NoRes_Emax = Emax_GDSC2_cancer >= theshEmax
 
     diff_Emax_GDSC1_GDSC2_Res = Emax_GDSC1_cancer[pos_Res_Emax] - Emax_GDSC2_cancer[pos_Res_Emax]
     diff_Emax_GDSC1_GDSC2_NoRes = Emax_GDSC1_cancer[pos_NoRes_Emax] - Emax_GDSC2_cancer[pos_NoRes_Emax]
@@ -406,5 +415,10 @@ axs2.set_title("Benchmark for AE of All Curves (Boxplot)")
 
 import pickle
 
-with open('Bench_Mark_AUC_Emax_IC50.pkl', 'wb') as f:
+# "Old version with all cancers responsive and non responsive!"
+# with open('Bench_Mark_AUC_Emax_IC50.pkl', 'wb') as f:
+#     pickle.dump([data_AUC,data_Emax,data_IC50,data_IC50_Res,data_IC50_NoRes,data_AUC_Res,data_AUC_NoRes,data_Emax_Res,data_Emax_NoRes,data_Ydose_res], f)
+
+"New version with all cancers responsive and non responsive!"
+with open('Bench_Mark_AUC_Emax_IC50_NewVersion.pkl', 'wb') as f:
     pickle.dump([data_AUC,data_Emax,data_IC50,data_IC50_Res,data_IC50_NoRes,data_AUC_Res,data_AUC_NoRes,data_Emax_Res,data_Emax_NoRes,data_Ydose_res], f)
