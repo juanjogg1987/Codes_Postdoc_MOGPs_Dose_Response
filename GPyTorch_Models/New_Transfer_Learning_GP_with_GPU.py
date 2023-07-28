@@ -180,12 +180,14 @@ class TL_Kernel_var(gpytorch.kernels.Kernel):
             value = torch.as_tensor(value).to(self.raw_muDi)
         # when setting the paramater, transform the actual value to a raw one by applying the inverse transform
         self.initialize(raw_muDi=self.raw_muDi_constraint.inverse_transform(value))
+        self.alphaDi = 2.0 * (1.0 / (1.0 + self.muDi)).pow(self.bDi) - 1.0
 
     def _set_bDi(self, value):
         if not torch.is_tensor(value):
             value = torch.as_tensor(value).to(self.raw_bDi)
         # when setting the paramater, transform the actual value to a raw one by applying the inverse transform
         self.initialize(raw_bDi=self.raw_bDi_constraint.inverse_transform(value))
+        self.alphaDi = 2.0 * (1.0 / (1.0 + self.muDi)).pow(self.bDi) - 1.0
 
     # this is the kernel function
     def forward(self, x1, x2, idx1=None,idx2=None,square_dist=True, diag=False,**params):
@@ -199,12 +201,17 @@ class TL_Kernel_var(gpytorch.kernels.Kernel):
         root_lengths = torch.sqrt(s2i*s2j)*torch.sqrt((2.0*torch.sqrt(A)*torch.sqrt(B))/(A+B))
         # Compute the relatedness variables
         self.alphaDi = 2.0 * (1.0 / (1.0 + self.muDi)).pow(self.bDi) - 1.0
-        lambdaDi, lambdaDj = torch.meshgrid(self.alphaDi[idx1].flatten(), self.alphaDi[idx2].flatten())
+        alphaDi, alphaDj = torch.meshgrid(self.alphaDi[idx1].flatten(), self.alphaDi[idx2].flatten())
+        lambdasDij = alphaDi*alphaDj
+        # Here we identify same Domains i==j, so the lambdaDii should be 1.0, if not then lambdaDij = alphai*alphaj
         IndxDi, IndxDj = torch.meshgrid(torch.tensor(idx1), torch.tensor(idx2))
+        Dii = (IndxDi == IndxDj)
+        # Here we apply a mask with Dii that contains the locations where i==j and makes lambdasDij = 1.0
+        lambdasDij = lambdasDij * torch.logical_not(Dii) + Dii
         # calculate the distance between inputs
         diff = -1.0/(A+B) * self.covar_dist(x1, x2, square_dist=square_dist, diag=diag, **params)
 
-        return root_lengths*diff.exp_()
+        return lambdasDij*root_lengths*diff.exp_()
 
 #gpytorch.kernels.RBFKernel()
 
@@ -214,7 +221,7 @@ torch.manual_seed(Nseed)
 import random
 random.seed(Nseed)
 x1 = torch.randn(3,2)
-x2 = torch.randn(3,2)
+x2 = torch.randn(4,2)
 
 "TODO run to find a matrix that is not squared, say x1 is got more data than x2!!!!!!!!!!!"
 
@@ -222,10 +229,10 @@ covar = TL_Kernel_var(NDomains= 3) #gpytorch.kernels.RBFKernel()
 print(covar)
 covar._set_length([0.8,0.1,0.4])
 covar._set_variance([1,0.5,1.0])
-covar._set_muDi([0.3,0.5,1.0])
-indx1 = [0,1,2]
-indx2 = [0,1,2]
-MyK = covar(x1,idx1=indx1).evaluate()
+covar._set_muDi([10.,20.5,1.0])
+indx1 = [0,1,1]
+indx2 = [0,0,1,1]
+MyK = covar(x1,x2,idx1=indx1,idx2=indx2).evaluate()
 print(MyK)
 #We could try to build kernel per region: KSS, KTS and KTT, maybe use idea from the kernel index of MOGP
 #something like
