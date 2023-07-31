@@ -19,10 +19,14 @@ _FOLDER_melody = _FOLDER + 'Melody_SRMF/'
 cancer_names = {0:'breast_cancer',1:'COAD_cancer',2:'LUAD_cancer',3:'melanoma_cancer',4:'SCLC_cancer'}
 cancer_Ntrain = {0:round(110*0.7),1:round(108*0.7),2:round(139*0.7),3:round(142*0.7),4:round(133*0.7)}
 
+sel_fig = {0:0,1:0,2:0,3:1,4:0}
+sel_col = {0:1,1:2,2:3,3:1,4:4}
+
 rc('font', weight='bold')
 
 #sel_cancer = 0
 cancers = [0,1,2,3,4]
+#cancers = [3]
 #N5th_cancer = 9
 All_Nseed = [1,2,3,4,5,6]
 All_N_cells = np.array([10,20,35,55,75,95])
@@ -30,12 +34,11 @@ All_N_cells = np.array([10,20,35,55,75,95])
 
 fig_all = []
 axs_all = []
-for i in range(5):
-    if i == 0 or i == 1 or i == 2 or i == 4:
-        figaux, axsaux = plt.subplots(3, 1,figsize = (4,15))   #(10,20)
-    else:
-        figaux, axsaux = plt.subplots(3, 2, figsize=(8, 12))   #(15,20)
-    fig_all.append(figaux); axs_all.append(axsaux)
+
+figaux, axsaux = plt.subplots(3, 4,figsize = (15,10))   #(18,12)
+fig_all.append(figaux); axs_all.append(axsaux)
+figaux, axsaux = plt.subplots(3, 2, figsize=(8, 12))   #(15,20)
+fig_all.append(figaux); axs_all.append(axsaux)
 
 def Compute_Metric(df_pred, which_cancer,Ini_Metrics=None,metric_name='IC50', thresh=0.5,sel_res='Juan', Squared=False):
     if which_cancer != 3:
@@ -294,76 +297,94 @@ for sel_cancer in cancers:
     N_Cells_lin = np.linspace(0, 100, 1000)
 
     IsRes = True
-    if sel_cancer == 0 or sel_cancer == 1 or sel_cancer == 2 or sel_cancer == 4: IsRes = False;
+    if sel_cancer == 0 or sel_cancer == 1 or sel_cancer == 2 or sel_cancer == 4:
+        #IsRes = False
+        Mel_flag = 0  #This is just a flag to assign related to melanoma cancer
+    else:
+        Mel_flag = 1  #This is just a flag to assign related to melanoma cancer
     print(f"AUC Cancer {sel_cancer}:",AE_AUC_Res_Ncells)
+
     if AE_AUC_Res_Ncells[0].shape[0] != 0:
-        plot_Nth_dose(0, axs_all[sel_cancer], 2, Num_cells, AE_AUC_Res_Ncells, MAE_AUC_Res_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.44],my_title="AUC Responsive (MAE)")
-        plot_Nth_dose(0, axs_all[sel_cancer], 2, Num_cells, AE_AUC_Res_Ncells_Melody, MAE_AUC_Res_Ncells_Melody,mycolor=['green','green'], Responsive=IsRes, my_ylim=[-0.01, 0.44], my_title="AUC Responsive (MAE)",force_title=True)
+        plot_Nth_dose(0, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer]+Mel_flag, Num_cells, AE_AUC_Res_Ncells, MAE_AUC_Res_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.44],my_title="AUC Responsive (MAE)")
+        plot_Nth_dose(0, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer]+Mel_flag, Num_cells, AE_AUC_Res_Ncells_Melody, MAE_AUC_Res_Ncells_Melody,mycolor=['green','green'], Responsive=IsRes, my_ylim=[-0.01, 0.44], my_title="AUC Responsive (MAE)",force_title=True)
         if data_AUC_Res[sel_cancer].shape[0] != 0:
-            plot_benchmark(axs_all[sel_cancer], [0, 1], N_Cells_lin, data_AUC_Res[sel_cancer],alpha=0.5,Responsive = IsRes)
-    plot_Nth_dose(0, axs_all[sel_cancer], 1, Num_cells, AE_AUC_NoRes_Ncells, MAE_AUC_NoRes_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.44],my_title="AUC Non-Responsive (MAE)")
-    plot_Nth_dose(0, axs_all[sel_cancer], 1, Num_cells, AE_AUC_NoRes_Ncells_Melody, MAE_AUC_NoRes_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 0.44], my_title="AUC Non-Responsive (MAE)",force_title=True)
-    plot_benchmark(axs_all[sel_cancer], [0, 0], N_Cells_lin, data_AUC_NoRes[sel_cancer], alpha=0.5,Responsive = IsRes)
+            plot_benchmark(axs_all[sel_fig[sel_cancer]], [0, sel_col[sel_cancer]], N_Cells_lin, data_AUC_Res[sel_cancer],alpha=0.5,Responsive = IsRes)
+    plot_Nth_dose(0, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_AUC_NoRes_Ncells, MAE_AUC_NoRes_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.44],my_title="AUC Non-Responsive (MAE)")
+    plot_Nth_dose(0, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_AUC_NoRes_Ncells_Melody, MAE_AUC_NoRes_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 0.44], my_title="AUC Non-Responsive (MAE)",force_title=True)
+    plot_benchmark(axs_all[sel_fig[sel_cancer]], [0, sel_col[sel_cancer]-1], N_Cells_lin, data_AUC_NoRes[sel_cancer], alpha=0.5,Responsive = IsRes)
 
     print(f"Emax Cancer {sel_cancer}:", AE_Emax_Res_Ncells)
     if AE_Emax_Res_Ncells[0].shape[0] != 0:
-        plot_Nth_dose(1, axs_all[sel_cancer], 2, Num_cells, AE_Emax_Res_Ncells, MAE_Emax_Res_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.6],my_title="Emax Responsive (MAE)",force_title=True)
-        plot_Nth_dose(1, axs_all[sel_cancer], 2, Num_cells, AE_Emax_Res_Ncells_Melody, MAE_Emax_Res_Ncells_Melody,mycolor=['green','green'], Responsive=IsRes, my_ylim=[-0.01, 0.6],my_title="Emax Responsive (MAE)", force_title=True)
+        plot_Nth_dose(1, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer]+Mel_flag, Num_cells, AE_Emax_Res_Ncells, MAE_Emax_Res_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.6],my_title="Emax Responsive (MAE)",force_title=True)
+        plot_Nth_dose(1, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer]+Mel_flag, Num_cells, AE_Emax_Res_Ncells_Melody, MAE_Emax_Res_Ncells_Melody,mycolor=['green','green'], Responsive=IsRes, my_ylim=[-0.01, 0.6],my_title="Emax Responsive (MAE)", force_title=True)
         if data_Emax_Res[sel_cancer].shape[0] != 0:
-            plot_benchmark(axs_all[sel_cancer], [1, 1], N_Cells_lin, data_Emax_Res[sel_cancer],alpha=0.5,Responsive = IsRes)
-    plot_Nth_dose(1, axs_all[sel_cancer], 1, Num_cells, AE_Emax_NoRes_Ncells, MAE_Emax_NoRes_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.6],my_title="Emax Non-Responsive (MAE)",force_title=True)
-    plot_Nth_dose(1, axs_all[sel_cancer], 1, Num_cells, AE_Emax_NoRes_Ncells_Melody, MAE_Emax_NoRes_Ncells_Melody,mycolor=['green','green'], Responsive=IsRes, my_ylim=[-0.01, 0.6], my_title="Emax Non-Responsive (MAE)",force_title=True)
-    plot_benchmark(axs_all[sel_cancer], [1, 0], N_Cells_lin, data_Emax_NoRes[sel_cancer], alpha=0.5,Responsive = IsRes)
+            plot_benchmark(axs_all[sel_fig[sel_cancer]], [1, sel_col[sel_cancer]], N_Cells_lin, data_Emax_Res[sel_cancer],alpha=0.5,Responsive = IsRes)
+    plot_Nth_dose(1, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_Emax_NoRes_Ncells, MAE_Emax_NoRes_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.6],my_title="Emax Non-Responsive (MAE)",force_title=True)
+    plot_Nth_dose(1, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_Emax_NoRes_Ncells_Melody, MAE_Emax_NoRes_Ncells_Melody,mycolor=['green','green'], Responsive=IsRes, my_ylim=[-0.01, 0.6], my_title="Emax Non-Responsive (MAE)",force_title=True)
+    plot_benchmark(axs_all[sel_fig[sel_cancer]], [1, sel_col[sel_cancer]-1], N_Cells_lin, data_Emax_NoRes[sel_cancer], alpha=0.5,Responsive = IsRes)
 
     print(f"IC50 Cancer {sel_cancer}:", AE_IC50_Res_Ncells)
     if AE_IC50_Res_Ncells[0].shape[0] != 0:
-        plot_Nth_dose(2, axs_all[sel_cancer], 2, Num_cells, AE_IC50_Res_Ncells, MAE_IC50_Res_Ncells,Responsive = IsRes, my_ylim=[-0.01, 1.2],my_title="IC50 Responsive (MSE)",force_title=True)
+        plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer]+Mel_flag, Num_cells, AE_IC50_Res_Ncells, MAE_IC50_Res_Ncells,Responsive = IsRes, my_ylim=[-0.01, 1.2],my_title="IC50 Responsive (MSE)",force_title=True)
         #plot_Nth_dose(2, axs_all[sel_cancer], 2, Num_cells, AE_IC50_Res_Ncells_Subha, MAE_IC50_Res_Ncells_Subha,mycolor=['red','red'], Responsive=IsRes,my_ylim=[-0.01, 1.2], my_title="IC50 Responsive (MSE)", force_title=True)
-        plot_Nth_dose(2, axs_all[sel_cancer], 2, Num_cells, AE_IC50_Res_Ncells_Melody, MAE_IC50_Res_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 1.2], my_title="IC50 Responsive (MSE)",force_title=True)
-        plot_benchmark(axs_all[sel_cancer], [2, 1], N_Cells_lin, data_IC50_Res[sel_cancer],alpha=0.5,Responsive = IsRes)
-    plot_Nth_dose(2, axs_all[sel_cancer], 1, Num_cells, AE_IC50_NoRes_Ncells, MAE_IC50_NoRes_Ncells,Responsive = IsRes, my_ylim=[-0.01, 1.2],my_title="IC50 Non-Responsive (MSE)",force_title=True)
+        plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer]+Mel_flag, Num_cells, AE_IC50_Res_Ncells_Melody, MAE_IC50_Res_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 1.2], my_title="IC50 Responsive (MSE)",force_title=True)
+        plot_benchmark(axs_all[sel_fig[sel_cancer]], [2, sel_col[sel_cancer]], N_Cells_lin, data_IC50_Res[sel_cancer],alpha=0.5,Responsive = IsRes)
+    plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_IC50_NoRes_Ncells, MAE_IC50_NoRes_Ncells,Responsive = IsRes, my_ylim=[-0.01, 1.2],my_title="IC50 Non-Responsive (MSE)",force_title=True)
     #plot_Nth_dose(2, axs_all[sel_cancer], 1, Num_cells, AE_IC50_NoRes_Ncells_Subha, MAE_IC50_NoRes_Ncells_Subha,mycolor=['red','red'], Responsive=IsRes,  my_ylim=[-0.01, 1.2], my_title="IC50 Non-Responsive (MSE)", force_title=True)
-    plot_Nth_dose(2, axs_all[sel_cancer], 1, Num_cells, AE_IC50_NoRes_Ncells_Melody, MAE_IC50_NoRes_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 1.2], my_title="IC50 Non-Responsive (MSE)", force_title=True)
-    plot_benchmark(axs_all[sel_cancer], [2, 0], N_Cells_lin, data_IC50_NoRes[sel_cancer],alpha=0.5,Responsive = IsRes)
+    plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_IC50_NoRes_Ncells_Melody, MAE_IC50_NoRes_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 1.2], my_title="IC50 Non-Responsive (MSE)", force_title=True)
+    plot_benchmark(axs_all[sel_fig[sel_cancer]], [2, sel_col[sel_cancer]-1], N_Cells_lin, data_IC50_NoRes[sel_cancer],alpha=0.5,Responsive = IsRes)
 
 #cancer_names = {0:'breast_cancer',1:'COAD_cancer',2:'LUAD_cancer',3:'melanoma_cancer',4:'SCLC_cancer'}
+
 cancer_name_plot = {0:'Breast (Error)',1:'COAD (Error)',2:'LUAD (Error)',3:'Melanoma (Error)',4:'SCLC (Error)'}
 cancer_name_plot_abs = {0:'Breast',1:'COAD',2:'LUAD',3:'Melanoma',4:'SCLC'}
 
+
+axs_all[0][0,0].set_ylabel('AUC (MAE)', fontsize=14,x=1.5)
+axs_all[0][1,0].set_ylabel('Emax (MAE)', fontsize=14, x=1.5)
+axs_all[0][2,0].set_ylabel('IC50 (MSE)', fontsize=14, x=1.5)
+
+axs_all[1][0,0].set_ylabel('AUC (MAE)', fontsize=14,x=1.5)
+axs_all[1][1,0].set_ylabel('Emax (MAE)', fontsize=14,x=1.5)
+axs_all[1][2,0].set_ylabel('IC50 (MSE)', fontsize=14,x=1.5)
+
+# for i in range(5):
+#     for j in range(3):
+#         if i != 3:
+#             myindx= sel_col[i]-1
+#             axs_all[0][j,myindx].set_ylabel(cancer_name_plot_abs[i], fontsize=14,x=1.5)
+#         else:
+#             axs_all[1][j,0].set_ylabel(cancer_name_plot_abs[i], fontsize=14,x=1.5)
+
+#fig.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
+
+#fig_all[0].tight_layout(pad=1.2, w_pad=0.5)#, h_pad=0.3)
+
+#fig_all[0].tight_layout(w_pad=0.39)
+#fig_all[0].tight_layout(h_pad=0.39)
+
 for i in range(5):
-    for j in range(3):
-        if i == 0 or i == 1 or i == 2 or i == 4:
-            #if j < 2:
-            axs_all[i][j].set_ylabel(cancer_name_plot_abs[i], fontsize=14)
-            #else:
-            #    axs_all[i][j].set_ylabel(cancer_name_plot_abs[i][:-12] + '', fontsize=12)
+    fig_all[0].supxlabel('\nNumber of dose response curves in training',fontsize=15,x=0.5,y=0.06)
+    if i != 3:
+        myindx= sel_col[i]-1
+        axs_all[0][0,myindx].set_title(cancer_name_plot_abs[i])
+        axs_all[0][1,myindx].set_title("")
+        axs_all[0][2,myindx].set_title("")
 
-        else:
-            #if j<2:
-            axs_all[i][j, 0].set_ylabel(cancer_name_plot_abs[i], fontsize=14)
-            #else:
-            #    axs_all[i][j, 0].set_ylabel(cancer_name_plot_abs[i][:-12]+'', fontsize=14)
+axs_all[1][0,0].set_title("Non-Responsive")
+axs_all[1][0,1].set_title("Responsive")
+fig_all[1].supxlabel('Number of dose response curves in training', fontsize=15,x=0.5,y=0.06)
+fig_all[1].suptitle('Melanoma', fontsize=15,x=0.5,y=0.91)
 
-for i in range(5):
-    if i == 0 or i == 1 or i == 2 or i == 4:
-        #axs_all[i][2].set_xlabel("    Number of dose response curves in training",fontsize=15)
-        fig_all[i].supxlabel('Number of dose response curves in training',fontsize=15,x=0.5,y=0.06)
-        axs_all[i][0].set_title('AUC (MAE)')
-        axs_all[i][1].set_title('Emax (MAE)')
-        axs_all[i][2].set_title('IC50 (MSE)')
-    else:
-        #axs_all[i][2,0].set_xlabel("                                                                                      Number of dose response curves in training", fontsize=15)
-        fig_all[i].supxlabel('Number of dose response curves in training', fontsize=15,x=0.5,y=0.06)
-
-for i in range(5):
-    for j in range(3):
-        for k in range(2):
-            if i == 0 or i == 1 or i == 2 or i == 4:
-                #axs_all[i][j,k].set_xlim([0, 100])
-                print('Here we would assign the x_lim for Non-Responsive Cancers')
-            else:
-                axs_all[i][j, k].set_xlim([0, 100])
-
+# for i in range(5):
+#     for j in range(3):
+#         for k in range(2):
+#             if i == 0 or i == 1 or i == 2 or i == 4:
+#                 #axs_all[i][j,k].set_xlim([0, 100])
+#                 print('Here we would assign the x_lim for Non-Responsive Cancers')
+#             else:
+#                 axs_all[i][j, k].set_xlim([0, 100])
+#
 "Here we include the legends, I just used the _nolegend_ for the one I did not want to show!!"
-axs_all[0][0].legend(["Avg.±std (MOGP)","MAE-seed (MOGP)"]+["_nolegend_"]*6+["Avg.±std (SRMF)","MAE-seed (SRMF)"]+["_nolegend_"]*6+["Median (BERK)","Mean (BERK)"],loc='upper right',bbox_to_anchor=(1.12, 1.35), ncol=3, fancybox=True, shadow=True)
-axs_all[3][0,0].legend(["Avg.±std (MOGP)","MAE-seed (MOGP)"]+["_nolegend_"]*6+["Avg.±std (SRMF)","MAE-seed (SRMF)"]+["_nolegend_"]*6+["Median (BERK)","Mean (BERK)"],loc='upper right',bbox_to_anchor=(2.15, 1.35), ncol=3, fancybox=True, shadow=True)
+axs_all[0][0,2].legend(["Avg.±std (MOGP)","MAE-seed (MOGP)"]+["_nolegend_"]*6+["Avg.±std (SRMF)","MAE-seed (SRMF)"]+["_nolegend_"]*6+["Median (BERK)","Mean (BERK)"],loc='upper right',bbox_to_anchor=(1.05, 1.35), ncol=3, fancybox=True, shadow=True)
+axs_all[1][0,0].legend(["Avg.±std (MOGP)","MAE-seed (MOGP)"]+["_nolegend_"]*6+["Avg.±std (SRMF)","MAE-seed (SRMF)"]+["_nolegend_"]*6+["Median (BERK)","Mean (BERK)"],loc='upper right',bbox_to_anchor=(2.15, 1.35), ncol=3, fancybox=True, shadow=True)
