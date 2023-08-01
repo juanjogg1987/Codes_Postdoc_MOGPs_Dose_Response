@@ -1,8 +1,3 @@
-#TO DO: Everything
-#Probably instead of a GPU we just could use woodbury identity
-#and just invert the KTT instead of KSS which potentially would
-#become big, but actually KTT generally is very small in Transfer Learning
-
 import math
 import torch
 import gpytorch
@@ -212,48 +207,3 @@ class TL_Kernel_var(gpytorch.kernels.Kernel):
         diff = -1.0/(A+B) * self.covar_dist(x1, x2, square_dist=square_dist, diag=diag, **params)
 
         return lambdasDij*root_lengths*diff.exp_()
-
-#gpytorch.kernels.RBFKernel()
-
-
-Nseed = 1
-torch.manual_seed(Nseed)
-import random
-random.seed(Nseed)
-x1 = torch.randn(3,2)
-x2 = torch.randn(4,2)
-
-"TODO run to find a matrix that is not squared, say x1 is got more data than x2!!!!!!!!!!!"
-
-covar = TL_Kernel_var(NDomains= 3) #gpytorch.kernels.RBFKernel()
-#covar = TL_Kernel(NDomains= 3)
-print(covar)
-covar._set_length([0.8,0.1,0.4])
-covar._set_variance([2.1,3.0,2.1])
-covar._set_muDi([0.1,2.5,10000])
-indx1 = [0,1,2]
-indx2 = [0,2,1,1]
-MyK = covar(x1,x2,idx1=indx1,idx2=indx2).evaluate()
-print(MyK)
-
-import numpy as np
-for i in range(3):
-    for j in range(4):
-        matpos = [i,j]
-
-        sel_l1 = indx1[matpos[0]]
-        sel_l2 = indx2[matpos[1]]
-
-        l1 = covar.length[sel_l1].detach().numpy()
-        l2 = covar.length[sel_l2].detach().numpy()
-        v1 = covar.variance[sel_l1].detach().numpy()
-        v2 = covar.variance[sel_l2].detach().numpy()
-        if sel_l1 == sel_l2:
-            lamb12 = 1.0
-        else:
-            lamb12 = covar.alphaDi[sel_l1].detach().numpy()*covar.alphaDi[sel_l2].detach().numpy()
-        print(f"l1:{l1} , l2: {l2} , v1:{v1} , v2: {v2}")
-        lenth_sum = np.sqrt(l1**2+l2**2)
-        v12 = np.sqrt(v1*v2)*np.sqrt((2.0*l1*l2)/(l1.__pow__(2)+l2.__pow__(2)))
-        k12 = lamb12*v12*np.exp(-1.0*np.sum((x1[i,:].numpy()/(lenth_sum)-x2[j,:].numpy()/(lenth_sum))**2.0))
-        print(f"k{matpos[0]}{matpos[1]}: {k12}")
