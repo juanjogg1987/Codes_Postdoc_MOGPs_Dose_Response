@@ -4,9 +4,6 @@ import gpytorch
 import matplotlib.pyplot as plt
 from TransferLearning_Kernels import TL_Kernel_var
 
-# import positivity constraint
-from gpytorch.constraints import Positive
-
 class LogMarginalLikelihood(nn.Module):
     def __init__(self):
         super().__init__()
@@ -32,17 +29,12 @@ class TLGaussianProcess(nn.Module):
         self.yS = yS
         self.idxS = idxS
         self.idxT = [NDomains - 1] * xT.shape[0]
-        self.all_y = torch.cat([self.yS, self.yT])
         self.covariance = TL_Kernel_var(NDomains=NDomains) #gpytorch.kernels.RBFKernel()
         self.Train_mode = True
-        #self.lik_std_noise = torch.nn.Parameter(10.*torch.ones(NDomains)) #torch.tensor([0.07])
-        self.lik_std_noise = 0.05 * torch.ones(NDomains)
+        self.lik_std_noise = torch.nn.Parameter(0.1*torch.ones(NDomains)) #torch.tensor([0.07])
         self.mu_star = torch.zeros(yT.shape)
         self.L = torch.eye(yT.shape[0])
-        self.all_L = torch.eye(self.all_y.shape[0])
         "TODO: I might need the self.LSS also here in order to be able to predict without optimising"
-
-
     def forward(self,xT, noiseless = True):
         if self.Train_mode:
             # Here we compute the Covariance matrices between source-target, source-source and target domains
@@ -63,87 +55,66 @@ class TLGaussianProcess(nn.Module):
             self.mu_star = torch.matmul(KTS,alphaSS)
             # Compute the Covariance of the conditional distribution p(yT|XT,XS,yS)
             vTT = torch.linalg.solve(self.LSS, KTS.t())
-            C_star = CTT - torch.matmul(vTT.t(),vTT) #+ 1e-4*torch.eye(xT.shape[0])  #jitter?
+            C_star = CTT - torch.matmul(vTT.t(),vTT)
             self.L = torch.linalg.cholesky(C_star)
-
-            # Here we compute the full covariance of xS and xT together
-            xST = torch.cat([self.xS, self.xT])
-            idxST= self.idxS+self.idxT
-            all_K_xST = self.covariance(xST, idx1=idxST).evaluate()
-            all_K_xST_noise = all_K_xST + torch.diag(self.lik_std_noise[idxST].pow(2)) #+ 0.1*torch.eye(xST.shape[0]) #Jitter?
-            self.all_L = torch.linalg.cholesky(all_K_xST_noise) #+ 1e-4*torch.eye(xST.shape[0])
             return self.mu_star, self.L  # here we return the mean and covariance
         else:
             "TODO all this part of the prediction of the model"
-            idxT = [self.covariance.NDomains - 1] * xT.shape[0]
-            alpha1 = torch.linalg.solve(self.all_L, self.all_y)
-            alpha = torch.linalg.solve(self.all_L.t(), alpha1)
-            KTT_xnew_xnew = self.covariance(xT, idx1=idxT).evaluate()
-            xST = torch.cat([self.xS, self.xT])
-            idxST = self.idxS+self.idxT
-            K_xnew_xST = self.covariance(xT,xST, idx1=idxT,idx2=idxST).evaluate()
+            alpha1 = torch.linalg.solve(self.L, self.yT-self.mu_star)
+            alpha = torch.linalg.solve(self.L.t(), alpha1)
 
-            f_mu = torch.matmul(K_xnew_xST, alpha)
-            v = torch.linalg.solve(self.all_L, K_xnew_xST.t())
+            idxT = [self.covariance.NDomains - 1] * xT.shape[0]
+            KTS_xnew_xS = self.covariance(xT, self.xS, idx1=idxT, idx2=self.idxS).evaluate()
+            KTS = self.covariance(self.xT, self.xS, idx1=self.idxT, idx2=self.idxS).evaluate()
+
+
+            KTT_xnew_xT = self.covariance(xT,self.xT, idx1=idxT,idx2=self.idxT).evaluate()
+
+            # We need to build f_Cov = Kstar(xnew,xnew) - Kstar(xnew,xT)*(C^-1)*(Kstar(xnew,xT))^T
+            # where Kstar(.,.) = KTT(.,.) - KTS(.,xS)*(CSS)^-1*KTS(.,xS)^T
+            KTT_xnew_xnew = self.covariance(xT,idx1=idxT).evaluate()
+
+            vTT_xS_xnew = torch.linalg.solve(self.LSS, KTS_xnew_xS.t())
+            Kstar_xnew_xnew = KTT_xnew_xnew-torch.matmul(vTT_xS_xnew.t(),vTT_xS_xnew)
+
+            vTT_xS_xT = torch.linalg.solve(self.LSS, KTS.t())
+            Kstar_xnew_xT = KTT_xnew_xT - torch.matmul(vTT_xS_xnew.t(),vTT_xS_xT)
+
+            vstar_xS_xnew = torch.linalg.solve(self.L, Kstar_xnew_xT.t())
+
+            # We need to build f_mu = mu_star(xnew) - Kstar(xnew,xT)*(C^-1)*(yT-mu_star(xT))
+            # here mu_star(xT) is simply self.mu_star
+
+            alphaSS1 = torch.linalg.solve(self.LSS, self.yS)
+            alphaSS = torch.linalg.solve(self.LSS.t(), alphaSS1)
+            mu_star_new = torch.matmul(KTS_xnew_xS, alphaSS)
+
+            f_mu = mu_star_new - torch.matmul(Kstar_xnew_xT, alpha)
 
             if noiseless:
-                f_Cov = KTT_xnew_xnew - torch.matmul(v.t(),v) + 1e-2*torch.eye(xT.shape[0])  #I had to add this Jitter
+                #f_Cov = K_xnew_xnew - torch.matmul(v.t(),v) + 1e-5*torch.eye(x.shape[0])  #I had to add this Jitter
+                f_Cov = Kstar_xnew_xnew - torch.matmul(vstar_xS_xnew.t(), vstar_xS_xnew) + 1e-4*torch.eye(xT.shape[0])
             else:
-                f_Cov = KTT_xnew_xnew - torch.matmul(v.t(),v) + 10*torch.diag(self.lik_std_noise[idxT].pow(2)) #+ 1e-2*torch.eye(xT.shape[0])
+                #f_Cov = K_xnew_xnew - torch.matmul(v.t(), v) + self.lik_std_noise.pow(2) * torch.eye(x.shape[0])
+                f_Cov = Kstar_xnew_xnew - torch.matmul(vstar_xS_xnew.t(), vstar_xS_xnew) + torch.diag(self.lik_std_noise[idxT].pow(2))
             return f_mu, f_Cov
 
 Nseed = 3
 torch.manual_seed(Nseed)
 import random
 random.seed(Nseed)
-x1 = torch.rand(200,1)
-x2 = x1[0:30]
-y1 = torch.exp(1*x1)*torch.sin(10*x1)*torch.cos(3*x1) + 0.2*torch.rand(*x1.shape)
-y2 = torch.exp(1.5*x2)*torch.sin(8*x2)*torch.cos(2.7*x2) + 0.3*torch.rand(*x2.shape)
+x1 = torch.rand(100,1)
+x2 = x1
+y1 = torch.exp(1*x1)*torch.sin(10*x1)*torch.cos(3*x1) + 0.3*torch.rand(*x1.shape)
+y2 = torch.exp(1.5*x2)*torch.sin(8*x2)*torch.cos(2.7*x2) + 0.1*torch.rand(*x2.shape)
 idx1 = [0]*y1.shape[0]
-
 "Here (x2,y2) is Target domain and (x1,y1) is source domain"
 model = TLGaussianProcess(x2,y2,x1,y1,idx1,NDomains=2)
-model.covariance.length=0.1
+#model.covariance.lengthscale=0.1
 print(model(x2))
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-# Nsize = 50
-# Nseed = 2
-# torch.manual_seed(Nseed)
-# import math
-# import random
-# random.seed(Nseed)
-# #train_x1 = torch.linspace(0,1,Nsize)
-# x1 = torch.rand(Nsize)[:,None]
-# torch.manual_seed(Nseed)
-# random.seed(Nseed)
-#
-# indx = torch.arange(0,30)
-# indx0 = torch.arange(0,40)
-# print(indx)
-# x0 = x1[indx0]
-# x2 = x1[indx]
-#
-# y2 = x2*torch.sin(-8*x2 * (2 * math.pi))*torch.cos(0.3+2*x2 * (2 * math.pi)) + torch.randn(x2.size()) * 0.1 + x2
-# Many_x2 = torch.rand(500)
-#
-# y0 = torch.cos(7*x0 * (2 * math.pi)) + torch.randn(x0.size()) * 0.01
-# y1 = torch.sin(4*x1 * (2 * math.pi))*torch.sin(3*x1 * (2 * math.pi)) + torch.randn(x1.size()) * 0.01
-# #train_y2 = -torch.cos(train_x1*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.2
-# Many_y2 = Many_x2*torch.sin(-8*Many_x2 * (2 * math.pi))*torch.cos(0.3+2*Many_x2 * (2 * math.pi)) + torch.randn(Many_x2.size()) * 0.1 + Many_x2
-# """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-#
-# train_xS = torch.cat([x0,x1])
-# train_yS = torch.cat([y0,y1])
-# idx0 = [0]*y0.shape[0]
-# idx1 = [1]*y1.shape[0]
-# model = TLGaussianProcess(x2,y2,train_xS,train_yS,idxS=idx0+idx1,NDomains=3)
-# plt.plot(Many_x2,Many_y2,'m.')
-#model.covariance.length=0.1
-#model.lik_std_noise=0.1*torch.ones(3)
 "Training process below"
-myLr = 1e-1
+myLr = 1e-2
 Niter = 500
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
@@ -164,7 +135,7 @@ for iter in range(Niter):
 print("check difference between model.eval and model.train")
 model.eval()
 model.Train_mode = False
-x_test = torch.linspace(0, 1, 500)[:,None]
+x_test = torch.linspace(0, 1, 100)[:,None]
 with torch.no_grad():
     #mpred1,Cpred1 = model(x)
     mpred, Cpred = model(x_test,noiseless=False)
@@ -175,10 +146,9 @@ plt.plot(x_test,mpred,'blue')
 plt.plot(x2,y2,'k.')
 from torch.distributions.multivariate_normal import MultivariateNormal
 # for i in range(50):
-#     i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
-#     plt.plot(x_test,i_sample.sample(),alpha = 0.2)
-plt.plot(x_test, mpred+2*torch.diag(Cpred)[:,None],'c--')
-plt.plot(x_test, mpred-2*torch.diag(Cpred)[:,None],'c--')
+#     i_sample = MultivariateNormal(loc=model.mu_star[:,0], covariance_matrix=torch.matmul(model.L,model.L.t()))
+#     #i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
+#     plt.plot(x2,i_sample.sample(),'.',alpha = 0.2)
+plt.plot(x2.numpy(),model.mu_star.detach().numpy(),'.',alpha = 0.2)
 
 
-"TODO: add restrictions to the likelihood noise, and set to optimise the variance instead of std!!!"
