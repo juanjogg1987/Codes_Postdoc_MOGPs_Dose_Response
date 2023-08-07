@@ -14,6 +14,13 @@ def isPD(B):
         return True
     except la.LinAlgError:
         return False
+def isPD_torch(B):
+    """Returns true when input is positive-definite, via Cholesky"""
+    try:
+        _ = torch.linalg.cholesky(B)
+        return True
+    except torch.linalg.LinAlgError:
+        return False
 def nearestPD(A):
     """Find the nearest positive-definite matrix to input
 
@@ -89,7 +96,7 @@ class TLGaussianProcess(nn.Module):
         self.all_y = torch.cat([self.yS, self.yT])
         self.covariance = TL_Kernel_var(NDomains=NDomains) #gpytorch.kernels.RBFKernel()
         self.Train_mode = True
-        self.lik_std_noise = torch.nn.Parameter(1*torch.ones(NDomains)) #torch.tensor([0.07])
+        self.lik_std_noise = torch.nn.Parameter(1.0*torch.ones(NDomains)) #torch.tensor([0.07])
         #self.lik_std_noise = 0.05 * torch.ones(NDomains)
         self.mu_star = torch.zeros(yT.shape)
         self.L = torch.eye(yT.shape[0])
@@ -108,9 +115,13 @@ class TLGaussianProcess(nn.Module):
             CSS = KSS + torch.diag(self.lik_std_noise[self.idxS].pow(2))
             CTT = KTT + torch.diag(self.lik_std_noise[self.idxT].pow(2))
 
-            #Knn_noise = Knn + self.lik_std_noise.pow(2) * torch.eye(Knn.shape[0])
-            with torch.no_grad():
-                CSS = torch.from_numpy(nearestPD(CSS.numpy()))
+            # The code below aim to correct for numerical instabilities when CSS becomes Non-PSD
+            if not isPD_torch(CSS):
+                CSS_aux = CSS.clone()
+                with torch.no_grad():
+                    CSS_aux = torch.from_numpy(nearestPD(CSS_aux.numpy()))
+                CSS = 0.0*CSS + CSS_aux  #This operation aims to keep the gradients working over lik_std_noise
+
             self.LSS = torch.linalg.cholesky(CSS)
             alphaSS1 = torch.linalg.solve(self.LSS, self.yS)
             alphaSS = torch.linalg.solve(self.LSS.t(), alphaSS1)
@@ -148,7 +159,7 @@ class TLGaussianProcess(nn.Module):
                 f_Cov = KTT_xnew_xnew - torch.matmul(v.t(),v) #+ 1e-2*torch.eye(xT.shape[0])  #I had to add this Jitter
                 f_Cov = torch.from_numpy(nearestPD(f_Cov.numpy()))
             else:
-                f_Cov = KTT_xnew_xnew - torch.matmul(v.t(),v) + 10*torch.diag(self.lik_std_noise[idxT].pow(2)) + 1e-5*torch.eye(xT.shape[0])
+                f_Cov = KTT_xnew_xnew - torch.matmul(v.t(),v) + 1*torch.diag(self.lik_std_noise[idxT].pow(2)) + 1e-5*torch.eye(xT.shape[0])
                 f_Cov = torch.from_numpy(nearestPD(f_Cov.numpy()))
             return f_mu, f_Cov
 
@@ -179,32 +190,39 @@ x1 = torch.rand(Nsize)[:,None]
 torch.manual_seed(Nseed)
 random.seed(Nseed)
 
-indx = torch.arange(0,30)
-indx0 = torch.arange(0,50)
+indx = torch.arange(0,50)
+indx0 = torch.arange(0,80)
 print(indx)
 x0 = x1[indx0]
 x2 = x1[indx]
+#x1 = x0
 
-y2 = x2*torch.sin(-8*x2 * (2 * math.pi))*torch.cos(0.3+2*x2 * (2 * math.pi)) + torch.randn(x2.size()) * 0.2 + x2
+y2 = x2*torch.sin(-8*x2 * (2 * math.pi))*torch.cos(0.3+2*x2 * (2 * math.pi)) + torch.randn(x2.size()) * 0.05 #+ x2
 Many_x2 = torch.rand(500)
 
-y0 = torch.cos(7*x0 * (2 * math.pi)) + torch.randn(x0.size()) * 0.1
+y0 = torch.cos(7*x0 * (2 * math.pi)) + torch.randn(x0.size()) * 0.2
 y1 = torch.sin(4*x1 * (2 * math.pi))*torch.sin(3*x1 * (2 * math.pi)) + torch.randn(x1.size()) * 0.1
 #train_y2 = -torch.cos(train_x1*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.2
-Many_y2 = Many_x2*torch.sin(-8*Many_x2 * (2 * math.pi))*torch.cos(0.3+2*Many_x2 * (2 * math.pi)) + torch.randn(Many_x2.size()) * 0.1 + Many_x2
+Many_y2 = Many_x2*torch.sin(-8*Many_x2 * (2 * math.pi))*torch.cos(0.3+2*Many_x2 * (2 * math.pi)) + torch.randn(Many_x2.size()) * 0.05 #+ Many_x2
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 train_xS = torch.cat([x0,x1])
 train_yS = torch.cat([y0,y1])
 idx0 = [0]*y0.shape[0]
 idx1 = [1]*y1.shape[0]
-model = TLGaussianProcess(x2,y2,train_xS,train_yS,idxS=idx0+idx1,NDomains=3)
-plt.plot(Many_x2,Many_y2,'m.')
-model.covariance.length=0.01
-#model.lik_std_noise=0.1
+NDomains = 3
+model = TLGaussianProcess(x2,y2,train_xS,train_yS,idxS=idx0+idx1,NDomains=NDomains)
+plt.plot(Many_x2,Many_y2,'r.',alpha=0.5)
+model.covariance.length=0.05
+torch.manual_seed(5)
+with torch.no_grad():
+    model.lik_std_noise=torch.nn.Parameter(torch.randn(NDomains))
+    model.covariance.length = 0.1*torch.rand(NDomains)[:,None]
+print(f"Noises std: {model.lik_std_noise}")
+
 "Training process below"
-myLr = 1e-2
-Niter = 1000
+myLr = 1e-3
+Niter = 1500
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
@@ -227,18 +245,18 @@ model.Train_mode = False
 x_test = torch.linspace(0, 1, 500)[:,None]
 with torch.no_grad():
     #mpred1,Cpred1 = model(x)
-    mpred, Cpred = model(x_test,noiseless=False)
+    mpred, Cpred = model(x_test,noiseless=True)
 
 plt.figure(1)
 #plt.plot(x,mpred1,'.')
 plt.plot(x_test,mpred,'blue')
 plt.plot(x2,y2,'k.')
 from torch.distributions.multivariate_normal import MultivariateNormal
-# for i in range(50):
-#     i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
-#     plt.plot(x_test,i_sample.sample(),alpha = 0.2)
-plt.plot(x_test, mpred+2*torch.diag(Cpred)[:,None],'c--')
-plt.plot(x_test, mpred-2*torch.diag(Cpred)[:,None],'c--')
+for i in range(50):
+    i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
+    plt.plot(x_test,i_sample.sample(),alpha = 0.1)
+#plt.plot(x_test, mpred+2*torch.sqrt(torch.diag(Cpred)[:,None]),'c--')
+#plt.plot(x_test, mpred-2*torch.sqrt(torch.diag(Cpred)[:,None]),'c--')
 
 
 "TODO: add restrictions to the likelihood noise, and set to optimise the variance instead of std!!!"
