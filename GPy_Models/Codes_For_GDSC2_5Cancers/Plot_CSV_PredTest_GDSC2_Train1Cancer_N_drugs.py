@@ -209,8 +209,6 @@ for sel_cancer in cancers:
     for Ndose in range(1,8):
         plot_Nth_dose(sel_cancer,axs,Ndose,Num_cells,AE_per_dose_Ncells,MAE_per_dose_Ncells)
 
-    axs[0,0].legend(handles=[line_averMAE,line_Seeds[0]], loc='upper right', bbox_to_anchor=(1.0, 1.5), ncol=1, fancybox=True, shadow=True,fontsize=13)
-
 
     def plot_benchmark(axs, loc, N_Cells_lin, data,alpha = 0.5, Responsive = True):
         if Responsive is True:
@@ -218,14 +216,12 @@ for sel_cancer in cancers:
             line_Q2, = axs[loc[0], loc[1]].plot(N_Cells_lin, np.percentile(data, 50) * np.ones_like(N_Cells_lin), 'm',linewidth=1.1,alpha=alpha,label='BERK Q2')
             line_Q3, = axs[loc[0], loc[1]].plot(N_Cells_lin, np.percentile(data, 75) * np.ones_like(N_Cells_lin), 'm--',linewidth=1.1,alpha=alpha,label='BERK Q3')
             line_mean, = axs[loc[0], loc[1]].plot(N_Cells_lin, np.mean(data) * np.ones_like(N_Cells_lin), 'green',linewidth=1.1,alpha=alpha,label='BERK Mean-Error')
-            #line_median, = axs[loc[0], loc[1]].plot(1000*N_Cells_lin, np.mean(data) * np.ones_like(N_Cells_lin), 'm',alpha=1.0, label='Boxplot Median')
             axs[0, 0].legend(handles=[line_averMAE,line_Seeds[0],line_mean,line_Q3,line_Q2,line_Q1],loc='upper right', bbox_to_anchor=(2.03, 1.3),ncol=6, fancybox=True, shadow=True)
         else:
             line_Q1, = axs[loc[0]].plot(N_Cells_lin, np.percentile(data, 25) * np.ones_like(N_Cells_lin), 'm--',linewidth=1.1, alpha=alpha, label='BERK Q1')
             line_Q2, = axs[loc[0]].plot(N_Cells_lin, np.percentile(data, 50) * np.ones_like(N_Cells_lin), 'm',linewidth=1.1, alpha=alpha, label='BERK Q2')
             line_Q3, = axs[loc[0]].plot(N_Cells_lin, np.percentile(data, 75) * np.ones_like(N_Cells_lin), 'm--',linewidth=1.1, alpha=alpha, label='BERK Q3')
             line_mean, = axs[loc[0]].plot(N_Cells_lin, np.mean(data) * np.ones_like(N_Cells_lin), 'green',linewidth=1.1, alpha=alpha, label='BERK Mean-Error')
-            # line_median, = axs[loc[0], loc[1]].plot(1000*N_Cells_lin, np.mean(data) * np.ones_like(N_Cells_lin), 'm',alpha=1.0, label='Boxplot Median')
             axs[0].legend(handles=[line_averMAE,line_Seeds[0],line_mean, line_Q3, line_Q2, line_Q1], loc='upper right',bbox_to_anchor=(1.1, 1.25), ncol=6, fancybox=True, shadow=True)
 
     data_AUC, data_Emax, data_IC50, data_IC50_Res, data_IC50_NoRes,data_AUC_Res,data_AUC_NoRes,data_Emax_Res,data_Emax_NoRes, data_Ydose_res = np.load('Bench_Mark_AUC_Emax_IC50.pkl', allow_pickle=True)
@@ -262,7 +258,7 @@ cancer_name_plot_abs = {0:'Breast (Abs. Error)',1:'COAD (Abs. Error)',2:'LUAD (A
 
 for i in range(5):
     axs[i, 0].set_ylabel(cancer_name_plot_abs[i], fontsize=15)
-axs[4, 3].set_xlabel("Number of dose response curves in training\n", fontsize=15)
+axs[4, 3].set_xlabel("Number of dose response curves in training\n", fontsize=16)
 
 for i in range(5):
     for j in range(3):
@@ -283,8 +279,11 @@ for i in range(5):
     else:
         axs_all[i][2,0].set_xlabel("                                                                                      Number of dose response curves in training", fontsize=15)
 
-#fig.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
-fig.tight_layout(w_pad=-2.2)
+fig.tight_layout(pad=5.0, w_pad=-2.2, h_pad=1.0)
+#fig.tight_layout(w_pad=-2.2)
 for i in range(1,7):
     for j in range(5):
         axs[j,i].yaxis.set_tick_params(labelleft=False)
+
+#axs[0,0].legend(handles=[line_averMAE,line_Seeds[0]], loc='upper right', bbox_to_anchor=(1.0, 1.5), ncol=1, fancybox=True, shadow=True,fontsize=13)
+axs[0,3].legend(["Average Mean-Error ± std","Mean-Error per seed"],loc='upper right',bbox_to_anchor=(1.35, 1.35), ncol=2, fancybox=True, shadow=True)
