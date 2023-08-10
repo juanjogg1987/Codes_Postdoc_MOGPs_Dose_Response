@@ -133,17 +133,18 @@ class TLGaussianProcess(nn.Module):
             C_star = CTT - torch.matmul(vTT.t(),vTT) #+ 1e-4*torch.eye(xT.shape[0])  #jitter?
             self.L = torch.linalg.cholesky(C_star)
 
-            # Here we compute the full covariance of xS and xT together
-            xST = torch.cat([self.xS, self.xT])
-            idxST= self.idxS+self.idxT
-            all_K_xST = self.covariance(xST, idx1=idxST).evaluate()
-            all_K_xST_noise = all_K_xST + torch.diag(self.lik_std_noise[idxST].pow(2)) #+ 0.1*torch.eye(xST.shape[0]) #Jitter?
-            with torch.no_grad():
-                all_K_xST_noise = torch.from_numpy(nearestPD(all_K_xST_noise.numpy()))
-            self.all_L = torch.linalg.cholesky(all_K_xST_noise) #+ 1e-4*torch.eye(xST.shape[0])
             return self.mu_star, self.L  # here we return the mean and covariance
         else:
-            "TODO all this part of the prediction of the model"
+            # Here we compute the full covariance of xS and xT together
+            xST = torch.cat([self.xS, self.xT])
+            idxST = self.idxS + self.idxT
+            all_K_xST = self.covariance(xST, idx1=idxST).evaluate()
+            all_K_xST_noise = all_K_xST + torch.diag(self.lik_std_noise[idxST].pow(2))  # + 0.1*torch.eye(xST.shape[0]) #Jitter?
+            if not isPD_torch(all_K_xST_noise):
+                with torch.no_grad():
+                    all_K_xST_noise = torch.from_numpy(nearestPD(all_K_xST_noise.numpy()))
+            self.all_L = torch.linalg.cholesky(all_K_xST_noise)  # + 1e-4*torch.eye(xST.shape[0])
+
             idxT = [self.covariance.NDomains - 1] * xT.shape[0]
             alpha1 = torch.linalg.solve(self.all_L, self.all_y)
             alpha = torch.linalg.solve(self.all_L.t(), alpha1)
@@ -191,11 +192,11 @@ torch.manual_seed(Nseed)
 random.seed(Nseed)
 
 indx = torch.arange(50,90)
-indx0 = torch.arange(0,3)
+indx0 = torch.arange(0,80)
 print(indx)
 x0 = x1[indx0]
 x2 = x1[indx]
-x1 = x0
+#x1 = x0
 
 y2 = x2*torch.sin(-8*x2 * (2 * math.pi))*torch.cos(0.3+2*x2 * (2 * math.pi)) + torch.randn(x2.size()) * 0.05 #+ x2
 Many_x2 = torch.rand(500)

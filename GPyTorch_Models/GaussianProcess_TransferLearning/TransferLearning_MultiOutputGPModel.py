@@ -144,20 +144,21 @@ class TLMOGaussianProcess(nn.Module):
             C_star = CTT - torch.matmul(vTT.t(),vTT) #+ 1e-4*torch.eye(xT.shape[0])  #jitter?
             self.L = torch.linalg.cholesky(C_star)
 
-            # Here we compute the full covariance of xS and xT together
-            xST = torch.cat([self.xS, self.xT])
-            idxST= self.idxS+self.idxT
-            self.DrugC_xSxT = torch.cat([self.DrugC_xS,self.DrugC_xT])
-            all_K_xST = self.CoregCovariance(self.DrugC_xSxT).evaluate()*self.TLCovariance(xST, idx1=idxST).evaluate()
-            all_K_xST_noise = all_K_xST + torch.diag(self.lik_std_noise[idxST].pow(2)) #+ 0.1*torch.eye(xST.shape[0]) #Jitter?
-            with torch.no_grad():
-                all_K_xST_noise = torch.from_numpy(nearestPD(all_K_xST_noise.numpy()))
-            self.all_L = torch.linalg.cholesky(all_K_xST_noise) #+ 1e-4*torch.eye(xST.shape[0])
             return self.mu_star, self.L  # here we return the mean and covariance
         else:
-            "TODO all this part of the prediction of the model"
             "We replicate the target domain index as per the number of drug concentration we want to test"
             "notice that it is not limited to D number of outputs, but actually the number of concentrations"
+            # Here we compute the full covariance of xS and xT together
+            xST = torch.cat([self.xS, self.xT])
+            idxST = self.idxS + self.idxT
+            self.DrugC_xSxT = torch.cat([self.DrugC_xS, self.DrugC_xT])
+            all_K_xST = self.CoregCovariance(self.DrugC_xSxT).evaluate() * self.TLCovariance(xST, idx1=idxST).evaluate()
+            all_K_xST_noise = all_K_xST + torch.diag(self.lik_std_noise[idxST].pow(2))  # + 0.1*torch.eye(xST.shape[0]) #Jitter?
+            if not isPD_torch(all_K_xST_noise):
+                with torch.no_grad():
+                    all_K_xST_noise = torch.from_numpy(nearestPD(all_K_xST_noise.numpy()))
+            self.all_L = torch.linalg.cholesky(all_K_xST_noise)  # + 1e-4*torch.eye(xST.shape[0])
+
             # Here we receive a list of possible drug concentrations to predict
             if DrugC_new is None:
                 DrugC_new = self.DrugC
@@ -234,8 +235,8 @@ Many_y2 = Many_x2*torch.sin(-8*Many_x2 * (2 * math.pi))*torch.cos(0.3+2*Many_x2 
 
 y0 = torch.cat([y0,0.2*y0],1)
 y1 = torch.cat([y1,0.2*y1+0.3*(y1**2)],1)
-y2 = torch.cat([y2,-0.4*y2**2],1)
-Many_y2 = torch.cat([Many_y2,-0.4*Many_y2**2],1)
+y2 = torch.cat([y2,-0.4*y2],1)
+Many_y2 = torch.cat([Many_y2,-0.4*Many_y2],1)
 train_xS = torch.cat([x0,x1])
 train_yS = torch.cat([y0,y1])
 idx0 = [0]*y0.shape[0]
@@ -276,7 +277,7 @@ print("check difference between model.eval and model.train")
 model.eval()
 model.Train_mode = False
 x_test = torch.linspace(0, 1, 200)[:,None]
-sel_concentr = 0
+sel_concentr = 1
 with torch.no_grad():
     #mpred1,Cpred1 = model(x)
     mpred, Cpred = model(x_test,DrugC_new = [DrugC[sel_concentr]],noiseless=True)
