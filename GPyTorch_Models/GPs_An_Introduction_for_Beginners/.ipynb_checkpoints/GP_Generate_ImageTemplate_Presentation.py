@@ -73,7 +73,7 @@ class GaussianProcess(nn.Module):
         super().__init__()
         self.x = x
         self.y = y
-        self.covariance = gpytorch.kernels.RBFKernel()*gpytorch.kernels.LinearKernel()+gpytorch.kernels.LinearKernel()#+gpytorch.kernels.PolynomialKernel(power=2)
+        self.covariance = gpytorch.kernels.RBFKernel()
         self.Train_mode = True
         self.lik_std_noise = torch.nn.Parameter(torch.tensor([1.0])) #torch.tensor([0.07])
         self.L = torch.eye(y.shape[0])
@@ -103,20 +103,16 @@ Nseed = 3
 torch.manual_seed(Nseed)
 import random
 random.seed(Nseed)
-#x = torch.rand(50,1)
-#y = torch.exp(1*x)*torch.sin(10*x)*torch.cos(3*x) + 0.3*torch.rand(*x.shape)
-
-x = torch.log(torch.tensor([100.,250.,500.,1000.,2000.,3000.,6000.,10000.,20000.,30000.,89500.54557012902,1455703.7228807202,2735979.3221436907,13537849.674196364,338067.20971205935,6174879.956213258])[:,None])
-y = torch.tensor([1.6783,1.63301,1.63148,1.64796,1.669817,1.686328,1.717587,1.743571,1.78162,1.80502,1.864,2.013,2.041,2.130,1.940,2.076])[:,None]+0.001*torch.randn(*x.shape)
+x = torch.rand(50,1)
+y = torch.exp(1*x)*torch.sin(10*x)*torch.cos(3*x) + 0.3*torch.rand(*x.shape)
 
 model = GaussianProcess(x,y)
-model.lik_std_noise = torch.nn.Parameter(torch.tensor([0.1]))
-#model.covariance.lengthscale=1000
+#model.covariance.lengthscale=0.1
 print(model(x))
 
 "Training process below"
-myLr = 0.6e-3
-Niter = 3000
+myLr = 1e-2
+Niter = 500
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
@@ -136,10 +132,10 @@ for iter in range(Niter):
 print("check difference between model.eval and model.train")
 model.eval()
 model.Train_mode = False
-x_test = torch.linspace(3, 20, 100)[:,None]
+x_test = torch.linspace(0, 1, 100)[:,None]
 with torch.no_grad():
     #mpred1,Cpred1 = model(x)
-    mpred, Cpred = model(x_test,noiseless=True)
+    mpred, Cpred = model(x_test,noiseless=False)
 
 plt.figure(1)
 #plt.plot(x,mpred1,'.')
@@ -149,11 +145,4 @@ for i in range(50):
     i_sample = MultivariateNormal(loc=mpred[:,0], covariance_matrix=Cpred)
     plt.plot(x_test,i_sample.sample(),alpha = 0.2)
 
-plt.plot(x,y,'r.',markersize=10)
-plt.plot(x_test,mpred[:,0],'b--',alpha = 0.8)
-plt.plot(x_test,mpred[:,0]+2.0*torch.sqrt(torch.diag(Cpred)),'b--',alpha = 0.8)  #This is to plot the standard dev
-plt.plot(x_test,mpred[:,0]-2.0*torch.sqrt(torch.diag(Cpred)),'b--',alpha = 0.8)  #This is to plot the standard dev
-
-plt.figure(2)
-plt.plot(np.exp(x),y,'r.',markersize=10)
-plt.plot(np.exp(x_test),mpred[:,0],'b--',alpha = 0.8)
+plt.plot(x,y,'k.')

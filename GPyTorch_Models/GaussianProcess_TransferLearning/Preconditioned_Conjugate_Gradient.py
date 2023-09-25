@@ -3,7 +3,7 @@ import torch
 Nseed = 1
 torch.manual_seed(Nseed)
 t = 500
-N = 10000
+N = 45000
 A0 = torch.randn(N,N)
 A = torch.matmul(A0.T,A0)
 #y = torch.tensor([1.3,-1.1,2.34,0.055,1.075])[:,None] #torch.randn((N,1))
@@ -75,18 +75,19 @@ e1 = torch.ones(Tt[0,:,:].shape[0],1)
 dict_correct = {5:1.575,7:2.524,10:2.125,30:1.7635,50:1.6004,100:1.5377,300:1.39535,600:1.3422,1000:1.3127}
 dict_correct2 = {100:1.677,500:1.6315,1000:1.648}
 
-xcor1 = np.array([100,500,1000,2000,3000,6000,10000,20000,30000])
-ycor1 = np.array([1.677,1.6315,1.648,1.669817,1.686328,1.717587,1.743571,1.7928,1.80502])
-def error_correct(x):
+xcor1 = np.array([100,250,500,1000,2000,3000,6000,10000,20000,30000])
+ycor1 = np.array([1.6783,1.63301,1.63148,1.64796,1.669817,1.686328,1.717587,1.743571,1.78162,1.80502])
+def error_correct(x,const=1.7928):
     # The best fitting correction to the data
     # dict_correct = {5:1.575,7:2.524,10:2.125,30:1.7635,50:1.6004,100:1.5377,300:1.39535,600:1.3422,1000:1.3127}
     #is the function -0.08 * np.log(np.linspace(7, 1000) / 15) + 1.65 + np.exp(-np.linspace(7, 1000) / 15)
     if x <= 100000:
         #div_correct = -0.08 * np.log(x / 15) + 1.641 + np.exp(-x / 15)
-        div_correct = -0.08 * np.log(x / 15) + 1.743571 #+ np.exp(-x / 15)
+        div_correct = -0.08 * np.log(x / 15) + const #+ np.exp(-x / 15)
     else:
         div_correct = -(0.08/(x/(x-x*0.15))) * np.log(x / 15) + 1.641 + np.exp(-x / 15)
     return div_correct
+
 aprx_log_det = 0.0
 # Here the average is for only Tt matrices related to the vectors zt, so we avoid the first Tt, i.e., T0
 #correct_factor =
@@ -94,14 +95,14 @@ for i in range(1,t+1):
     #print(i)
     #aprx_log_det += np.matmul(np.matmul(Mi[i,:,0:1].t(),torch.diag(torch.log(lambdai[i,:]))),Mi[i,:,0:1])/t
     "TODO the dividing factor N/1.25 depends on the size of the matrix, how to correct with function of N size?"
-    aprx_log_det += (N/error_correct(N))*np.matmul(np.matmul(Mi[i,0:1,:],torch.diag(torch.log(lambdai[i,:]))),Mi[i,0:1,:].t())/t
+    aprx_log_det += (N/error_correct(N,const=1.63301))*np.matmul(np.matmul(Mi[i,0:1,:],torch.diag(torch.log(lambdai[i,:]))),Mi[i,0:1,:].t())/t
     #aprx_log_det += np.matmul(np.matmul(e1.t(), torch.diag(torch.log(lambdai[i, :]))), e1)/t
     print(aprx_log_det)
 #aprx_log_det = aprx_log_det/(t)
 print(f"Approx. log|A|={aprx_log_det}")
-print(f"Actual log|A|={torch.log(torch.linalg.det(A))}")
+print(f"Actual log|A|={torch.linalg.slogdet(A)}")
 
 def func_corre1(x):
-    corre = 0.1 * np.log(x) + 0.07 * np.log(x / 10) + 0.05 * np.log(x / 20) + 0.025 * np.log(
+    corre = np.log(x) + 0.07 * np.log(x / 10) + 0.05 * np.log(x / 20) + 0.025 * np.log(
         x / 100) + 0.0125 * np.log(x / 200) + 0.01 * np.log(x / 50)
     return corre

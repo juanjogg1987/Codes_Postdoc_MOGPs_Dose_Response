@@ -163,7 +163,7 @@ for sel_cancer in cancers:
                 axs[indx_plot, Nth_dose].set_ylim([-0.01,0.27])
             else:
                 axs[indx_plot, Nth_dose].set_ylim(my_ylim)
-            axs[indx_plot, Nth_dose].grid()
+            axs[indx_plot, Nth_dose].grid(False)
             if indx_plot==0 or force_title==True:
                 if Nth_dose == 1:
                     line_averMAE = line2
@@ -177,6 +177,7 @@ for sel_cancer in cancers:
                     axs[indx_plot, Nth_dose].set_title(f"Dose {Nth_dose+1}",fontsize=15)
                 else:
                     axs[indx_plot, Nth_dose].set_title(my_title)
+            #axs[indx_plot, Nth_dose].set_xticklabels(np.array([0,20,40,60,80]), fontsize=13)
         else:
             #axs[sel_cancer].boxplot(AE_per_Nthdose_Ncells, medianprops=dict(color="orangered", linewidth=1.8),positions=Total_Ncell, widths=4.0, notch=True,flierprops={'marker': 'o', 'markersize': 1, 'markerfacecolor': 'black'})
             # plt.fill_between(New_X, f_MAE_per_Nthdose_Ncells - f_stdAE_per_Nthdose_Ncells, f_MAE_per_Nthdose_Ncells + f_stdAE_per_Nthdose_Ncells,alpha=0.2)
@@ -190,7 +191,7 @@ for sel_cancer in cancers:
                 axs[indx_plot].set_ylim([-0.01, 0.27])
             else:
                 axs[indx_plot].set_ylim(my_ylim)
-            axs[indx_plot].grid()
+            axs[indx_plot].grid(False)
             if indx_plot == 0 or force_title == True:
                 if Nth_dose == 1:
                     #global line_averMAE
@@ -205,6 +206,7 @@ for sel_cancer in cancers:
                     axs[indx_plot].set_title(f"Dose {Nth_dose + 1}")
                 else:
                     axs[indx_plot].set_title(my_title)
+            axs[indx_plot].set_xticklabels(New_X,fontsize=20)
 
     for Ndose in range(1,8):
         plot_Nth_dose(sel_cancer,axs,Ndose,Num_cells,AE_per_dose_Ncells,MAE_per_dose_Ncells)
@@ -287,3 +289,4 @@ for i in range(1,7):
 
 #axs[0,0].legend(handles=[line_averMAE,line_Seeds[0]], loc='upper right', bbox_to_anchor=(1.0, 1.5), ncol=1, fancybox=True, shadow=True,fontsize=13)
 axs[0,3].legend(["Average Mean-Error ± std","Mean-Error per seed"],loc='upper right',bbox_to_anchor=(1.35, 1.35), ncol=2, fancybox=True, shadow=True)
+#axs[0,3].set_xticklabels(fontsize=20)

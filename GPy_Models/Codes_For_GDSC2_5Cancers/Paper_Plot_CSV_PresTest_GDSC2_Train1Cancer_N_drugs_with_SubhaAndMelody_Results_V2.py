@@ -232,7 +232,7 @@ for sel_cancer in cancers:
                 axs[indx_plot, Nth_dose].set_ylim([-0.01,0.27])
             else:
                 axs[indx_plot, Nth_dose].set_ylim(my_ylim)
-            axs[indx_plot, Nth_dose].grid(True)
+            axs[indx_plot, Nth_dose].grid(False)
             if indx_plot==0 or force_title==True:
                 if Nth_dose == 1:
                     line_averMAE = line2
@@ -256,7 +256,7 @@ for sel_cancer in cancers:
                 axs[indx_plot].set_ylim([-0.01, 0.27])
             else:
                 axs[indx_plot].set_ylim(my_ylim)
-            axs[indx_plot].grid(True)
+            axs[indx_plot].grid(False)
             if indx_plot == 0 or force_title == True:
                 if Nth_dose == 1:
                     #global line_averMAE
@@ -325,13 +325,13 @@ for sel_cancer in cancers:
 
     print(f"IC50 Cancer {sel_cancer}:", AE_IC50_Res_Ncells)
     if AE_IC50_Res_Ncells[0].shape[0] != 0:
-        plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer]+Mel_flag, Num_cells, AE_IC50_Res_Ncells, MAE_IC50_Res_Ncells,Responsive = IsRes, my_ylim=[-0.01, 1.2],my_title="IC50 Responsive (MSE)",force_title=True)
+        plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer]+Mel_flag, Num_cells, AE_IC50_Res_Ncells, MAE_IC50_Res_Ncells,Responsive = IsRes, my_ylim=[-0.01, 1.0],my_title="IC50 Responsive (MSE)",force_title=True)
         #plot_Nth_dose(2, axs_all[sel_cancer], 2, Num_cells, AE_IC50_Res_Ncells_Subha, MAE_IC50_Res_Ncells_Subha,mycolor=['red','red'], Responsive=IsRes,my_ylim=[-0.01, 1.2], my_title="IC50 Responsive (MSE)", force_title=True)
-        plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer]+Mel_flag, Num_cells, AE_IC50_Res_Ncells_Melody, MAE_IC50_Res_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 1.2], my_title="IC50 Responsive (MSE)",force_title=True)
+        plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer]+Mel_flag, Num_cells, AE_IC50_Res_Ncells_Melody, MAE_IC50_Res_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 1.0], my_title="IC50 Responsive (MSE)",force_title=True)
         plot_benchmark(axs_all[sel_fig[sel_cancer]], [2, sel_col[sel_cancer]], N_Cells_lin, data_IC50_Res[sel_cancer],alpha=0.5,Responsive = IsRes)
-    plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_IC50_NoRes_Ncells, MAE_IC50_NoRes_Ncells,Responsive = IsRes, my_ylim=[-0.01, 1.2],my_title="IC50 Non-Responsive (MSE)",force_title=True)
+    plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_IC50_NoRes_Ncells, MAE_IC50_NoRes_Ncells,Responsive = IsRes, my_ylim=[-0.01, 1.0],my_title="IC50 Non-Responsive (MSE)",force_title=True)
     #plot_Nth_dose(2, axs_all[sel_cancer], 1, Num_cells, AE_IC50_NoRes_Ncells_Subha, MAE_IC50_NoRes_Ncells_Subha,mycolor=['red','red'], Responsive=IsRes,  my_ylim=[-0.01, 1.2], my_title="IC50 Non-Responsive (MSE)", force_title=True)
-    plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_IC50_NoRes_Ncells_Melody, MAE_IC50_NoRes_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 1.2], my_title="IC50 Non-Responsive (MSE)", force_title=True)
+    plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_IC50_NoRes_Ncells_Melody, MAE_IC50_NoRes_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 1.0], my_title="IC50 Non-Responsive (MSE)", force_title=True)
     plot_benchmark(axs_all[sel_fig[sel_cancer]], [2, sel_col[sel_cancer]-1], N_Cells_lin, data_IC50_NoRes[sel_cancer],alpha=0.5,Responsive = IsRes)
 
 #cancer_names = {0:'breast_cancer',1:'COAD_cancer',2:'LUAD_cancer',3:'melanoma_cancer',4:'SCLC_cancer'}
@@ -386,5 +386,6 @@ fig_all[1].suptitle('Melanoma', fontsize=15,x=0.5,y=0.91)
 #                 axs_all[i][j, k].set_xlim([0, 100])
 #
 "Here we include the legends, I just used the _nolegend_ for the one I did not want to show!!"
-axs_all[0][0,2].legend(["Avg.±std (MOGP)","MAE-seed (MOGP)"]+["_nolegend_"]*6+["Avg.±std (SRMF)","MAE-seed (SRMF)"]+["_nolegend_"]*6+["Median (BERK)","Mean (BERK)"],loc='upper right',bbox_to_anchor=(1.05, 1.35), ncol=3, fancybox=True, shadow=True)
+axs_all[0][0,2].legend(["Avg.±std (MOGP)","MAE-seed (MOGP)"]+["_nolegend_"]*6+["Avg.±std (SRMF)","MAE-seed (SRMF)"]+["_nolegend_"]*6+["Median (BERK)","Mean (BERK)"],loc='upper right',bbox_to_anchor=(2.18, 1.27), ncol=6, fancybox=True, shadow=True)
 axs_all[1][0,0].legend(["Avg.±std (MOGP)","MAE-seed (MOGP)"]+["_nolegend_"]*6+["Avg.±std (SRMF)","MAE-seed (SRMF)"]+["_nolegend_"]*6+["Median (BERK)","Mean (BERK)"],loc='upper right',bbox_to_anchor=(2.15, 1.35), ncol=3, fancybox=True, shadow=True)
+
