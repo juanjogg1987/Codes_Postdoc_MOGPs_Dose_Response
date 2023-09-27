@@ -1,18 +1,28 @@
 import torch
+import gpytorch
 
 Nseed = 1
 torch.manual_seed(Nseed)
-t = 500
-N = 45000
+t = 100
+N = 40
+
+#x_input = torch.linspace(0,1,N)
+#x_input = torch.randn(N)
+#mykern = gpytorch.kernels.RBFKernel()
+#mykern.lengthscale=0.1
+#A = 2*mykern(x_input).evaluate().detach()
 A0 = torch.randn(N,N)
 A = torch.matmul(A0.T,A0)
+
 #y = torch.tensor([1.3,-1.1,2.34,0.055,1.075])[:,None] #torch.randn((N,1))
 y = torch.rand((N,1))
+#y = torch.sin(5*x_input)[:,None]
+
 zt = torch.randn((N,t))
-U_true = torch.cat([y,zt],1)
+B = torch.cat([y,zt],1)
 # Matrix to solve against B has shape N x (t+1)
 # B = [y z1 z2 ... zt]
-B = torch.matmul(A,U_true)
+U_true = torch.linalg.solve(A,B) #torch.matmul(A,B)
 # Preconditioner Matrix
 Phat_inv = torch.eye(B.shape[0])
 
@@ -23,7 +33,7 @@ U0 = torch.zeros_like(B) # Current solutions
 R0 = B - torch.matmul(A,U0) # Current errors
 Z0 = torch.matmul(Phat_inv,R0) # Preconditioned errors
 D0 = Z0.clone()
-p_iter = 30
+p_iter = 30  #N
 # Each matrix Tt is p_iter x p_iter
 # In the supplementary doc. for BBMM method the for loop appears as range(0,t)
 # though to avoid confusion with the t vectors zt, and following the main paper before Eq. (6)
@@ -34,13 +44,13 @@ Rj = R0.clone()
 Uj = U0.clone()
 Zj = Z0.clone()
 vect_1 = torch.ones_like(y) # Vector of ones with same size of y
-Tolerance = 1e-3*torch.ones(t+1)
+Tolerance = 1e-1*torch.ones(t+1)
 for i in range(p_iter):
     Vj = torch.matmul(A,Dj)
     alphaj = torch.matmul((Rj * Zj).t(), vect_1)/torch.matmul((Dj*Vj).t(), vect_1)
     Uj = Uj + torch.matmul(Dj,torch.diag(alphaj.flatten()))
     Rj = Rj - torch.matmul(Vj,torch.diag(alphaj.flatten()))
-    "TODO: check what to do whan it ends and it does not complete all p_iter"
+    "TODO: check what to do when it ends and it does not complete all p_iter"
     # if torch.prod((torch.norm(Rj,dim=0)<Tolerance)):
     #     print(f"error: {torch.norm(Rj,dim=0)}, iter:{i}")
     #     break
@@ -64,45 +74,21 @@ for i in range(p_iter):
     alphaj_old = alphaj.clone()
     betaj_old = betaj.clone()
 
-import numpy as np
-import scipy.linalg
 # Compute eigendecomposition of matrices Tt
 lambdai,Mi=torch.linalg.eig(Tt)
+Mi = torch.real(Mi)
+#lambdai = torch.linalg.eigvals(Tt)
 # Create the vector e1 which is equal to the first row of the identity matrix
-e1 = torch.ones(Tt[0,:,:].shape[0],1)
-#Tt_np = Tt.numpy()
-#e1[0] = 1.0
-dict_correct = {5:1.575,7:2.524,10:2.125,30:1.7635,50:1.6004,100:1.5377,300:1.39535,600:1.3422,1000:1.3127}
-dict_correct2 = {100:1.677,500:1.6315,1000:1.648}
-
-xcor1 = np.array([100,250,500,1000,2000,3000,6000,10000,20000,30000])
-ycor1 = np.array([1.6783,1.63301,1.63148,1.64796,1.669817,1.686328,1.717587,1.743571,1.78162,1.80502])
-def error_correct(x,const=1.7928):
-    # The best fitting correction to the data
-    # dict_correct = {5:1.575,7:2.524,10:2.125,30:1.7635,50:1.6004,100:1.5377,300:1.39535,600:1.3422,1000:1.3127}
-    #is the function -0.08 * np.log(np.linspace(7, 1000) / 15) + 1.65 + np.exp(-np.linspace(7, 1000) / 15)
-    if x <= 100000:
-        #div_correct = -0.08 * np.log(x / 15) + 1.641 + np.exp(-x / 15)
-        div_correct = -0.08 * np.log(x / 15) + const #+ np.exp(-x / 15)
-    else:
-        div_correct = -(0.08/(x/(x-x*0.15))) * np.log(x / 15) + 1.641 + np.exp(-x / 15)
-    return div_correct
+e1 = torch.zeros(Tt[0,:,:].shape[0],1)
+e1[0] = 1.0
 
 aprx_log_det = 0.0
 # Here the average is for only Tt matrices related to the vectors zt, so we avoid the first Tt, i.e., T0
 #correct_factor =
 for i in range(1,t+1):
-    #print(i)
-    #aprx_log_det += np.matmul(np.matmul(Mi[i,:,0:1].t(),torch.diag(torch.log(lambdai[i,:]))),Mi[i,:,0:1])/t
-    "TODO the dividing factor N/1.25 depends on the size of the matrix, how to correct with function of N size?"
-    aprx_log_det += (N/error_correct(N,const=1.63301))*np.matmul(np.matmul(Mi[i,0:1,:],torch.diag(torch.log(lambdai[i,:]))),Mi[i,0:1,:].t())/t
-    #aprx_log_det += np.matmul(np.matmul(e1.t(), torch.diag(torch.log(lambdai[i, :]))), e1)/t
+    "The paper of BBMM does not include the multiplication by N, probably a typo!"
+    aprx_log_det += N*torch.matmul(torch.matmul(Mi[i, 0:1, :], torch.diag(torch.log(torch.abs(lambdai[i, :])))), Mi[i, 0:1, :].t())/(t)
     print(aprx_log_det)
 #aprx_log_det = aprx_log_det/(t)
 print(f"Approx. log|A|={aprx_log_det}")
 print(f"Actual log|A|={torch.linalg.slogdet(A)}")
-
-def func_corre1(x):
-    corre = np.log(x) + 0.07 * np.log(x / 10) + 0.05 * np.log(x / 20) + 0.025 * np.log(
-        x / 100) + 0.0125 * np.log(x / 200) + 0.01 * np.log(x / 50)
-    return corre
