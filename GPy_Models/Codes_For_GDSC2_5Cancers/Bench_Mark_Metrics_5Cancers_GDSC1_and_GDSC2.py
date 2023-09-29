@@ -271,14 +271,14 @@ for which_cancer in range(0,5):
     Diff_Emax_5Cancers.append(diff_Emax_GDSC1_GDSC2)
     Diff_IC50_5Cancers.append(diff_IC50_GDSC1_GDSC2)
 
-    if which_cancer != 3:
-        theshIC50 = 0.0
-        theshAUC = 0.0
-        theshEmax = 0.0
-    else:
-        theshIC50 = 1.5
-        theshAUC = 0.55
-        theshEmax = 0.5
+    #if which_cancer != 3:
+    theshIC50 = 0.0
+    theshAUC = 0.0
+    theshEmax = 0.0
+    #else:
+        # theshIC50 = 1.5
+        # theshAUC = 0.55
+        # theshEmax = 0.5
 
     IC50_Squared = 2  # use 2 to square or 1 for Absolute
     pos_Actual_IC50 = IC50_GDSC2_cancer < theshIC50
@@ -420,5 +420,5 @@ import pickle
 #     pickle.dump([data_AUC,data_Emax,data_IC50,data_IC50_Res,data_IC50_NoRes,data_AUC_Res,data_AUC_NoRes,data_Emax_Res,data_Emax_NoRes,data_Ydose_res], f)
 
 "New version with all cancers responsive and non responsive!"
-with open('Bench_Mark_AUC_Emax_IC50_NewVersion.pkl', 'wb') as f:
+with open('Bench_Mark_AUC_Emax_IC50_Version_AllCancers_Without_split_Res_and_NonRes.pkl', 'wb') as f:
     pickle.dump([data_AUC,data_Emax,data_IC50,data_IC50_Res,data_IC50_NoRes,data_AUC_Res,data_AUC_NoRes,data_Emax_Res,data_Emax_NoRes,data_Ydose_res], f)
