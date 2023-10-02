@@ -89,9 +89,18 @@ class GaussianProcess(nn.Module):
         self.Knn_noise = torch.eye(y.shape[0])
     def forward(self,x, noiseless = True):
         if self.Train_mode:
-            Knn = self.covariance(x).evaluate() #+ 1e-5*torch.eye(x.shape[0])
-            #print(f"length:{self.covariance.lengthscale}")
-            #print(Knn)
+            #Knn = self.covariance(x).evaluate() #+ 1e-5*torch.eye(x.shape[0])
+            N = x.shape[0]
+            Knn = torch.zeros(N, N)
+            dK_dtheta = torch.zeros(N, N)
+            for i in range(N):
+                for j in range(N):
+                    element = self.covariance(x[i],x[j]).evaluate()
+                    Knn[i, j] = element
+                    element.backward(retain_graph=True)
+                    #print(self.covariance.raw_lengthscale.grad)
+                    dK_dtheta[i, j] = self.covariance.raw_lengthscale.grad
+            print(dK_dtheta)
             self.Knn_noise = Knn + self.lik_std_noise.pow(2)*torch.eye(Knn.shape[0])
             self.L = torch.linalg.cholesky(self.Knn_noise)
             #self.L = psd_safe_cholesky(Knn_noise,jitter=1e-5)
@@ -130,26 +139,31 @@ Niter = 10
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
-for iter in range(Niter):
-    # Forward pass
-    L = model(x)
+# for iter in range(Niter):
+#     # Forward pass
+#     L = model(x)
+#
+#     # Backprop
+#     loss = -loss_fn(L,y)
+#     optimizer.zero_grad()
+#     loss.backward()
+#     optimizer.step()
+#     print(f"Loss: {loss.item()}")
+#
+# Knn = model.covariance(x).evaluate()
+# optimizer.zero_grad()
+# "Here we backpropagate for just one function f(x1,x1,theta)"
+# Knn[1,0].backward()
+# "Here the gradient would be df(x1,x1,theta)/dtheta"
+# print(f"grad:{model.covariance.raw_lengthscale.grad}")
+# "How do we access the actual full matrix like knn.backward? to have dKnn/dtheta?"
 
-    # Backprop
-    loss = -loss_fn(L,y)
-    optimizer.zero_grad()
-    loss.backward()
-    dK_dtheta = model.covariance.lengthscale.grad
-    print(dK_dtheta)
-    optimizer.step()
-    print(f"Loss: {loss.item()}")
+# # Compute the derivative of K with respect to the length-scale
+# Knn.backward(torch.ones_like(Knn), retain_graph=True)
+# print(f"grad:{model.covariance.raw_lengthscale.grad}")
+# Access the derivative matrix
+#dK_dlength_scale = length_scale.grad
 
-Knn = model.covariance(x).evaluate()
-optimizer.zero_grad()
-"Here we backpropagate for just one function f(x1,x1,theta)"
-Knn[1,0].backward()
-"Here the gradient would be df(x1,x1,theta)/dtheta"
-print(f"grad:{model.covariance.raw_lengthscale.grad}")
-"How do we access the actual full matrix like knn.backward? to have dKnn/dtheta?"
 
 # "Here we have to assign the flag to change from self.Train_mode = True to False"
 # print("check difference between model.eval and model.train")
