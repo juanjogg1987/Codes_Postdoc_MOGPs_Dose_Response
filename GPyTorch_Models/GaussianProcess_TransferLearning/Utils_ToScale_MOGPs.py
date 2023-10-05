@@ -33,9 +33,12 @@ def CG_Lanczos(A,y,t = 100,p_iter = 30):
     Uj = U0.clone()
     Zj = Z0.clone()
     vect_1 = torch.ones_like(y) # Vector of ones with same size of y
-    Tolerance = 1e-2*torch.ones(t+1)
-    print(f"A:{A}")
-    print(f"Dj:{Dj}")
+    "NOTE: Here the Tolerance should be bigger if the matrix size is bigger"
+    "It seems that we have to be less strict with the approximation if having large matrices"
+    "This Tolerance is key for making the approximation work properly."
+    Tolerance = 300e-1*torch.ones(t+1)
+    #print(f"A:{A}")
+    #print(f"Dj:{Dj}")
     for i in range(p_iter):
         Vj = torch.matmul(A,Dj)
         alphaj = torch.matmul((Rj * Zj).t(), vect_1)/torch.matmul((Dj*Vj).t(), vect_1)
@@ -84,6 +87,6 @@ def CG_Lanczos(A,y,t = 100,p_iter = 30):
         aprx_log_det += N*torch.matmul(torch.matmul(Mi[i, 0:1, :], torch.diag(torch.log(torch.abs(lambdai[i, :])))), Mi[i, 0:1, :].t())/(t)
         #print(aprx_log_det)
     print(f"Approx. log|A|={aprx_log_det}")
-    print(f"Actual log|A|={torch.linalg.slogdet(A)}")
+    #print(f"Actual log|A|={torch.linalg.slogdet(A)}")
 
     return Uj[:,0][:,None],aprx_log_det  #return the solution A^(-1)y (Uj[:,0][:,None]) and Log|A| (aprx_log_det)

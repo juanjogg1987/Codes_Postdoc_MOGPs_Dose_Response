@@ -69,12 +69,12 @@ def nearestPD(A):
 class LogMarginalLikelihood(nn.Module):
     def __init__(self):
         super().__init__()
-    def forward(self,L,y):
-        alpha = torch.linalg.solve(L.t(), torch.linalg.solve(L, y))
+    def forward(self,Knn_noise,y):
+        #alpha = torch.linalg.solve(L.t(), torch.linalg.solve(L, y))
         N = y.shape[0]
-        #Knn_i_y, log_det_Knn = MyUtils.CG_Lanczos(Knn_noise,y,t = 100,p_iter = 30)
-        return -0.5*torch.matmul(y.t(),alpha)-torch.diag(L).log().sum()-N*0.5*torch.log(torch.tensor([2*torch.pi]))
-        #return -0.5*torch.matmul(y.t(),Knn_i_y)-0.5*log_det_Knn-N*0.5*torch.log(torch.tensor([2*torch.pi]))
+        Knn_i_y, log_det_Knn = MyUtils.CG_Lanczos(Knn_noise,y,t = 100,p_iter = 30)
+        #return -0.5*torch.matmul(y.t(),alpha)-torch.diag(L).log().sum()-N*0.5*torch.log(torch.tensor([2*torch.pi]))
+        return -0.5*torch.matmul(y.t(),Knn_i_y)-0.5*log_det_Knn-N*0.5*torch.log(torch.tensor([2*torch.pi]))
 class GaussianProcess(nn.Module):
     def __init__(self,x,y):
         super().__init__()
@@ -83,30 +83,30 @@ class GaussianProcess(nn.Module):
         #self.covariance = gpytorch.kernels.RBFKernel(lengthscale_constraint=gpytorch.constraints.GreaterThan(1e-1))
         self.covariance = gpytorch.kernels.RBFKernel()
         self.Train_mode = True
-        self.lik_std_noise = torch.tensor([0.3])#torch.nn.Parameter(torch.tensor([1.0])) #torch.tensor([0.07])
-        #self.lik_std_noise = torch.nn.Parameter(torch.tensor([1.0])) #torch.tensor([0.07])
+        #self.lik_std_noise = torch.tensor([0.3])#torch.nn.Parameter(torch.tensor([1.0])) #torch.tensor([0.07])
+        self.lik_std_noise = torch.nn.Parameter(torch.tensor([1.0])) #torch.tensor([0.07])
         self.L = torch.eye(y.shape[0])
         self.Knn_noise = torch.eye(y.shape[0])
     def forward(self,x, noiseless = True):
         if self.Train_mode:
-            #Knn = self.covariance(x).evaluate() #+ 1e-5*torch.eye(x.shape[0])
-            N = x.shape[0]
-            Knn = torch.zeros(N, N)
-            dK_dtheta = torch.zeros(N, N)
-            for i in range(N):
-                for j in range(N):
-                    element = self.covariance(x[i],x[j]).evaluate()
-                    Knn[i, j] = element
-                    element.backward(retain_graph=True)
-                    #print(self.covariance.raw_lengthscale.grad)
-                    dK_dtheta[i, j] = self.covariance.raw_lengthscale.grad
-            print(dK_dtheta)
+            Knn = self.covariance(x).evaluate() #+ 1e-5*torch.eye(x.shape[0])
+            #N = x.shape[0]
+            #Knn = torch.zeros(N, N)
+            # dK_dtheta = torch.zeros(N, N)
+            # for i in range(N):
+            #     for j in range(N):
+            #         element = self.covariance(x[i],x[j]).evaluate()
+            #         Knn[i, j] = element
+            #         element.backward(retain_graph=True)
+            #         #print(self.covariance.raw_lengthscale.grad)
+            #         dK_dtheta[i, j] = self.covariance.raw_lengthscale.grad
+            # print(dK_dtheta)
             self.Knn_noise = Knn + self.lik_std_noise.pow(2)*torch.eye(Knn.shape[0])
-            self.L = torch.linalg.cholesky(self.Knn_noise)
-            #self.L = psd_safe_cholesky(Knn_noise,jitter=1e-5)
-            return self.L#self.Knn_noise  #here we might return the mean and covariance (or just covar if mean is zeros)
-        else:
             #self.L = torch.linalg.cholesky(self.Knn_noise)
+            #self.L = psd_safe_cholesky(Knn_noise,jitter=1e-5)
+            return self.Knn_noise  #here we might return the mean and covariance (or just covar if mean is zeros)
+        else:
+            self.L = torch.linalg.cholesky(self.Knn_noise)
             alpha1 = torch.linalg.solve(self.L, self.y)
             alpha = torch.linalg.solve(self.L.t(), alpha1)
             K_xnew_x = self.covariance(x,self.x).evaluate()
@@ -125,31 +125,31 @@ Nseed = 5
 torch.manual_seed(Nseed)
 import random
 random.seed(Nseed)
-x = torch.rand(50,1)
+x = torch.rand(1000,1)
 y = torch.exp(1*x)*torch.sin(10*x)*torch.cos(3*x) + 0.3*torch.rand(*x.shape)
 
 model = GaussianProcess(x,y)
 #model.lik_std_noise = torch.nn.Parameter(torch.tensor([0.7]))
-#model.covariance.lengthscale=0.1
+model.covariance.lengthscale=0.1
 print(model(x))
 
 "Training process below"
 myLr = 1.0e-3
-Niter = 10
+Niter = 500
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
-# for iter in range(Niter):
-#     # Forward pass
-#     L = model(x)
-#
-#     # Backprop
-#     loss = -loss_fn(L,y)
-#     optimizer.zero_grad()
-#     loss.backward()
-#     optimizer.step()
-#     print(f"Loss: {loss.item()}")
-#
+for iter in range(Niter):
+    # Forward pass
+    L = model(x)
+
+    # Backprop
+    loss = -loss_fn(L,y)
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    print(f"Loss: {loss.item()}")
+
 # Knn = model.covariance(x).evaluate()
 # optimizer.zero_grad()
 # "Here we backpropagate for just one function f(x1,x1,theta)"
@@ -165,24 +165,24 @@ loss_fn = LogMarginalLikelihood()
 #dK_dlength_scale = length_scale.grad
 
 
-# "Here we have to assign the flag to change from self.Train_mode = True to False"
-# print("check difference between model.eval and model.train")
-# model.eval()
-# model.Train_mode = False
-# x_test = torch.linspace(0, 1, 200)[:,None]
-# with torch.no_grad():
-#     #mpred1,Cpred1 = model(x)
-#     mpred, Cpred = model(x_test,noiseless=True)
-#
-# plt.figure(1)
-# #plt.plot(x,mpred1,'.')
-#
-# from torch.distributions.multivariate_normal import MultivariateNormal
-# for i in range(50):
-#     i_sample = MultivariateNormal(loc=mpred[:,0], covariance_matrix=Cpred)
-#     plt.plot(x_test,i_sample.sample(),alpha = 0.2)
-#
-# plt.plot(x,y,'r.',markersize=10)
-# plt.plot(x_test,mpred[:,0],'b--',alpha = 0.8)
-# plt.plot(x_test,mpred[:,0]+2.0*torch.sqrt(torch.diag(Cpred)),'b--',alpha = 0.8)  #This is to plot the standard dev
-# plt.plot(x_test,mpred[:,0]-2.0*torch.sqrt(torch.diag(Cpred)),'b--',alpha = 0.8)  #This is to plot the standard dev
+"Here we have to assign the flag to change from self.Train_mode = True to False"
+print("check difference between model.eval and model.train")
+model.eval()
+model.Train_mode = False
+x_test = torch.linspace(0, 1, 200)[:,None]
+with torch.no_grad():
+    #mpred1,Cpred1 = model(x)
+    mpred, Cpred = model(x_test,noiseless=True)
+
+plt.figure(1)
+#plt.plot(x,mpred1,'.')
+
+from torch.distributions.multivariate_normal import MultivariateNormal
+for i in range(50):
+    i_sample = MultivariateNormal(loc=mpred[:,0], covariance_matrix=Cpred)
+    plt.plot(x_test,i_sample.sample(),alpha = 0.2)
+
+plt.plot(x,y,'r.',markersize=10)
+plt.plot(x_test,mpred[:,0],'b--',alpha = 0.8)
+plt.plot(x_test,mpred[:,0]+2.0*torch.sqrt(torch.diag(Cpred)),'b--',alpha = 0.8)  #This is to plot the standard dev
+plt.plot(x_test,mpred[:,0]-2.0*torch.sqrt(torch.diag(Cpred)),'b--',alpha = 0.8)  #This is to plot the standard dev
