@@ -80,15 +80,17 @@ class GaussianProcess(nn.Module):
         super().__init__()
         self.x = x
         self.y = y
-        #self.covariance = gpytorch.kernels.RBFKernel(lengthscale_constraint=gpytorch.constraints.GreaterThan(1e-1))
+        #self.covariance = gpytorch.kernels.RBFKernel(lengthscale_constraint=gpytorch.constraints.GreaterThan(1e-2))
         self.covariance = gpytorch.kernels.RBFKernel()
         self.Train_mode = True
         #self.lik_std_noise = torch.tensor([0.3])#torch.nn.Parameter(torch.tensor([1.0])) #torch.tensor([0.07])
-        self.lik_std_noise = torch.nn.Parameter(torch.tensor([1.0])) #torch.tensor([0.07])
+        self.lik_std_noise = torch.nn.Parameter(torch.tensor([0.3])) #torch.tensor([0.07])
         self.L = torch.eye(y.shape[0])
         self.Knn_noise = torch.eye(y.shape[0])
     def forward(self,x, noiseless = True):
         if self.Train_mode:
+            print(f"lik_std:{self.lik_std_noise}")
+            print(f"length:{self.covariance.lengthscale}")
             Knn = self.covariance(x).evaluate() #+ 1e-5*torch.eye(x.shape[0])
             #N = x.shape[0]
             #Knn = torch.zeros(N, N)
@@ -106,27 +108,33 @@ class GaussianProcess(nn.Module):
             #self.L = psd_safe_cholesky(Knn_noise,jitter=1e-5)
             return self.Knn_noise  #here we might return the mean and covariance (or just covar if mean is zeros)
         else:
-            self.L = torch.linalg.cholesky(self.Knn_noise)
-            alpha1 = torch.linalg.solve(self.L, self.y)
-            alpha = torch.linalg.solve(self.L.t(), alpha1)
+            #self.L = torch.linalg.cholesky(self.Knn_noise)
+            #alpha1 = torch.linalg.solve(self.L, self.y)
+            #alpha = torch.linalg.solve(self.L.t(), alpha1)
             K_xnew_x = self.covariance(x,self.x).evaluate()
             K_xnew_xnew = self.covariance(x).evaluate()
-            f_mu = torch.matmul(K_xnew_x,alpha)
-            v = torch.linalg.solve(self.L,K_xnew_x.t())
+            #f_mu = torch.matmul(K_xnew_x, alpha)
+            Kxx_i_y, _ = MyUtils.CG_Lanczos(self.Knn_noise, y, t=100, p_iter=100,tolerance=1.0e-1)
+            f_mu = torch.matmul(K_xnew_x, Kxx_i_y)
+            #v = torch.linalg.solve(self.L,K_xnew_x.t())
+            #Kxx_i_Kx_xnew = torch.linalg.solve(self.Knn_noise,K_xnew_x.t())
+            Kxx_i_Kx_xnew,_ = MyUtils.CG_Lanczos(self.Knn_noise, K_xnew_x.t(), t=100, p_iter=100,tolerance=1.0e-1)
             if noiseless:
-                f_Cov = K_xnew_xnew - torch.matmul(v.t(),v) #+ 1e-5*torch.eye(x.shape[0])  #I had to add this Jitter
+                #f_Cov = K_xnew_xnew - torch.matmul(v.t(),v) #+ 1e-5*torch.eye(x.shape[0])  #I had to add this Jitter
+                f_Cov = K_xnew_xnew - torch.matmul(K_xnew_x, Kxx_i_Kx_xnew)  # + 1e-5*torch.eye(x.shape[0])  #I had to add this Jitter
                 f_Cov = torch.from_numpy(nearestPD(f_Cov.numpy()))
             else:
-                f_Cov = K_xnew_xnew - torch.matmul(v.t(), v) + self.lik_std_noise.pow(2) * torch.eye(x.shape[0]) #+ 1e-5*torch.eye(x.shape[0])
-                f_Cov = torch.from_numpy(nearestPD(f_Cov.numpy()))
+                f_Cov = K_xnew_xnew - torch.matmul(K_xnew_x, Kxx_i_Kx_xnew)  #+ 1e-5*torch.eye(x.shape[0])
+                f_Cov = torch.from_numpy(nearestPD(f_Cov.numpy())) + self.lik_std_noise.pow(2) * torch.eye(x.shape[0])
+                #f_Cov = torch.from_numpy(nearestPD(f_Cov.numpy()))
             return f_mu, f_Cov
 
 Nseed = 5
 torch.manual_seed(Nseed)
 import random
 random.seed(Nseed)
-x = torch.rand(1000,1)
-y = torch.exp(1*x)*torch.sin(10*x)*torch.cos(3*x) + 0.3*torch.rand(*x.shape)
+x = torch.rand(60,1)
+y = torch.exp(1*x)*torch.sin(30*x)*torch.cos(3*x) + 0.1*torch.randn(*x.shape)
 
 model = GaussianProcess(x,y)
 #model.lik_std_noise = torch.nn.Parameter(torch.tensor([0.7]))
@@ -135,11 +143,13 @@ print(model(x))
 
 "Training process below"
 myLr = 1.0e-3
-Niter = 500
+Niter = 1000
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
 for iter in range(Niter):
+
+
     # Forward pass
     L = model(x)
 
@@ -147,22 +157,17 @@ for iter in range(Niter):
     loss = -loss_fn(L,y)
     optimizer.zero_grad()
     loss.backward()
-    optimizer.step()
-    print(f"Loss: {loss.item()}")
-
-# Knn = model.covariance(x).evaluate()
-# optimizer.zero_grad()
-# "Here we backpropagate for just one function f(x1,x1,theta)"
-# Knn[1,0].backward()
-# "Here the gradient would be df(x1,x1,theta)/dtheta"
-# print(f"grad:{model.covariance.raw_lengthscale.grad}")
-# "How do we access the actual full matrix like knn.backward? to have dKnn/dtheta?"
-
-# # Compute the derivative of K with respect to the length-scale
-# Knn.backward(torch.ones_like(Knn), retain_graph=True)
-# print(f"grad:{model.covariance.raw_lengthscale.grad}")
-# Access the derivative matrix
-#dK_dlength_scale = length_scale.grad
+    #print(f"lenth before:{model.covariance.lengthscale}")
+    try:
+        #print(f"grad:{model.covariance.raw_lengthscale.grad}")
+        assert model.covariance.raw_lengthscale.grad.isnan() != True
+        optimizer.step()
+        #assert model.covariance.lengthscale.isnan() != True
+        print(f"Loss: {loss.item()}")
+    except:
+        print("Except IN")
+        print(f"lenth:{model.covariance.lengthscale}")
+        break
 
 
 "Here we have to assign the flag to change from self.Train_mode = True to False"
@@ -172,7 +177,7 @@ model.Train_mode = False
 x_test = torch.linspace(0, 1, 200)[:,None]
 with torch.no_grad():
     #mpred1,Cpred1 = model(x)
-    mpred, Cpred = model(x_test,noiseless=True)
+    mpred, Cpred = model(x_test,noiseless=False)
 
 plt.figure(1)
 #plt.plot(x,mpred1,'.')
