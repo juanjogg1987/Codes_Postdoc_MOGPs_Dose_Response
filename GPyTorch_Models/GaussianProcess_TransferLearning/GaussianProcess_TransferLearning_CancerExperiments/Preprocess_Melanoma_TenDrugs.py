@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.metrics import r2_score
 import warnings
 warnings.filterwarnings("ignore")
@@ -144,3 +145,63 @@ X_source_train_feat = scaler.transform(df_source[Names_features_NonZeroStd])
 X_target_train_feat = scaler.transform(df_target_train[Names_features_NonZeroStd])
 X_target_test_feat = scaler.transform(df_target_test[Names_features_NonZeroStd])
 
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"Here we extract from the dataframe the D outputs related to each dose concentration"
+"Below we select 7 concentration since GDSC2 has that number for the Drugs"
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Dnorm_cell = 7  #For GDSC2 this is the number of dose concentrations
+y_train_source = np.clip(df_source["norm_cells_" + str(1)].values[:, None], 1.0e-9, np.inf)
+print(y_train_source.shape)
+for i in range(2, Dnorm_cell+1):
+    y_train_source = np.concatenate((y_train_source, np.clip(df_source["norm_cells_" + str(i)].values[:, None], 1.0e-9, np.inf)), 1)
+
+print("Ytrain size: ", y_train_source.shape)
+
+"Now for the target domain"
+
+y_target = np.clip(df_target["norm_cells_" + str(1)].values[:, None], 1.0e-9, np.inf)
+print(y_target.shape)
+for i in range(2, Dnorm_cell+1):
+    y_target = np.concatenate((y_target, np.clip(df_target["norm_cells_" + str(i)].values[:, None], 1.0e-9, np.inf)), 1)
+
+print("Ytrain size: ", y_target.shape)
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"Since we fitted the dose response curves with a Sigmoid4_parameters function"
+"We extract the optimal coefficients in order to reproduce such a Sigmoid4_parameters fitting"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+params_4_sig_target = df_target["param_" + str(1)].values[:, None]
+for i in range(2, 5):  #here there are four params for sigmoid4
+    params_4_sig_target = np.concatenate((params_4_sig_target, df_target["param_" + str(i)].values[:, None]), 1)
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"In this sections we will extract the summary metrics AUC, Emax and IC50 from the Sigmoid4_parameters functions"
+"These metrics are used as the references to compute the error metrics"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+from sklearn import metrics
+from importlib import reload
+import Utils_SummaryMetrics_KLRelevance
+import Utils_SummaryMetrics_KLRelevance as MyUtils
+reload(MyUtils)
+
+"Be careful that x starts from 0.111111 for 9 or 5 drug concentrations in GDSC1 dataset"
+"but x starts from 0.142857143 for the case of 7 drug concentrations in GDSC2 dataset"
+"The function Get_IC50_AUC_Emax is implemented in Utils_SummaryMetrics_KLRelevance.py to extract the summary metrics"
+x_lin = np.linspace(0.142857, 1, 1000)
+x_real_dose = np.linspace(0.142857, 1, Dnorm_cell)  #Here is Dnorm_cell due to using GDSC2 that has 7 doses
+Ydose50,Ydose_res,IC50,AUC,Emax = MyUtils.Get_IC50_AUC_Emax(params_4_sig_target,x_lin,x_real_dose)
+
+def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_train_drug):
+    plt.figure(fig_num)
+    plt.plot(x_lin, Ydose_res[posy])
+    plt.plot(x_real_dose, y_train_drug[posy, :], '.')
+    plt.plot(IC50[posy], Ydose50[posy], 'rx')
+    plt.plot(x_lin, np.ones_like(x_lin)*Emax[posy], 'r') #Plot a horizontal line as Emax
+    plt.title(f"AUC = {AUC[posy]}")
+    plt.legend(['Sigmoid4','Observations','IC50','Emax'])
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"Here we can visualise the values of the GDSC1 dataset with the fitting of Sigmoid4_parameters function"
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+posy = 9   #select the location you want to plot, do not exceed the Ytrain length
+my_plot(posy,0,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_target)
