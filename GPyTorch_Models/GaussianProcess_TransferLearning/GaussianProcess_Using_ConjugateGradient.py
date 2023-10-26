@@ -114,11 +114,11 @@ class GaussianProcess(nn.Module):
             K_xnew_x = self.covariance(x,self.x).evaluate()
             K_xnew_xnew = self.covariance(x).evaluate()
             #f_mu = torch.matmul(K_xnew_x, alpha)
-            Kxx_i_y, _ = MyUtils.CG_Lanczos(self.Knn_noise, y, t=100, p_iter=100,tolerance=1.0e-1)
+            Kxx_i_y, _ = MyUtils.CG_Lanczos(self.Knn_noise, y, t=1, p_iter=100,tolerance=1.0e-1)
             f_mu = torch.matmul(K_xnew_x, Kxx_i_y)
             #v = torch.linalg.solve(self.L,K_xnew_x.t())
             #Kxx_i_Kx_xnew = torch.linalg.solve(self.Knn_noise,K_xnew_x.t())
-            Kxx_i_Kx_xnew,_ = MyUtils.CG_Lanczos(self.Knn_noise, K_xnew_x.t(), t=100, p_iter=100,tolerance=1.0e-1)
+            Kxx_i_Kx_xnew,_ = MyUtils.CG_Lanczos(self.Knn_noise, K_xnew_x.t(), t=1, p_iter=100,tolerance=1.0e-1)
             if noiseless:
                 #f_Cov = K_xnew_xnew - torch.matmul(v.t(),v) #+ 1e-5*torch.eye(x.shape[0])  #I had to add this Jitter
                 f_Cov = K_xnew_xnew - torch.matmul(K_xnew_x, Kxx_i_Kx_xnew)  # + 1e-5*torch.eye(x.shape[0])  #I had to add this Jitter
@@ -133,17 +133,19 @@ Nseed = 5
 torch.manual_seed(Nseed)
 import random
 random.seed(Nseed)
-x = torch.rand(60,1)
+Ndata = 500
+#x = torch.rand(1000,1)
+x = torch.cat([torch.rand(Ndata,1)*0.3,torch.rand(Ndata,1)*0.5+0.5])
 y = torch.exp(1*x)*torch.sin(30*x)*torch.cos(3*x) + 0.1*torch.randn(*x.shape)
 
 model = GaussianProcess(x,y)
 #model.lik_std_noise = torch.nn.Parameter(torch.tensor([0.7]))
-model.covariance.lengthscale=0.1
+model.covariance.lengthscale=0.05
 print(model(x))
 
 "Training process below"
 myLr = 1.0e-3
-Niter = 1000
+Niter = 1200
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 

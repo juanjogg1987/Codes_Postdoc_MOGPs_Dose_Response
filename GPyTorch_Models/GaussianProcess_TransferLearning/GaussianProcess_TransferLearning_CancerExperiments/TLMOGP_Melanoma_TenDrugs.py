@@ -2,7 +2,7 @@ import torch
 from torch import nn, optim
 import gpytorch
 import matplotlib.pyplot as plt
-from TransferLearning_Kernels import TL_Kernel_var
+from ..TransferLearning_Kernels import TL_Kernel_var
 
 from numpy import linalg as la
 import numpy as np
