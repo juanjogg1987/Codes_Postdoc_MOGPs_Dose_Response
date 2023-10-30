@@ -150,12 +150,12 @@ X_target_test_feat = scaler.transform(df_target_test[Names_features_NonZeroStd])
 "Below we select 7 concentration since GDSC2 has that number for the Drugs"
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 Dnorm_cell = 7  #For GDSC2 this is the number of dose concentrations
-y_train_source = np.clip(df_source["norm_cells_" + str(1)].values[:, None], 1.0e-9, np.inf)
-print(y_train_source.shape)
+y_source_train = np.clip(df_source["norm_cells_" + str(1)].values[:, None], 1.0e-9, np.inf)
+print(y_source_train.shape)
 for i in range(2, Dnorm_cell+1):
-    y_train_source = np.concatenate((y_train_source, np.clip(df_source["norm_cells_" + str(i)].values[:, None], 1.0e-9, np.inf)), 1)
+    y_source_train = np.concatenate((y_source_train, np.clip(df_source["norm_cells_" + str(i)].values[:, None], 1.0e-9, np.inf)), 1)
 
-print("Ytrain size: ", y_train_source.shape)
+print("Ytrain size: ", y_source_train.shape)
 
 "Now for the target domain"
 
@@ -205,3 +205,17 @@ def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_tra
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 posy = 9   #select the location you want to plot, do not exceed the Ytrain length
 my_plot(posy,0,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_target)
+
+y_target_train = y_target[idx_train]
+y_target_test = y_target[idx_test]
+
+"Here we define the set of all the possible cell-lines (Cosmic_ID) that belong to Melanoma cancer"
+"NOTE: Not all cell-lines have been tested with all ten drugs, so some cell-line might have more"
+"dose response curves than others"
+
+myset_source = set(df_source['COSMIC_ID'].values)
+myLabels = np.arange(0,myset_source.__len__())
+"TODO: the line list(myset_source) create a disordered list, I need to put it in order"
+dict_CosmicID2Label = dict(zip(list(myset_source),myLabels))
+df_source_sort = df_source.sort_values(by='COSMIC_ID')
+CosmicID_source = df_source_sort['COSMIC_ID'].values
