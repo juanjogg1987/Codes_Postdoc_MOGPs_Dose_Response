@@ -2,7 +2,10 @@ import torch
 from torch import nn, optim
 import gpytorch
 import matplotlib.pyplot as plt
-from ..TransferLearning_Kernels import TL_Kernel_var
+
+import sys
+sys.path.append('..')
+from TransferLearning_Kernels import TL_Kernel_var
 
 from numpy import linalg as la
 import numpy as np
@@ -94,8 +97,12 @@ class TLMOGaussianProcess(nn.Module):
         self.Douts = yT.shape[1]
         self.DrugC = torch.Tensor(DrugC)[:,None] #We treat the Drug Concentrations as a float tensor vector [N,1]
         assert self.DrugC.shape[0] == yT.shape[1]  #DrugC length should be equal to D number of outputs
-        self.xT = torch.kron(torch.ones(self.Douts, 1),xT)  #This is to replicate xT as per the D number of outputs
-        self.xS = torch.kron(torch.ones(self.Douts, 1),xS)  #This is to replicate xS as per the D number of outputs
+        self.Pfeat = xT.shape[1]
+        #torch.kron(mat1, mat2.reshape(-1)).reshape(-1, 429)
+        #self.xT = torch.kron(torch.ones(self.Douts, 1),xT)  #This is to replicate xT as per the D number of outputs
+        self.xT = torch.kron(torch.ones(self.Douts, 1), xT.reshape(-1)).reshape(-1, self.Pfeat)  # This is to replicate xT as per the D number of outputs
+        #self.xS = torch.kron(torch.ones(self.Douts, 1), xS)  # This is to replicate xS as per the D number of outputs
+        self.xS = torch.kron(torch.ones(self.Douts, 1),xS.reshape(-1)).reshape(-1, self.Pfeat)  #This is to replicate xS as per the D number of outputs
         self.yT = yT.T.reshape(-1, 1)  # This is to vectorise by staking the columns (vect(yT))
         self.yS = yS.T.reshape(-1,1) #This is to vectorise by staking the columns (vect(yS))
         self.DrugC_xT = torch.kron(self.DrugC,torch.ones(xT.shape[0], 1)) #Rep. Concentr. similar to coreginalisation
@@ -104,7 +111,7 @@ class TLMOGaussianProcess(nn.Module):
         self.idxT = [NDomains - 1] * xT.shape[0] * self.Douts #Replicate the target domain index as per the number of outputs
         self.all_y = torch.cat([self.yS, self.yT])
         self.TLCovariance = TL_Kernel_var(NDomains=NDomains) #gpytorch.kernels.RBFKernel()
-        self.CoregCovariance = gpytorch.kernels.RBFKernel()
+        self.CoregCovariance = gpytorch.kernels.MaternKernel(0.5) #gpytorch.kernels.RBFKernel()
         self.Train_mode = True
         self.lik_std_noise = torch.nn.Parameter(1.0*torch.ones(NDomains)) #torch.tensor([0.07])
         #self.lik_std_noise = 0.05 * torch.ones(NDomains)
@@ -115,8 +122,10 @@ class TLMOGaussianProcess(nn.Module):
 
     def forward(self,xT, DrugC_new = None,noiseless = True):
         if self.Train_mode:
-            xT = torch.kron(torch.ones(self.Douts, 1), xT)
-            assert (xT == self.xT).sum() == xT.shape[0] #This is just to check if the xT to init the model is the same
+            #xT = torch.kron(torch.ones(self.Douts, 1), xT)
+            xT = torch.kron(torch.ones(self.Douts, 1), xT.reshape(-1)).reshape(-1, self.Pfeat)
+            assert (xT == self.xT).sum() == (xT.shape[0]*xT.shape[1]) #This is just to check if the xT to init the model is the same
+            assert xT.shape[1] == self.xT.shape[1]  #Thiis is to check if the xT to init the model has same Pfeatures
             # Here we compute the Covariance matrices between source-target, source-source and target domains
             KTS = self.CoregCovariance(self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance(xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate()
             KSS = self.CoregCovariance(self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance(self.xS,idx1=self.idxS).evaluate()
@@ -169,7 +178,8 @@ class TLMOGaussianProcess(nn.Module):
             idxT = [self.TLCovariance.NDomains - 1] * xT.shape[0] * NewDouts
             DrugC_xT = torch.kron(DrugC_new, torch.ones(xT.shape[0], 1))
             "Be careful with operation using xT.shape, from here it changes the original shape"
-            xT = torch.kron(torch.ones(NewDouts, 1), xT)
+            #xT = torch.kron(torch.ones(NewDouts, 1), xT)
+            xT = torch.kron(torch.ones(NewDouts, 1), xT.reshape(-1)).reshape(-1, self.Pfeat)
             alpha1 = torch.linalg.solve(self.all_L, self.all_y)
             alpha = torch.linalg.solve(self.all_L.t(), alpha1)
             KTT_xnew_xnew = self.CoregCovariance(DrugC_xT).evaluate() * self.TLCovariance(xT, idx1=idxT).evaluate()
@@ -190,109 +200,292 @@ class TLMOGaussianProcess(nn.Module):
                 f_Cov = torch.from_numpy(nearestPD(f_Cov.numpy()))
             return f_mu, f_Cov
 
-# Nseed = 3
-# torch.manual_seed(Nseed)
-# import random
-# random.seed(Nseed)
-# x1 = torch.rand(200,1)
-# x2 = x1[0:30]
-# y1 = torch.exp(1*x1)*torch.sin(10*x1)*torch.cos(3*x1) + 0.2*torch.rand(*x1.shape)
-# y2 = torch.exp(1.5*x2)*torch.sin(8*x2)*torch.cos(2.7*x2) + 0.3*torch.rand(*x2.shape)
-# idx1 = [0]*y1.shape[0]
-#
-# "Here (x2,y2) is Target domain and (x1,y1) is source domain"
-# model = TLGaussianProcess(x2,y2,x1,y1,idx1,NDomains=2)
-# #model.covariance.length=0.1
-# print(model(x2))
-
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-Nsize = 1500
 Nseed = 2
 torch.manual_seed(Nseed)
 import math
+import pandas as pd
 import random
+import warnings
+warnings.filterwarnings("ignore")
+from sklearn.preprocessing import MinMaxScaler
 random.seed(Nseed)
-#train_x1 = torch.linspace(0,1,Nsize)
-x1 = torch.rand(Nsize)[:,None]
-torch.manual_seed(Nseed)
-random.seed(Nseed)
-
-indx = torch.arange(500,900)
-indx0 = torch.arange(0,1000)
-#print(indx)
-x0 = x1[indx0]
-x2 = x1[indx]
-#x1 = x0
-
-y2 = x2*torch.sin(-8*x2 * (2 * math.pi))*torch.cos(0.3+2*x2 * (2 * math.pi)) + torch.randn(x2.size()) * 0.05 #+ x2
-Many_x2 = torch.rand(500)[:,None]
-
-y0 = torch.cos(7*x0 * (2 * math.pi)) + torch.randn(x0.size()) * 0.2
-y1 = torch.sin(4*x1 * (2 * math.pi))*torch.sin(3*x1 * (2 * math.pi)) + torch.randn(x1.size()) * 0.1
-#train_y2 = -torch.cos(train_x1*train_x2 * (2 * math.pi)) + torch.randn(train_x2.size()) * 0.2
-Many_y2 = Many_x2*torch.sin(-8*Many_x2 * (2 * math.pi))*torch.cos(0.3+2*Many_x2 * (2 * math.pi)) + torch.randn(Many_x2.size()) * 0.05 #+ Many_x2
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"Here we preprocess and prepare our data"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+def sigmoid_4_param(x, x0, L, k, d):
+    """ Comparing with Dennis Wang's sigmoid:
+    x0 -  p - position, correlation with IC50 or EC50
+    L = 1 in Dennis Wang's sigmoid, protect from devision by zero if x is too small
+    k = -1/s (s -shape parameter)
+    d - determines the vertical position of the sigmoid - shift on y axis - better fitting then Dennis Wang's sigmoid
 
-y0 = torch.cat([y0,0.2*y0],1)
-y1 = torch.cat([y1,0.2*y1+0.3*(y1**2)],1)
-y2 = torch.cat([y2,-0.4*y2],1)
-Many_y2 = torch.cat([Many_y2,-0.4*Many_y2],1)
-train_xS = torch.cat([x0,x1])
-train_yS = torch.cat([y0,y1])
-idx0 = [0]*y0.shape[0]
-idx1 = [1]*y1.shape[0]
-NDomains = 3
-DrugC = [0.1,0.5]
-assert DrugC.__len__() == y0.shape[1] and DrugC.__len__() == y1.shape[1] and DrugC.__len__() == y2.shape[1]
-model = TLMOGaussianProcess(x2,y2,train_xS,train_yS,idxS=idx0+idx1,DrugC=DrugC,NDomains=NDomains)
-plt.plot(Many_x2,Many_y2[:,0],'y.',alpha=0.5)
-plt.plot(Many_x2,Many_y2[:,1],'m.',alpha=0.5)
+    """
+    return ( 1/ (L + np.exp(-k*(x-x0))) + d)
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+import getopt
+import sys
+
+warnings.filterwarnings("ignore")
+#os.environ['PATH'] = os.environ['PATH'] + ':/usr/texbin'
+
+class commandLine:
+    def __init__(self):
+        opts, args = getopt.getopt(sys.argv[1:], 'i:s:k:w:r:p:c:a:n:')
+        # opts = dict(opts)
+        # print(opts)
+        self.N_iter_epoch = 1200    #number of iterations
+        self.which_seed = 1011    #change seed to initialise the hyper-parameters
+        self.rank = 7
+        self.scale = 1
+        self.weight = 1
+        self.bash = "1"
+        self.N_CellLines_perc = 100   #Here we treat this variable as percentage. Try to put this values as multiple of Num_drugs?
+        self.sel_cancer = 3
+        self.seed_for_N = 1
+
+        for op, arg in opts:
+            # print(op,arg)
+            if op == '-i':
+                self.N_iter_epoch = arg
+            if op == '-r':  # (r)and seed
+                self.which_seed = arg
+            if op == '-k':  # ran(k)
+                self.rank = arg
+            if op == '-s':  # (r)and seed
+                self.scale = arg
+            if op == '-p':  # (p)ython bash
+                self.bash = arg
+            if op == '-w':
+                self.weight = arg
+            if op == '-c':
+                self.N_CellLines_perc = arg
+            if op == '-a':
+                self.sel_cancer = arg
+            if op == '-n':
+                self.seed_for_N = arg
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+config = commandLine()
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+dict_cancers={0:'GDSC2_EGFR_PI3K_MAPK_Breast_1000FR.csv',1:'GDSC2_EGFR_PI3K_MAPK_COAD_1000FR.csv',
+              2:'GDSC2_EGFR_PI3K_MAPK_LUAD.csv',3:'GDSC2_EGFR_PI3K_MAPK_melanoma.csv',4:'GDSC2_EGFR_PI3K_MAPK_SCLC.csv'}
+
+#indx_cancer = np.array([0,1,2,3,4])
+indx_cancer_train = np.array([int(config.sel_cancer)])
+#indx_cancer_train = np.delete(indx_cancer,indx_cancer_test)
+
+name_feat_file = "GDSC2_EGFR_PI3K_MAPK_allfeatures.csv"
+name_feat_file_nozero = "GDSC2_EGFR_PI3K_MAPK_features_NonZero_Drugs1036_1061_1373.csv" #"GDSC2_EGFR_PI3K_MAPK_features_NonZero.csv"
+Num_drugs = 3
+
+name_for_KLrelevance = dict_cancers[indx_cancer_train[0]]
+print(name_for_KLrelevance)
+
+df_to_read = pd.read_csv(_FOLDER + name_for_KLrelevance)#.sample(n=N_CellLines,random_state = rand_state_N)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"Split of data into Training and Testing for the Source and Target domains"
+Index_sel = (df_to_read["DRUG_ID"] == 1036) | (df_to_read["DRUG_ID"] == 1061)| (df_to_read["DRUG_ID"] == 1373) \
+            | (df_to_read["DRUG_ID"] == 1039) | (df_to_read["DRUG_ID"] == 1560) | (df_to_read["DRUG_ID"] == 1057) \
+            | (df_to_read["DRUG_ID"] == 1059)| (df_to_read["DRUG_ID"] == 1062) | (df_to_read["DRUG_ID"] == 2096) \
+            | (df_to_read["DRUG_ID"] == 2045)
+
+df_4Cancers_traintest_all = df_to_read[Index_sel]
+df_all = df_4Cancers_traintest_all.reset_index().drop(columns=['index'])
+df_all = df_all.dropna()
+
+# cell 906793
+
+df_source = df_all[df_all['COSMIC_ID']!=906793].reset_index().drop(columns=['index'])
+df_target = df_all[df_all['COSMIC_ID']==906793].reset_index().drop(columns=['index'])
+idx_train = np.array([3,4,9])
+idx_test = np.delete(np.arange(0,df_target.shape[0]),idx_train)
+
+df_target_test = df_target.iloc[idx_test]
+df_target_train = df_target.iloc[idx_train]
+
+df_source_and_target = pd.concat([df_source,df_target_train])
+
+# Here we just check that from the column index 25 the input features start
+start_pos_features = 25
+print(df_all.columns[start_pos_features])
+
+df_feat = df_all[df_all.columns[start_pos_features:]]
+Names_All_features = df_all.columns[start_pos_features:]
+Idx_Non_ZeroStd = np.where(df_feat.std()!=0.0)
+Names_features_NonZeroStd = Names_All_features[Idx_Non_ZeroStd]
+
+"This is a scaler to scale features in similar ranges"
+scaler = MinMaxScaler().fit(df_source_and_target[Names_features_NonZeroStd])
+
+xS_train = scaler.transform(df_source[Names_features_NonZeroStd])
+xT_train = scaler.transform(df_target_train[Names_features_NonZeroStd])
+xT_test = scaler.transform(df_target_test[Names_features_NonZeroStd])
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"Here we extract from the dataframe the D outputs related to each dose concentration"
+"Below we select 7 concentration since GDSC2 has that number for the Drugs"
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Dnorm_cell = 7  #For GDSC2 this is the number of dose concentrations
+
+"Here we extract the target domain outputs yT"
+
+yT = np.clip(df_target["norm_cells_" + str(1)].values[:, None], 1.0e-9, np.inf)
+print(yT.shape)
+for i in range(2, Dnorm_cell+1):
+    yT = np.concatenate((yT, np.clip(df_target["norm_cells_" + str(i)].values[:, None], 1.0e-9, np.inf)), 1)
+
+print("Ytrain size: ", yT.shape)
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"Since we fitted the dose response curves with a Sigmoid4_parameters function"
+"We extract the optimal coefficients in order to reproduce such a Sigmoid4_parameters fitting"
+"Here we extract the target domain parameters"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+params_4_sig_target = df_target["param_" + str(1)].values[:, None]
+for i in range(2, 5):  #here there are four params for sigmoid4
+    params_4_sig_target = np.concatenate((params_4_sig_target, df_target["param_" + str(i)].values[:, None]), 1)
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"In this sections we will extract the summary metrics AUC, Emax and IC50 from the Sigmoid4_parameters functions"
+"These metrics are used as the references to compute the error metrics"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+from sklearn import metrics
+from importlib import reload
+import Utils_SummaryMetrics_KLRelevance
+import Utils_SummaryMetrics_KLRelevance as MyUtils
+reload(MyUtils)
+
+"Be careful that x starts from 0.111111 for 9 or 5 drug concentrations in GDSC1 dataset"
+"but x starts from 0.142857143 for the case of 7 drug concentrations in GDSC2 dataset"
+"The function Get_IC50_AUC_Emax is implemented in Utils_SummaryMetrics_KLRelevance.py to extract the summary metrics"
+x_lin = np.linspace(0.142857, 1, 1000)
+x_real_dose = np.linspace(0.142857, 1, Dnorm_cell)  #Here is Dnorm_cell due to using GDSC2 that has 7 doses
+Ydose50,Ydose_res,IC50,AUC,Emax = MyUtils.Get_IC50_AUC_Emax(params_4_sig_target,x_lin,x_real_dose)
+
+def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_train_drug):
+    plt.figure(fig_num)
+    plt.plot(x_lin, Ydose_res[posy])
+    plt.plot(x_real_dose, y_train_drug[posy, :], '.')
+    plt.plot(IC50[posy], Ydose50[posy], 'rx')
+    plt.plot(x_lin, np.ones_like(x_lin)*Emax[posy], 'r') #Plot a horizontal line as Emax
+    plt.title(f"AUC = {AUC[posy]}")
+    plt.legend(['Sigmoid4','Observations','IC50','Emax'])
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"Here we can visualise the values of the GDSC2 dataset with the fitting of Sigmoid4_parameters function"
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+posy = 9   #select the location you want to plot, do not exceed the Ytrain length
+my_plot(posy,0,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,yT)
+
+yT_train = yT[idx_train]
+yT_test = yT[idx_test]
+
+"Here we define the set of all the possible cell-lines (Cosmic_ID) that belong to Melanoma cancer"
+"NOTE: Not all cell-lines have been tested with all ten drugs, so some cell-line might have more"
+"dose response curves than others"
+
+myset_source = set(df_source['COSMIC_ID'].values)
+myLabels = np.arange(0,myset_source.__len__())
+"TODO: the line list(myset_source) create a disordered list, I need to put it in order"
+CosmicID_labels = list(myset_source)
+CosmicID_labels.sort()
+dict_CosmicID2Label = dict(zip(CosmicID_labels,myLabels))
+df_source_sort = df_source.sort_values(by='COSMIC_ID')
+CosmicID_source = df_source_sort['COSMIC_ID'].values
+idx_S = [dict_CosmicID2Label[CosID] for CosID in CosmicID_source]
+
+"Here we extract the source domain outputs yS"
+
+yS_train = np.clip(df_source_sort["norm_cells_" + str(1)].values[:, None], 1.0e-9, np.inf)
+print(yS_train.shape)
+for i in range(2, Dnorm_cell+1):
+    yS_train = np.concatenate((yS_train, np.clip(df_source_sort["norm_cells_" + str(i)].values[:, None], 1.0e-9, np.inf)), 1)
+
+print("Ytrain size: ", yS_train.shape)
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"Make all variable passed to the model tensor to operate in pytorch"
+xT_train = torch.from_numpy(xT_train)
+yT_train = torch.from_numpy(yT_train)
+xS_train = torch.from_numpy(xS_train)
+yS_train = torch.from_numpy(yS_train)
+xT_test = torch.from_numpy(xT_test)
+yT_test = torch.from_numpy(yT_test)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"This is the number of source domains plus target domain."
+"In this cancer application we are refering to each domain as each cell-line with the Cosmic_ID"
+"There are 53 cell-lines or CosmicIDs in the source"
+"The target cell-line has CosmicID = 906793"
+NDomains = 54
+DrugC = list(np.linspace(0.142857,1.0,7))
+assert DrugC.__len__() == yS_train.shape[1] and DrugC.__len__() == yT_train.shape[1]
+model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC=DrugC,NDomains=NDomains)
 # model.covariance.length=0.05
-torch.manual_seed(5)
+torch.manual_seed(4)
 with torch.no_grad():
-    model.lik_std_noise=torch.nn.Parameter(torch.randn(NDomains))
+    model.lik_std_noise=torch.nn.Parameter(0.1*torch.randn(NDomains))
     model.TLCovariance.length = 0.1*torch.rand(NDomains)[:,None]
 print(f"Noises std: {model.lik_std_noise}")
 #
 "Training process below"
 myLr = 1e-3
-Niter = 1200
+Niter = 150
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
 for iter in range(Niter):
     # Forward pass
-    mu, L = model(x2)
+    mu, L = model(xT_train)
 
     # Backprop
-    loss = -loss_fn(mu,L,y2)
+    loss = -loss_fn(mu,L,yT_train)
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
     print(f"Loss: {loss.item()}")
 
-
 "Here we have to assign the flag to change from self.Train_mode = True to False"
 print("check difference between model.eval and model.train")
 model.eval()
 model.Train_mode = False
-x_test = torch.linspace(0, 1, 200)[:,None]
+x_test = xT_train.clone()
+#x_test = xT_test.clone()
+DrugCtoPred = list(np.linspace(0.142857,1,20))
 sel_concentr = 0
 with torch.no_grad():
     #mpred1,Cpred1 = model(x)
-    mpred, Cpred = model(x_test,DrugC_new = [DrugC[sel_concentr]],noiseless=True)
+    mpred, Cpred = model(x_test,DrugC_new = DrugCtoPred,noiseless=True)
 
-plt.figure(1)
-#plt.plot(x,mpred1,'.')
-plt.plot(x_test,mpred,'blue')
-plt.plot(x2,y2,'k.')
-plt.plot(x2,y2[:,sel_concentr],'r.')
+yT_pred = mpred.reshape(DrugCtoPred.__len__(),x_test.shape[0]).T
 from torch.distributions.multivariate_normal import MultivariateNormal
-for i in range(50):
-    i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
-    plt.plot(x_test,i_sample.sample(),alpha = 0.1)
+for i in range(x_test.shape[0]):
+    plt.figure(i+1)
+    #plt.plot(x,mpred1,'.')
+    plt.plot(DrugCtoPred,yT_pred[i,:],'blue')
+    #plt.plot(DrugC, yT_test[i,:], 'ro')
+    plt.plot(DrugC, yT_train[i, :], 'ro')
+
+    for j in range(30):
+        i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
+        yT_pred_sample = i_sample.sample().reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
+        plt.plot(DrugCtoPred, yT_pred_sample[i, :], alpha=0.1)
+
+#plt.plot(x2,y2,'k.')
+#plt.plot(x2,y2[:,sel_concentr],'r.')
+# from torch.distributions.multivariate_normal import MultivariateNormal
+# for j in range(5):
+#     i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
+#     yT_pred_sample = i_sample.sample().reshape(DrugCtoPred.__len__(),x_test.shape[0]).T
+#     plt.plot(DrugCtoPred, yT_pred_sample[j,:],alpha = 0.1)
+
 #plt.plot(x_test, mpred+2*torch.sqrt(torch.diag(Cpred)[:,None]),'c--')
 #plt.plot(x_test, mpred-2*torch.sqrt(torch.diag(Cpred)[:,None]),'c--')
-
-
-"TODO: add restrictions to the likelihood noise, and set to optimise the variance instead of std!!!"

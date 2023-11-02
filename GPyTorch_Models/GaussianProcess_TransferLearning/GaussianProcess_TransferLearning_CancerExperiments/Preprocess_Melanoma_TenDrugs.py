@@ -141,34 +141,30 @@ Names_features_NonZeroStd = Names_All_features[Idx_Non_ZeroStd]
 
 
 scaler = MinMaxScaler().fit(df_source_and_target[Names_features_NonZeroStd])
-X_source_train_feat = scaler.transform(df_source[Names_features_NonZeroStd])
-X_target_train_feat = scaler.transform(df_target_train[Names_features_NonZeroStd])
-X_target_test_feat = scaler.transform(df_target_test[Names_features_NonZeroStd])
+
+xS_train = scaler.transform(df_source[Names_features_NonZeroStd])
+xT_train = scaler.transform(df_target_train[Names_features_NonZeroStd])
+xT_test = scaler.transform(df_target_test[Names_features_NonZeroStd])
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Here we extract from the dataframe the D outputs related to each dose concentration"
 "Below we select 7 concentration since GDSC2 has that number for the Drugs"
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 Dnorm_cell = 7  #For GDSC2 this is the number of dose concentrations
-y_source_train = np.clip(df_source["norm_cells_" + str(1)].values[:, None], 1.0e-9, np.inf)
-print(y_source_train.shape)
+
+"Here we extract the target domain outputs yT"
+
+yT = np.clip(df_target["norm_cells_" + str(1)].values[:, None], 1.0e-9, np.inf)
+print(yT.shape)
 for i in range(2, Dnorm_cell+1):
-    y_source_train = np.concatenate((y_source_train, np.clip(df_source["norm_cells_" + str(i)].values[:, None], 1.0e-9, np.inf)), 1)
+    yT = np.concatenate((yT, np.clip(df_target["norm_cells_" + str(i)].values[:, None], 1.0e-9, np.inf)), 1)
 
-print("Ytrain size: ", y_source_train.shape)
-
-"Now for the target domain"
-
-y_target = np.clip(df_target["norm_cells_" + str(1)].values[:, None], 1.0e-9, np.inf)
-print(y_target.shape)
-for i in range(2, Dnorm_cell+1):
-    y_target = np.concatenate((y_target, np.clip(df_target["norm_cells_" + str(i)].values[:, None], 1.0e-9, np.inf)), 1)
-
-print("Ytrain size: ", y_target.shape)
+print("Ytrain size: ", yT.shape)
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Since we fitted the dose response curves with a Sigmoid4_parameters function"
 "We extract the optimal coefficients in order to reproduce such a Sigmoid4_parameters fitting"
+"Here we extract the target domain parameters"
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 params_4_sig_target = df_target["param_" + str(1)].values[:, None]
 for i in range(2, 5):  #here there are four params for sigmoid4
@@ -201,13 +197,13 @@ def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_tra
     plt.legend(['Sigmoid4','Observations','IC50','Emax'])
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"Here we can visualise the values of the GDSC1 dataset with the fitting of Sigmoid4_parameters function"
+"Here we can visualise the values of the GDSC2 dataset with the fitting of Sigmoid4_parameters function"
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 posy = 9   #select the location you want to plot, do not exceed the Ytrain length
-my_plot(posy,0,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_target)
+my_plot(posy,0,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,yT)
 
-y_target_train = y_target[idx_train]
-y_target_test = y_target[idx_test]
+yT_train = yT[idx_train]
+yT_test = yT[idx_test]
 
 "Here we define the set of all the possible cell-lines (Cosmic_ID) that belong to Melanoma cancer"
 "NOTE: Not all cell-lines have been tested with all ten drugs, so some cell-line might have more"
@@ -216,6 +212,19 @@ y_target_test = y_target[idx_test]
 myset_source = set(df_source['COSMIC_ID'].values)
 myLabels = np.arange(0,myset_source.__len__())
 "TODO: the line list(myset_source) create a disordered list, I need to put it in order"
-dict_CosmicID2Label = dict(zip(list(myset_source),myLabels))
+CosmicID_labels = list(myset_source)
+CosmicID_labels.sort()
+dict_CosmicID2Label = dict(zip(CosmicID_labels,myLabels))
 df_source_sort = df_source.sort_values(by='COSMIC_ID')
 CosmicID_source = df_source_sort['COSMIC_ID'].values
+idx_S = [dict_CosmicID2Label[CosID] for CosID in CosmicID_source]
+
+"Here we extract the source domain outputs yS"
+
+yS_train = np.clip(df_source_sort["norm_cells_" + str(1)].values[:, None], 1.0e-9, np.inf)
+print(yS_train.shape)
+for i in range(2, Dnorm_cell+1):
+    yS_train = np.concatenate((yS_train, np.clip(df_source_sort["norm_cells_" + str(i)].values[:, None], 1.0e-9, np.inf)), 1)
+
+print("Ytrain size: ", yS_train.shape)
+
