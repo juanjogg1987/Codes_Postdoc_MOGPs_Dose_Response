@@ -110,9 +110,10 @@ class TLMOGaussianProcess(nn.Module):
         self.idxS = idxS * self.Douts #Replicate the Source domain index as per the number of outputs
         self.idxT = [NDomains - 1] * xT.shape[0] * self.Douts #Replicate the target domain index as per the number of outputs
         self.all_y = torch.cat([self.yS, self.yT])
-        self.TLCovariance = TL_Kernel_var(NDomains=NDomains) #gpytorch.kernels.RBFKernel()
-        #self.CoregCovariance = gpytorch.kernels.RBFKernel()
-        self.CoregCovariance = gpytorch.kernels.MaternKernel(2.5)
+        self.Q = 3  # This is the number Q latent function to combine
+        self.NDomains = NDomains
+        self.TLCovariance = [TL_Kernel_var(NDomains=NDomains),TL_Kernel_var(NDomains=NDomains),TL_Kernel_var(NDomains=NDomains)]  # Create a list of Q kernels
+        self.CoregCovariance = [gpytorch.kernels.MaternKernel(1.5), gpytorch.kernels.MaternKernel(2.5),gpytorch.kernels.MaternKernel(2.5)]  # Create a list of Q kernels
         self.Train_mode = True
         self.lik_std_noise = torch.nn.Parameter(1.0*torch.ones(NDomains)) #0.3*torch.rand(NDomains)+0.01
         #self.lik_std_noise = 0.05 * torch.ones(NDomains)
@@ -128,10 +129,15 @@ class TLMOGaussianProcess(nn.Module):
             assert (xT == self.xT).sum() == (xT.shape[0]*xT.shape[1]) #This is just to check if the xT to init the model is the same
             assert xT.shape[1] == self.xT.shape[1]  #Thiis is to check if the xT to init the model has same Pfeatures
             # Here we compute the Covariance matrices between source-target, source-source and target domains
-            KTS = self.CoregCovariance(self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance(xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate()
-            KSS = self.CoregCovariance(self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance(self.xS,idx1=self.idxS).evaluate()
-            KTT = self.CoregCovariance(self.DrugC_xT,self.DrugC_xT).evaluate()*self.TLCovariance(self.xT,idx1=self.idxT).evaluate()
-
+            KTS = self.CoregCovariance[0](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[0](xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate() + \
+                  self.CoregCovariance[1](self.DrugC_xT, self.DrugC_xS).evaluate() * self.TLCovariance[1](xT, self.xS,idx1=self.idxT,idx2=self.idxS).evaluate() + \
+                  self.CoregCovariance[2](self.DrugC_xT, self.DrugC_xS).evaluate() * self.TLCovariance[2](xT, self.xS,idx1=self.idxT,idx2=self.idxS).evaluate()
+            KSS = self.CoregCovariance[0](self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance[0](self.xS,idx1=self.idxS).evaluate() + \
+                  self.CoregCovariance[1](self.DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[1](self.xS,idx1=self.idxS).evaluate()+ \
+                  self.CoregCovariance[2](self.DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[2](self.xS,idx1=self.idxS).evaluate()
+            KTT = self.CoregCovariance[0](self.DrugC_xT,self.DrugC_xT).evaluate()*self.TLCovariance[0](self.xT,idx1=self.idxT).evaluate() + \
+                  self.CoregCovariance[1](self.DrugC_xT, self.DrugC_xT).evaluate() * self.TLCovariance[1](self.xT,idx1=self.idxT).evaluate()+ \
+                  self.CoregCovariance[2](self.DrugC_xT, self.DrugC_xT).evaluate() * self.TLCovariance[2](self.xT,idx1=self.idxT).evaluate()
             # Here we include the respective noise terms associated to each domain
             CSS = KSS + torch.diag(self.lik_std_noise[self.idxS].pow(2))
             CTT = KTT + torch.diag(self.lik_std_noise[self.idxT].pow(2))
@@ -162,7 +168,9 @@ class TLMOGaussianProcess(nn.Module):
             xST = torch.cat([self.xS, self.xT])
             idxST = self.idxS + self.idxT
             self.DrugC_xSxT = torch.cat([self.DrugC_xS, self.DrugC_xT])
-            all_K_xST = self.CoregCovariance(self.DrugC_xSxT).evaluate() * self.TLCovariance(xST, idx1=idxST).evaluate()
+            all_K_xST = self.CoregCovariance[0](self.DrugC_xSxT).evaluate() * self.TLCovariance[0](xST, idx1=idxST).evaluate() + \
+                        self.CoregCovariance[1](self.DrugC_xSxT).evaluate() * self.TLCovariance[1](xST, idx1=idxST).evaluate()+ \
+                        self.CoregCovariance[2](self.DrugC_xSxT).evaluate() * self.TLCovariance[2](xST,idx1=idxST).evaluate()
             all_K_xST_noise = all_K_xST + torch.diag(self.lik_std_noise[idxST].pow(2))  # + 0.1*torch.eye(xST.shape[0]) #Jitter?
             if not isPD_torch(all_K_xST_noise):
                 with torch.no_grad():
@@ -176,20 +184,23 @@ class TLMOGaussianProcess(nn.Module):
                 DrugC_new = torch.Tensor(DrugC_new)[:, None]
             #Below we replicate the target domain index as per the number of drug concentration we want to test
             NewDouts = DrugC_new.shape[0]
-            idxT = [self.TLCovariance.NDomains - 1] * xT.shape[0] * NewDouts
+            idxT = [self.NDomains - 1] * xT.shape[0] * NewDouts
             DrugC_xT = torch.kron(DrugC_new, torch.ones(xT.shape[0], 1))
             "Be careful with operation using xT.shape, from here it changes the original shape"
             #xT = torch.kron(torch.ones(NewDouts, 1), xT)
             xT = torch.kron(torch.ones(NewDouts, 1), xT.reshape(-1)).reshape(-1, self.Pfeat)
             alpha1 = torch.linalg.solve(self.all_L, self.all_y)
             alpha = torch.linalg.solve(self.all_L.t(), alpha1)
-            KTT_xnew_xnew = self.CoregCovariance(DrugC_xT).evaluate() * self.TLCovariance(xT, idx1=idxT).evaluate()
+            KTT_xnew_xnew = self.CoregCovariance[0](DrugC_xT).evaluate() * self.TLCovariance[0](xT, idx1=idxT).evaluate() + \
+                            self.CoregCovariance[1](DrugC_xT).evaluate() * self.TLCovariance[1](xT, idx1=idxT).evaluate()+ \
+                            self.CoregCovariance[2](DrugC_xT).evaluate() * self.TLCovariance[2](xT, idx1=idxT).evaluate()
             xST = torch.cat([self.xS, self.xT])
             idxST = self.idxS+self.idxT
 
             # Rep. Concentr. similar to coreginalisation
-            K_xnew_xST = self.CoregCovariance(DrugC_xT,self.DrugC_xSxT).evaluate() * self.TLCovariance(xT,xST, idx1=idxT,idx2=idxST).evaluate()
-
+            K_xnew_xST = self.CoregCovariance[0](DrugC_xT,self.DrugC_xSxT).evaluate() * self.TLCovariance[0](xT,xST, idx1=idxT,idx2=idxST).evaluate() + \
+                         self.CoregCovariance[1](DrugC_xT, self.DrugC_xSxT).evaluate() * self.TLCovariance[1](xT, xST,idx1=idxT,idx2=idxST).evaluate()+ \
+                         self.CoregCovariance[2](DrugC_xT, self.DrugC_xSxT).evaluate() * self.TLCovariance[2](xT, xST,idx1=idxT,idx2=idxST).evaluate()
             f_mu = torch.matmul(K_xnew_xST, alpha)
             v = torch.linalg.solve(self.all_L, K_xnew_xST.t())
 
@@ -431,19 +442,30 @@ DrugC = list(np.linspace(0.142857,1.0,7))
 assert DrugC.__len__() == yS_train.shape[1] and DrugC.__len__() == yT_train.shape[1]
 model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC=DrugC,NDomains=NDomains)
 # model.covariance.length=0.05
-torch.manual_seed(10)
+torch.manual_seed(30)  #30 #11 #33(give good loss but poor test)
 with torch.no_grad():
     #model.lik_std_noise= torch.nn.Parameter(0.5*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
-    model.lik_std_noise = torch.nn.Parameter(5*torch.randn(NDomains))
-    model.TLCovariance.length = 10*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None]
-    model.TLCovariance.muDi = torch.rand(NDomains)[:, None]
-    model.TLCovariance.bDi = torch.rand(NDomains)[:, None]
-    print(model.TLCovariance.muDi)
+    model.lik_std_noise = torch.nn.Parameter(2.0*torch.randn(NDomains))
+    model.TLCovariance[0].length = 5*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None]
+    model.TLCovariance[0].muDi = 1*torch.rand(NDomains)[:, None]
+    model.TLCovariance[0].bDi = 1*torch.rand(NDomains)[:, None]
+    model.CoregCovariance[0].lengthscale = torch.rand(1)
+    print(model.TLCovariance[0].muDi)
+    model.TLCovariance[1].length = 3 * np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
+    model.TLCovariance[1].muDi = 1*torch.rand(NDomains)[:, None]
+    model.TLCovariance[1].bDi = 1*torch.rand(NDomains)[:, None]
+    model.CoregCovariance[1].lengthscale = torch.rand(1)
+    print(model.TLCovariance[1].muDi)
+    model.TLCovariance[2].length = 10 * np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
+    model.TLCovariance[2].muDi = 1 * torch.rand(NDomains)[:, None]
+    model.TLCovariance[2].bDi = 1 * torch.rand(NDomains)[:, None]
+    model.CoregCovariance[2].lengthscale = torch.rand(1)
+    print(model.TLCovariance[2].muDi)
 print(f"Noises std: {model.lik_std_noise}")
 #
 "Training process below"
-myLr = 1e-1
-Niter = 30
+myLr = 6e-2
+Niter = 100
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
@@ -456,7 +478,7 @@ for iter in range(Niter):
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
-    if iter==100:
+    if iter==50:
         optimizer.param_groups[0]['lr']=1e-3
     #print(model.TLCovariance.length)
     print(f"i: {iter+1}, Loss: {loss.item()}")
