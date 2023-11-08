@@ -315,14 +315,17 @@ df_all = df_4Cancers_traintest_all.reset_index().drop(columns=['index'])
 df_all = df_all.dropna()
 
 # cell 906793
-
-df_source = df_all[df_all['COSMIC_ID']!=906793].reset_index().drop(columns=['index'])
-df_target = df_all[df_all['COSMIC_ID']==906793].reset_index().drop(columns=['index'])
+CosmicID_target = 906793
+df_source = df_all[df_all['COSMIC_ID']!=CosmicID_target].reset_index().drop(columns=['index'])
+df_target = df_all[df_all['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
 idx_train = np.array([3,4,9])
 idx_test = np.delete(np.arange(0,df_target.shape[0]),idx_train)
 
 df_target_test = df_target.iloc[idx_test]
 df_target_train = df_target.iloc[idx_train]
+
+Name_DrugID_train = df_target_train['DRUG_ID'].values
+Name_DrugID_test = df_target_test['DRUG_ID'].values
 
 df_source_and_target = pd.concat([df_source,df_target_train])
 
@@ -338,7 +341,6 @@ Names_features_NonZeroStd = Names_All_features[Idx_Non_ZeroStd]
 "This is a scaler to scale features in similar ranges"
 scaler = MinMaxScaler().fit(df_source_and_target[Names_features_NonZeroStd])
 
-xS_train = scaler.transform(df_source[Names_features_NonZeroStd])
 xT_train = scaler.transform(df_target_train[Names_features_NonZeroStd])
 xT_test = scaler.transform(df_target_test[Names_features_NonZeroStd])
 
@@ -415,6 +417,9 @@ df_source_sort = df_source.sort_values(by='COSMIC_ID')
 CosmicID_source = df_source_sort['COSMIC_ID'].values
 idx_S = [dict_CosmicID2Label[CosID] for CosID in CosmicID_source]
 
+"Here we extract the source domain inputs xS so that they coincide with yS sorted by COSMIC_ID"
+xS_train = scaler.transform(df_source_sort[Names_features_NonZeroStd])
+
 "Here we extract the source domain outputs yS"
 
 yS_train = np.clip(df_source_sort["norm_cells_" + str(1)].values[:, None], 1.0e-9, np.inf)
@@ -465,7 +470,7 @@ print(f"Noises std: {model.lik_std_noise}")
 #
 "Training process below"
 myLr = 6e-2
-Niter = 100
+Niter = 50
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
@@ -478,7 +483,7 @@ for iter in range(Niter):
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
-    if iter==50:
+    if iter==30:
         optimizer.param_groups[0]['lr']=1e-3
     #print(model.TLCovariance.length)
     print(f"i: {iter+1}, Loss: {loss.item()}")
@@ -487,8 +492,14 @@ for iter in range(Niter):
 print("check difference between model.eval and model.train")
 model.eval()
 model.Train_mode = False
-#x_test = xT_train.clone()
-x_test = xT_test.clone()
+plot_test = True
+if plot_test:
+    x_test = xT_test.clone()
+    Name_DrugID_plot = Name_DrugID_test
+else:
+    x_test = xT_train.clone()
+    Name_DrugID_plot = Name_DrugID_train
+
 DrugCtoPred = list(np.linspace(0.142857,1,20))
 sel_concentr = 0
 with torch.no_grad():
@@ -503,21 +514,16 @@ for i in range(x_test.shape[0]):
     plt.ylim([-0.02,1.05])
     #plt.plot(x,mpred1,'.')
     plt.plot(DrugCtoPred,yT_pred[i,:],'blue')
-    plt.plot(DrugC, yT_test[i,:], 'ro')
-    #plt.plot(DrugC, yT_train[i, :], 'ro')
+    if plot_test:
+        plt.plot(DrugC, yT_test[i,:], 'ro')
+    else:
+        plt.plot(DrugC, yT_train[i, :], 'ro')
+
+    plt.title(f"CosmicID: {CosmicID_target}, Test DrugID: {Name_DrugID_plot[i]}",fontsize=14)
+    plt.xlabel('Dose concentration',fontsize=14)
+    plt.ylabel('Cell viability',fontsize=14)
 
     for j in range(30):
         i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
         yT_pred_sample = i_sample.sample().reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
         plt.plot(DrugCtoPred, yT_pred_sample[i, :], alpha=0.1)
-
-#plt.plot(x2,y2,'k.')
-#plt.plot(x2,y2[:,sel_concentr],'r.')
-# from torch.distributions.multivariate_normal import MultivariateNormal
-# for j in range(5):
-#     i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
-#     yT_pred_sample = i_sample.sample().reshape(DrugCtoPred.__len__(),x_test.shape[0]).T
-#     plt.plot(DrugCtoPred, yT_pred_sample[j,:],alpha = 0.1)
-
-#plt.plot(x_test, mpred+2*torch.sqrt(torch.diag(Cpred)[:,None]),'c--')
-#plt.plot(x_test, mpred-2*torch.sqrt(torch.diag(Cpred)[:,None]),'c--')

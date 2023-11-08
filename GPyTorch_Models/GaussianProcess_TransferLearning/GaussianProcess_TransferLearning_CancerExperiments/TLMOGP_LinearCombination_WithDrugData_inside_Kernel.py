@@ -339,7 +339,6 @@ Names_features_NonZeroStd = Names_All_features[Idx_Non_ZeroStd]
 "This is a scaler to scale features in similar ranges"
 scaler = MinMaxScaler().fit(df_source_and_target[Names_features_NonZeroStd])
 
-xS_train = scaler.transform(df_source[Names_features_NonZeroStd])
 xT_train = scaler.transform(df_target_train[Names_features_NonZeroStd])
 xT_test = scaler.transform(df_target_test[Names_features_NonZeroStd])
 
@@ -416,6 +415,9 @@ df_source_sort = df_source.sort_values(by='COSMIC_ID')
 CosmicID_source = df_source_sort['COSMIC_ID'].values
 idx_S = [dict_CosmicID2Label[CosID] for CosID in CosmicID_source]
 
+"Here we extract the source domain inputs xS so that they coincide with yS sorted by COSMIC_ID"
+xS_train = scaler.transform(df_source[Names_features_NonZeroStd])
+
 "Here we extract the source domain outputs yS"
 
 yS_train = np.clip(df_source_sort["norm_cells_" + str(1)].values[:, None], 1.0e-9, np.inf)
@@ -450,18 +452,18 @@ with torch.no_grad():
     model.TLCovariance[0].length = 5*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None]
     model.TLCovariance[0].muDi = 1*torch.rand(NDomains)[:, None]
     model.TLCovariance[0].bDi = 0.1*torch.rand(NDomains)[:, None]
-    model.CoregCovariance[0].lengthscale = np.sqrt(22) * torch.rand(1)
+    model.CoregCovariance[0].lengthscale = 1 * torch.rand(1)
     print(model.TLCovariance[0].muDi)
     model.TLCovariance[1].length = 3 * np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
     model.TLCovariance[1].muDi = 1*torch.rand(NDomains)[:, None]
     model.TLCovariance[1].bDi = 1*torch.rand(NDomains)[:, None]
-    model.CoregCovariance[1].lengthscale = 0.1*np.sqrt(22) * torch.rand(1)
+    model.CoregCovariance[1].lengthscale = 1 * torch.rand(1)
     print(model.TLCovariance[1].muDi)
 print(f"Noises std: {model.lik_std_noise}")
 #
 "Training process below"
 myLr = 6e-2
-Niter = 100
+Niter = 50
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
@@ -474,7 +476,7 @@ for iter in range(Niter):
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
-    if iter==70:
+    if iter==30:
         optimizer.param_groups[0]['lr']=1e-3
     #print(model.TLCovariance.length)
     print(f"i: {iter+1}, Loss: {loss.item()}")
