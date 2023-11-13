@@ -456,7 +456,7 @@ DrugC = list(np.linspace(0.142857,1.0,7))
 assert DrugC.__len__() == yS_train.shape[1] and DrugC.__len__() == yT_train.shape[1]
 model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC=DrugC,NDomains=NDomains)
 # model.covariance.length=0.05
-torch.manual_seed(12)
+torch.manual_seed(21)   #12 (run 100 iter)  #21 (run 200 iter)
 with torch.no_grad():
     #model.lik_std_noise= torch.nn.Parameter(0.5*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
     model.lik_std_noise = torch.nn.Parameter(2*torch.randn(NDomains))
@@ -473,7 +473,7 @@ print(f"Noises std: {model.lik_std_noise}")
 
 "Training process below"
 myLr = 3e-2
-Niter = 100
+Niter = 200
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
@@ -499,9 +499,11 @@ plot_test = True
 if plot_test:
     x_test = xT_test.clone()
     Name_DrugID_plot = Name_DrugID_test
+    plotname = 'Test'
 else:
     x_test = xT_train.clone()
     Name_DrugID_plot = Name_DrugID_train
+    plotname = 'Train'
 
 DrugCtoPred = list(np.linspace(0.142857,1,20))
 sel_concentr = 0
@@ -522,7 +524,7 @@ for i in range(x_test.shape[0]):
     else:
         plt.plot(DrugC, yT_train[i, :], 'ro')
 
-    plt.title(f"CosmicID: {CosmicID_target}, Test DrugID: {Name_DrugID_plot[i]}",fontsize=14)
+    plt.title(f"CosmicID: {CosmicID_target}, {plotname} DrugID: {Name_DrugID_plot[i]}",fontsize=14)
     plt.xlabel('Dose concentration',fontsize=14)
     plt.ylabel('Cell viability',fontsize=14)
 
