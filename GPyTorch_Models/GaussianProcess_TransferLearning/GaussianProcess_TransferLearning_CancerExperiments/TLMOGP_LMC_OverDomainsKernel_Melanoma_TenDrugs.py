@@ -327,7 +327,7 @@ df_all = df_all.dropna()
 CosmicID_target = 906793
 df_source = df_all[df_all['COSMIC_ID']!=CosmicID_target].reset_index().drop(columns=['index'])
 df_target = df_all[df_all['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
-idx_train = np.array([3,4,9])  #3,4,9
+idx_train = np.array([1,2,5])  #Exp1:3,4,9 ,Exp2: 1,6,8, Exp3: 1,2,5
 idx_test = np.delete(np.arange(0,df_target.shape[0]),idx_train)
 
 df_target_test = df_target.iloc[idx_test]
@@ -456,16 +456,16 @@ DrugC = list(np.linspace(0.142857,1.0,7))
 assert DrugC.__len__() == yS_train.shape[1] and DrugC.__len__() == yT_train.shape[1]
 model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC=DrugC,NDomains=NDomains)
 # model.covariance.length=0.05
-torch.manual_seed(21)   #12 (run 100 iter)  #21 (run 200 iter)
+torch.manual_seed(12)   #12 (run 100 iter)  #21 (run 200 iter)
 with torch.no_grad():
     #model.lik_std_noise= torch.nn.Parameter(0.5*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
     model.lik_std_noise = torch.nn.Parameter(2*torch.randn(NDomains))
     model.TLCovariance[0].length = 1*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None]
     model.TLCovariance[1].length = 4*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
     model.TLCovariance[2].length = 15*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
-    model.CoregCovariance[0].lengthscale = torch.rand(1)
-    model.CoregCovariance[1].lengthscale = torch.rand(1)
-    model.CoregCovariance[2].lengthscale = torch.rand(1)
+    model.CoregCovariance[0].lengthscale = torch.rand(1) #1*
+    model.CoregCovariance[1].lengthscale = torch.rand(1)  #1*
+    model.CoregCovariance[2].lengthscale = torch.rand(1)  #1*
     model.LambdaDiDj.muDi = torch.rand(NDomains)[:, None]
     model.LambdaDiDj.bDi = torch.rand(NDomains)[:, None]
     print(model.LambdaDiDj.muDi)
@@ -473,7 +473,7 @@ print(f"Noises std: {model.lik_std_noise}")
 
 "Training process below"
 myLr = 3e-2
-Niter = 200
+Niter = 150
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
@@ -486,7 +486,7 @@ for iter in range(Niter):
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
-    if iter==70:
+    if iter==60:  #70
         optimizer.param_groups[0]['lr']=1e-3
     #print(model.TLCovariance.length)
     print(f"i: {iter+1}, Loss: {loss.item()}")
@@ -505,7 +505,9 @@ else:
     Name_DrugID_plot = Name_DrugID_train
     plotname = 'Train'
 
-DrugCtoPred = list(np.linspace(0.142857,1,20))
+Oversample_N = 3
+DrugCtoPred = list(np.linspace(0.142857,1,7+6*(Oversample_N-1)))
+#DrugCtoPred = list(np.linspace(0.142857,1,28))
 sel_concentr = 0
 with torch.no_grad():
     #mpred1,Cpred1 = model(x)
@@ -527,9 +529,16 @@ for i in range(x_test.shape[0]):
     plt.title(f"CosmicID: {CosmicID_target}, {plotname} DrugID: {Name_DrugID_plot[i]}",fontsize=14)
     plt.xlabel('Dose concentration',fontsize=14)
     plt.ylabel('Cell viability',fontsize=14)
+    plt.grid(True)
 
     for j in range(30):
         i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
         yT_pred_sample = i_sample.sample().reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
         plt.plot(DrugCtoPred, yT_pred_sample[i, :], alpha=0.1)
 
+if plot_test:
+    Test_MSE = torch.mean((yT_test-yT_pred[:,::Oversample_N])**2)
+    print(f"Test_MSE: {Test_MSE}")
+else:
+    Train_MSE = torch.mean((yT_train - yT_pred[:, ::Oversample_N]) ** 2)
+    print(f"Train_MSE: {Train_MSE}")

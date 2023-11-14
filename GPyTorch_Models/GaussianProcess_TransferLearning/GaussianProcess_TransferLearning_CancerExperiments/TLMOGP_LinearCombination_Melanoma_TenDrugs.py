@@ -469,7 +469,7 @@ with torch.no_grad():
 print(f"Noises std: {model.lik_std_noise}")
 #
 "Training process below"
-myLr = 6e-2
+myLr = 3e-2
 Niter = 100
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
@@ -496,11 +496,15 @@ plot_test = True
 if plot_test:
     x_test = xT_test.clone()
     Name_DrugID_plot = Name_DrugID_test
+    plotname = 'Test'
 else:
     x_test = xT_train.clone()
     Name_DrugID_plot = Name_DrugID_train
+    plotname = 'Train'
 
-DrugCtoPred = list(np.linspace(0.142857,1,20))
+Oversample_N = 3
+DrugCtoPred = list(np.linspace(0.142857,1,7+6*(Oversample_N-1)))
+#DrugCtoPred = list(np.linspace(0.142857,1,28))
 sel_concentr = 0
 with torch.no_grad():
     #mpred1,Cpred1 = model(x)
@@ -519,11 +523,19 @@ for i in range(x_test.shape[0]):
     else:
         plt.plot(DrugC, yT_train[i, :], 'ro')
 
-    plt.title(f"CosmicID: {CosmicID_target}, Test DrugID: {Name_DrugID_plot[i]}",fontsize=14)
+    plt.title(f"CosmicID: {CosmicID_target}, {plotname} DrugID: {Name_DrugID_plot[i]}",fontsize=14)
     plt.xlabel('Dose concentration',fontsize=14)
     plt.ylabel('Cell viability',fontsize=14)
+    plt.grid(True)
 
     for j in range(30):
         i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
         yT_pred_sample = i_sample.sample().reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
         plt.plot(DrugCtoPred, yT_pred_sample[i, :], alpha=0.1)
+
+if plot_test:
+    Test_MSE = torch.mean((yT_test-yT_pred[:,::Oversample_N])**2)
+    print(f"Test_MSE: {Test_MSE}")
+else:
+    Train_MSE = torch.mean((yT_train - yT_pred[:, ::Oversample_N]) ** 2)
+    print(f"Train_MSE: {Train_MSE}")
