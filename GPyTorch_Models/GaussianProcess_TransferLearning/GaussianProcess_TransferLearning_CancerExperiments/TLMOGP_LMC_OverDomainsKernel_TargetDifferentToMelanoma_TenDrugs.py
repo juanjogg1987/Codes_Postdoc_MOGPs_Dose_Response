@@ -166,6 +166,12 @@ class TLMOGaussianProcess(nn.Module):
             # Compute the Covariance of the conditional distribution p(yT|XT,XS,yS)
             vTT = torch.linalg.solve(self.LSS, KTS.t())
             C_star = CTT - torch.matmul(vTT.t(),vTT) #+ 1e-4*torch.eye(xT.shape[0])  #jitter?
+            # The code below aim to correct for numerical instabilities when CSS becomes Non-PSD
+            if not isPD_torch(C_star):
+                C_star_aux = C_star.clone()
+                with torch.no_grad():
+                    C_star_aux = torch.from_numpy(nearestPD(C_star_aux.numpy()))
+                C_star = 0.0 * C_star + C_star_aux  # This operation aims to keep the gradients working over lik_std_noise
             self.L = torch.linalg.cholesky(C_star)
 
             return self.mu_star, self.L  # here we return the mean and covariance
@@ -301,33 +307,47 @@ dict_cancers={0:'GDSC2_EGFR_PI3K_MAPK_Breast_1000FR.csv',1:'GDSC2_EGFR_PI3K_MAPK
 
 #indx_cancer = np.array([0,1,2,3,4])
 indx_cancer_train = np.array([int(config.sel_cancer)])
-#indx_cancer_train = np.delete(indx_cancer,indx_cancer_test)
 
-name_feat_file = "GDSC2_EGFR_PI3K_MAPK_allfeatures.csv"
-name_feat_file_nozero = "GDSC2_EGFR_PI3K_MAPK_features_NonZero_Drugs1036_1061_1373.csv" #"GDSC2_EGFR_PI3K_MAPK_features_NonZero.csv"
-Num_drugs = 3
+name_file_cancer = dict_cancers[indx_cancer_train[0]]
+name_file_cancer_target = dict_cancers[0]
+print("Source Cancer:",name_file_cancer)
+print("Target Cancer:",name_file_cancer_target)
 
-name_for_KLrelevance = dict_cancers[indx_cancer_train[0]]
-print(name_for_KLrelevance)
-
-df_to_read = pd.read_csv(_FOLDER + name_for_KLrelevance)#.sample(n=N_CellLines,random_state = rand_state_N)
+df_to_read = pd.read_csv(_FOLDER + name_file_cancer)#.sample(n=N_CellLines,random_state = rand_state_N)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+df_to_read_target = pd.read_csv(_FOLDER + name_file_cancer_target)#.sample(n=N_CellLines,random_state = rand_state_N)
+
 "Split of data into Training and Testing for the Source and Target domains"
 Index_sel = (df_to_read["DRUG_ID"] == 1036) | (df_to_read["DRUG_ID"] == 1061)| (df_to_read["DRUG_ID"] == 1373) \
             | (df_to_read["DRUG_ID"] == 1039) | (df_to_read["DRUG_ID"] == 1560) | (df_to_read["DRUG_ID"] == 1057) \
             | (df_to_read["DRUG_ID"] == 1059)| (df_to_read["DRUG_ID"] == 1062) | (df_to_read["DRUG_ID"] == 2096) \
             | (df_to_read["DRUG_ID"] == 2045)
 
-df_4Cancers_traintest_all = df_to_read[Index_sel]
-df_all = df_4Cancers_traintest_all.reset_index().drop(columns=['index'])
-df_all = df_all.dropna()
+df_SourceCancer_all = df_to_read[Index_sel]
+df_all = df_SourceCancer_all.reset_index().drop(columns=['index'])
+df_source = df_all.dropna()
 
-# cell 906793
-CosmicID_target = 906793
-df_source = df_all[df_all['COSMIC_ID']!=CosmicID_target].reset_index().drop(columns=['index'])
-df_target = df_all[df_all['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
-idx_train = np.array([3,4,9])  #Exp1:3,4,9 ,Exp2: 1,6,8, Exp3: 1,2,5
+Index_sel_target = (df_to_read_target["DRUG_ID"] == 1036) | (df_to_read_target["DRUG_ID"] == 1061)| (df_to_read_target["DRUG_ID"] == 1373) \
+            | (df_to_read_target["DRUG_ID"] == 1039) | (df_to_read_target["DRUG_ID"] == 1560) | (df_to_read_target["DRUG_ID"] == 1057) \
+            | (df_to_read_target["DRUG_ID"] == 1059)| (df_to_read_target["DRUG_ID"] == 1062) | (df_to_read_target["DRUG_ID"] == 2096) \
+            | (df_to_read_target["DRUG_ID"] == 2045)
+
+df_TargetCancer_all = df_to_read_target[Index_sel_target]
+df_all_target = df_TargetCancer_all.reset_index().drop(columns=['index'])
+df_all_target = df_all_target.dropna()
+
+"The ones below have 9 drugs tested"
+"The cell line 946359 (all nores); 749709 (1 resp 1 parcial)  has been tested in 9 of the 10 drugs"
+"907046 (2 resp 1 parcial); 1290798 (3 parcial); 905946 (1 resp 1 parcial)"
+"908121 (2 resp 1 parcial); 1240172 (non resp); 906826 (2 resp should try this one)"
+
+"The ones below have 8 drugs tested"
+"1298157 (1 resp 1 parcial); 910927 (2 resp 1 parcial)"
+CosmicID_target = 907046 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
+df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
+
+idx_train = np.array([0,2,6])  #Exp1:3,4,8 ,Exp2:1,5,7  Exp3:
 idx_test = np.delete(np.arange(0,df_target.shape[0]),idx_train)
 
 df_target_test = df_target.iloc[idx_test]
@@ -340,7 +360,9 @@ df_source_and_target = pd.concat([df_source,df_target_train])
 
 # Here we just check that from the column index 25 the input features start
 start_pos_features = 25
-print(df_source_and_target.columns[start_pos_features])
+print("first feat Source:",df_all.columns[start_pos_features])
+print("first feat Target:",df_all_target.columns[start_pos_features])
+assert df_all.columns[start_pos_features] == df_all_target.columns[start_pos_features]
 
 df_feat = df_source_and_target[df_source_and_target.columns[start_pos_features:]]
 Names_All_features = df_source_and_target.columns[start_pos_features:]
@@ -406,7 +428,7 @@ def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_tra
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Here we can visualise the values of the GDSC2 dataset with the fitting of Sigmoid4_parameters function"
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-posy = 9   #select the location you want to plot, do not exceed the Ytrain length
+posy = 8   #select the location you want to plot, do not exceed the Ytrain length
 my_plot(posy,0,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,yT)
 
 yT_train = yT[idx_train]
@@ -449,20 +471,20 @@ yT_test = torch.from_numpy(yT_test)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "This is the number of source domains plus target domain."
 "In this cancer application we are refering to each domain as each cell-line with the Cosmic_ID"
-"There are 53 cell-lines or CosmicIDs in the source"
-"The target cell-line has CosmicID = 906793"
-NDomains = 54
+"There are 54 cell-lines or CosmicIDs in the Source (Melanoma) + 1 cell-line of the Target"
+"Then the total NDomains = 55"
+NDomains = 55
 DrugC = list(np.linspace(0.142857,1.0,7))
 assert DrugC.__len__() == yS_train.shape[1] and DrugC.__len__() == yT_train.shape[1]
 model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC=DrugC,NDomains=NDomains)
 # model.covariance.length=0.05
-torch.manual_seed(12)   #12 (run 100 iter)  #21 (run 200 iter)
+torch.manual_seed(35)   #Ex1: 15 (run 100 iter)  #Exp2: 25  (run  iter)
 with torch.no_grad():
     #model.lik_std_noise= torch.nn.Parameter(0.5*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
-    model.lik_std_noise = torch.nn.Parameter(2*torch.randn(NDomains))
-    model.TLCovariance[0].length = 1*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None]
-    model.TLCovariance[1].length = 4*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
-    model.TLCovariance[2].length = 15*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
+    model.lik_std_noise = torch.nn.Parameter(1.0*torch.randn(NDomains))
+    model.TLCovariance[0].length = 2*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None]
+    model.TLCovariance[1].length = 6*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
+    model.TLCovariance[2].length = 10*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
     model.CoregCovariance[0].lengthscale = torch.rand(1) #1*
     model.CoregCovariance[1].lengthscale = torch.rand(1)  #1*
     model.CoregCovariance[2].lengthscale = torch.rand(1)  #1*
@@ -495,7 +517,7 @@ for iter in range(Niter):
 print("check difference between model.eval and model.train")
 model.eval()
 model.Train_mode = False
-plot_test = True
+plot_test = False
 if plot_test:
     x_test = xT_test.clone()
     Name_DrugID_plot = Name_DrugID_test
