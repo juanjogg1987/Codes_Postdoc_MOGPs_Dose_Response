@@ -344,10 +344,14 @@ df_all_target = df_all_target.dropna()
 
 "The ones below have 8 drugs tested"
 "1298157 (1 resp 1 parcial); 910927 (2 resp 1 parcial)"
-CosmicID_target = 905946 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
-df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
+CosmicID_target = [749709,908121,907046]
+Index_sel_CosmicIDs = (df_all_target['COSMIC_ID'] == CosmicID_target[0]) | (df_all_target['COSMIC_ID'] == CosmicID_target[1])| (df_all_target['COSMIC_ID'] == CosmicID_target[2])
+#CosmicID_target = #749709 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
+#df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
 
-idx_train = np.array([3,4,8])  #Exp1:3,4,8 ,Exp2 (906826):0,2,6  Exp3 (749709):1,6,8
+df_target = df_all_target[Index_sel_CosmicIDs].reset_index().drop(columns=['index'])
+
+idx_train = np.array([0,1,2,6,7,8,12,13,14])  #Exp1:3,4,8 ,Exp2 (906826):0,2,6  Exp3 ():
 idx_test = np.delete(np.arange(0,df_target.shape[0]),idx_train)
 
 df_target_test = df_target.iloc[idx_test]
@@ -495,7 +499,7 @@ print(f"Noises std: {model.lik_std_noise}")
 
 "Training process below"
 myLr = 3e-2
-Niter = 30
+Niter = 200
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
