@@ -351,7 +351,7 @@ Index_sel_CosmicIDs = (df_all_target['COSMIC_ID'] == CosmicID_target[0]) | (df_a
 
 df_target = df_all_target[Index_sel_CosmicIDs].reset_index().drop(columns=['index'])
 
-idx_train = np.array([0,1,2,6,7,8,12,13,14])  #Exp1:3,4,8 ,Exp2 (906826):0,2,6  Exp3 ():
+idx_train = np.array([0,1,2,8,9,10,22,23,24])  #Exp1:3,4,8 ,Exp2 (906826):0,2,6  Exp3 ():
 idx_test = np.delete(np.arange(0,df_target.shape[0]),idx_train)
 
 df_target_test = df_target.iloc[idx_test]
@@ -499,7 +499,7 @@ print(f"Noises std: {model.lik_std_noise}")
 
 "Training process below"
 myLr = 3e-2
-Niter = 200
+Niter = 100
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 

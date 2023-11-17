@@ -309,7 +309,7 @@ dict_cancers={0:'GDSC2_EGFR_PI3K_MAPK_Breast_1000FR.csv',1:'GDSC2_EGFR_PI3K_MAPK
 indx_cancer_train = np.array([int(config.sel_cancer)])
 
 name_file_cancer = dict_cancers[indx_cancer_train[0]]
-name_file_cancer_target = dict_cancers[0]
+name_file_cancer_target = dict_cancers[1]
 print("Source Cancer:",name_file_cancer)
 print("Target Cancer:",name_file_cancer_target)
 
@@ -337,6 +337,7 @@ df_TargetCancer_all = df_to_read_target[Index_sel_target]
 df_all_target = df_TargetCancer_all.reset_index().drop(columns=['index'])
 df_all_target = df_all_target.dropna()
 
+"COSMIC_IDs for Breast:"
 "The ones below have 9 drugs tested"
 "The cell line 946359 (all nores); 749709 (1 resp 1 parcial)  has been tested in 9 of the 10 drugs"
 "907046 (2 resp 1 parcial); 1290798 (3 parcial); 905946 (1 resp 1 parcial)"
@@ -344,10 +345,14 @@ df_all_target = df_all_target.dropna()
 
 "The ones below have 8 drugs tested"
 "1298157 (1 resp 1 parcial); 910927 (2 resp 1 parcial)"
-CosmicID_target = 905946 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
+
+"COSMIC_IDs for COAD: 909748"
+
+CosmicID_target = 909748 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
 df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
 
-idx_train = np.array([3,4,8])  #Exp1:3,4,8 ,Exp2 (906826):0,2,6  Exp3 (749709):1,6,8
+
+idx_train = np.array([1,3,5])  #Exp1:3,4,8 ,Exp2 (906826):0,2,6  Exp3 (749709):1,6,8
 idx_test = np.delete(np.arange(0,df_target.shape[0]),idx_train)
 
 df_target_test = df_target.iloc[idx_test]
@@ -428,7 +433,7 @@ def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_tra
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Here we can visualise the values of the GDSC2 dataset with the fitting of Sigmoid4_parameters function"
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-posy = 8   #select the location you want to plot, do not exceed the Ytrain length
+posy = 0   #select the location you want to plot, do not exceed the Ytrain length
 my_plot(posy,0,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,yT)
 
 yT_train = yT[idx_train]
@@ -495,7 +500,7 @@ print(f"Noises std: {model.lik_std_noise}")
 
 "Training process below"
 myLr = 3e-2
-Niter = 30
+Niter = 100
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
