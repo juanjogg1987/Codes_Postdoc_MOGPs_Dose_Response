@@ -309,7 +309,7 @@ dict_cancers={0:'GDSC2_EGFR_PI3K_MAPK_Breast_1000FR.csv',1:'GDSC2_EGFR_PI3K_MAPK
 indx_cancer_train = np.array([int(config.sel_cancer)])
 
 name_file_cancer = dict_cancers[indx_cancer_train[0]]
-name_file_cancer_target = dict_cancers[1]
+name_file_cancer_target = dict_cancers[0]
 print("Source Cancer:",name_file_cancer)
 print("Target Cancer:",name_file_cancer_target)
 
@@ -345,14 +345,20 @@ df_all_target = df_all_target.dropna()
 
 "The ones below have 8 drugs tested"
 "1298157 (1 resp 1 parcial); 910927 (2 resp 1 parcial)"
+"910948 (Exp:0,2,6 seed 35)"
 
-"COSMIC_IDs for COAD: 909748"
 
-CosmicID_target = 909748 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
+"COSMIC_IDs for COAD: 909748, 905961, 905937, 1240123, 1659928 and 909755 with (Exp:1,3,5 seed 35), "
+
+"COSMIC_IDs for LUAD: 906805, 1298537, 724878, 687777, 908475 (Exp:0,3,6 seed 35), "
+
+"COSMIC_IDs for SCLC: 713885, 687985, 906808, 1299062, 910692, 687997, 688015, 1240189, 1322212, 688027  (Exp:2,4,5 seed 35), "
+
+CosmicID_target = 910948 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
 df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
 
 
-idx_train = np.array([1,3,5])  #Exp1:3,4,8 ,Exp2 (906826):0,2,6  Exp3 (749709):1,6,8
+idx_train = np.array([0,2,6])  #Exp1:3,4,8 ,Exp2 (906826):0,2,6  Exp3 (749709):1,6,8
 idx_test = np.delete(np.arange(0,df_target.shape[0]),idx_train)
 
 df_target_test = df_target.iloc[idx_test]

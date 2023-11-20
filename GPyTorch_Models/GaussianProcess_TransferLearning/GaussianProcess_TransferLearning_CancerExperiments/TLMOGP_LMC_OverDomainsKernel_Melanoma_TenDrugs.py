@@ -327,7 +327,7 @@ df_all = df_all.dropna()
 CosmicID_target = 906793
 df_source = df_all[df_all['COSMIC_ID']!=CosmicID_target].reset_index().drop(columns=['index'])
 df_target = df_all[df_all['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
-idx_train = np.array([3,4,9])  #Exp1:3,4,9 ,Exp2: 1,6,8, Exp3: 1,2,5
+idx_train = np.array([1,2,3,4,5,7,9])  #Exp1:3,4,9 ,Exp2: 1,6,8, Exp3: 1,2,5; Exp4: 0,1,3,4,5,7,9
 idx_test = np.delete(np.arange(0,df_target.shape[0]),idx_train)
 
 df_target_test = df_target.iloc[idx_test]
