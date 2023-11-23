@@ -166,6 +166,12 @@ class TLMOGaussianProcess(nn.Module):
             # Compute the Covariance of the conditional distribution p(yT|XT,XS,yS)
             vTT = torch.linalg.solve(self.LSS, KTS.t())
             C_star = CTT - torch.matmul(vTT.t(),vTT) #+ 1e-4*torch.eye(xT.shape[0])  #jitter?
+            # The code below aim to correct for numerical instabilities when CSS becomes Non-PSD
+            if not isPD_torch(C_star):
+                C_star_aux = C_star.clone()
+                with torch.no_grad():
+                    C_star_aux = torch.from_numpy(nearestPD(C_star_aux.numpy()))
+                C_star = 0.0 * C_star + C_star_aux  # This operation aims to keep the gradients working over lik_std_noise
             self.L = torch.linalg.cholesky(C_star)
 
             return self.mu_star, self.L  # here we return the mean and covariance
@@ -301,33 +307,58 @@ dict_cancers={0:'GDSC2_EGFR_PI3K_MAPK_Breast_1000FR.csv',1:'GDSC2_EGFR_PI3K_MAPK
 
 #indx_cancer = np.array([0,1,2,3,4])
 indx_cancer_train = np.array([int(config.sel_cancer)])
-#indx_cancer_train = np.delete(indx_cancer,indx_cancer_test)
 
-name_feat_file = "GDSC2_EGFR_PI3K_MAPK_allfeatures.csv"
-name_feat_file_nozero = "GDSC2_EGFR_PI3K_MAPK_features_NonZero_Drugs1036_1061_1373.csv" #"GDSC2_EGFR_PI3K_MAPK_features_NonZero.csv"
-Num_drugs = 3
+name_file_cancer = dict_cancers[indx_cancer_train[0]]
+name_file_cancer_target = dict_cancers[0]
+print("Source Cancer:",name_file_cancer)
+print("Target Cancer:",name_file_cancer_target)
 
-name_for_KLrelevance = dict_cancers[indx_cancer_train[0]]
-print(name_for_KLrelevance)
-
-df_to_read = pd.read_csv(_FOLDER + name_for_KLrelevance)#.sample(n=N_CellLines,random_state = rand_state_N)
+df_to_read = pd.read_csv(_FOLDER + name_file_cancer)#.sample(n=N_CellLines,random_state = rand_state_N)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+df_to_read_target = pd.read_csv(_FOLDER + name_file_cancer_target)#.sample(n=N_CellLines,random_state = rand_state_N)
+
 "Split of data into Training and Testing for the Source and Target domains"
 Index_sel = (df_to_read["DRUG_ID"] == 1036) | (df_to_read["DRUG_ID"] == 1061)| (df_to_read["DRUG_ID"] == 1373) \
             | (df_to_read["DRUG_ID"] == 1039) | (df_to_read["DRUG_ID"] == 1560) | (df_to_read["DRUG_ID"] == 1057) \
             | (df_to_read["DRUG_ID"] == 1059)| (df_to_read["DRUG_ID"] == 1062) | (df_to_read["DRUG_ID"] == 2096) \
             | (df_to_read["DRUG_ID"] == 2045)
 
-df_4Cancers_traintest_all = df_to_read[Index_sel]
-df_all = df_4Cancers_traintest_all.reset_index().drop(columns=['index'])
-df_all = df_all.dropna()
+df_SourceCancer_all = df_to_read[Index_sel]
+df_all = df_SourceCancer_all.reset_index().drop(columns=['index'])
+df_source = df_all.dropna()
 
-# cell 906793, 1287706
-CosmicID_target = 1287706
-df_source = df_all[df_all['COSMIC_ID']!=CosmicID_target].reset_index().drop(columns=['index'])
-df_target = df_all[df_all['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
-idx_train = np.array([0,1,2,3,4,5])  #Exp1:3,4,9 ,Exp2: 1,6,8, Exp3: 1,2,5; Exp4: 0,1,3,4,5,7,9
+Index_sel_target = (df_to_read_target["DRUG_ID"] == 1036) | (df_to_read_target["DRUG_ID"] == 1061)| (df_to_read_target["DRUG_ID"] == 1373) \
+            | (df_to_read_target["DRUG_ID"] == 1039) | (df_to_read_target["DRUG_ID"] == 1560) | (df_to_read_target["DRUG_ID"] == 1057) \
+            | (df_to_read_target["DRUG_ID"] == 1059)| (df_to_read_target["DRUG_ID"] == 1062) | (df_to_read_target["DRUG_ID"] == 2096) \
+            | (df_to_read_target["DRUG_ID"] == 2045)
+
+df_TargetCancer_all = df_to_read_target[Index_sel_target]
+df_all_target = df_TargetCancer_all.reset_index().drop(columns=['index'])
+df_all_target = df_all_target.dropna()
+
+"COSMIC_IDs for Breast:"
+"The ones below have 9 drugs tested"
+"The cell line 946359 (all nores); 749709 (1 resp 1 parcial)  has been tested in 9 of the 10 drugs"
+"907046 (2 resp 1 parcial); 1290798 (3 parcial); 905946 (1 resp 1 parcial)"
+"908121 (2 resp 1 parcial); 1240172 (non resp); 906826 (2 resp should try this one)"
+
+"The ones below have 8 drugs tested"
+"1298157 (1 resp 1 parcial); 910927 (2 resp 1 parcial)"
+"910948 (Exp:0,2,6 seed 35)"
+
+
+"COSMIC_IDs for COAD: 909748, 905961, 905937, 1240123, 1659928 and 909755 with (Exp:1,3,5 seed 35), "
+
+"COSMIC_IDs for LUAD: 906805, 1298537, 724878, 687777, 908475 (Exp:0,3,6 seed 35), "
+
+"COSMIC_IDs for SCLC: 713885, 687985, 906808, 1299062, 910692, 687997, 688015, 1240189, 1322212, 688027  (Exp:2,4,5 seed 35), "
+
+CosmicID_target =906826 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
+df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
+
+
+idx_train = np.array([0,1,3,4,5,6,7])  #Exp1:3,4,8 ,Exp2 (906826):0,2,6  Exp3 (749709):1,6,8
 idx_test = np.delete(np.arange(0,df_target.shape[0]),idx_train)
 
 df_target_test = df_target.iloc[idx_test]
@@ -340,7 +371,9 @@ df_source_and_target = pd.concat([df_source,df_target_train])
 
 # Here we just check that from the column index 25 the input features start
 start_pos_features = 25
-print(df_source_and_target.columns[start_pos_features])
+print("first feat Source:",df_all.columns[start_pos_features])
+print("first feat Target:",df_all_target.columns[start_pos_features])
+assert df_all.columns[start_pos_features] == df_all_target.columns[start_pos_features]
 
 df_feat = df_source_and_target[df_source_and_target.columns[start_pos_features:]]
 Names_All_features = df_source_and_target.columns[start_pos_features:]
@@ -393,6 +426,7 @@ reload(MyUtils)
 x_lin = np.linspace(0.142857, 1, 1000)
 x_real_dose = np.linspace(0.142857, 1, Dnorm_cell)  #Here is Dnorm_cell due to using GDSC2 that has 7 doses
 Ydose50,Ydose_res,IC50,AUC,Emax = MyUtils.Get_IC50_AUC_Emax(params_4_sig_target,x_lin,x_real_dose)
+AUC = np.array(AUC)[:, None]
 
 def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_train_drug):
     plt.figure(fig_num)
@@ -408,7 +442,6 @@ def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_tra
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 posy = 0   #select the location you want to plot, do not exceed the Ytrain length
 my_plot(posy,0,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,yT)
-AUC = np.array(AUC)[:, None]
 
 yT_train = yT[idx_train]
 yT_test = yT[idx_test]
@@ -441,6 +474,8 @@ print("Ytrain size: ", yS_train.shape)
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Make all variable passed to the model tensor to operate in pytorch"
+xT_all_train = xT_train.copy()
+yT_all_train = yT_train.copy()
 xT_train = torch.from_numpy(xT_train)
 yT_train = torch.from_numpy(yT_train)
 xS_train = torch.from_numpy(xS_train)
@@ -450,20 +485,20 @@ yT_test = torch.from_numpy(yT_test)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "This is the number of source domains plus target domain."
 "In this cancer application we are refering to each domain as each cell-line with the Cosmic_ID"
-"There are 53 cell-lines or CosmicIDs in the source"
-"The target cell-line has CosmicID = 906793"
-NDomains = 54
+"There are 54 cell-lines or CosmicIDs in the Source (Melanoma) + 1 cell-line of the Target"
+"Then the total NDomains = 55"
+NDomains = 55
 DrugC = list(np.linspace(0.142857,1.0,7))
 assert DrugC.__len__() == yS_train.shape[1] and DrugC.__len__() == yT_train.shape[1]
 model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC=DrugC,NDomains=NDomains)
 # model.covariance.length=0.05
-torch.manual_seed(12)   #12 (run 100 iter)  #21 (run 200 iter)
+torch.manual_seed(35)   #Ex1: 15 (run 100 iter)  #Exp2 (906826): 35  (run 100 iter)
 with torch.no_grad():
     #model.lik_std_noise= torch.nn.Parameter(0.5*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
-    model.lik_std_noise = torch.nn.Parameter(2*torch.randn(NDomains))
-    model.TLCovariance[0].length = 1*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None]
-    model.TLCovariance[1].length = 4*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
-    model.TLCovariance[2].length = 15*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
+    model.lik_std_noise = torch.nn.Parameter(1.0*torch.randn(NDomains))
+    model.TLCovariance[0].length = 2*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None]
+    model.TLCovariance[1].length = 6*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
+    model.TLCovariance[2].length = 10*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
     model.CoregCovariance[0].lengthscale = torch.rand(1) #1*
     model.CoregCovariance[1].lengthscale = torch.rand(1)  #1*
     model.CoregCovariance[2].lengthscale = torch.rand(1)  #1*
@@ -473,30 +508,81 @@ with torch.no_grad():
 print(f"Noises std: {model.lik_std_noise}")
 
 "Training process below"
-myLr = 3e-2
-Niter = 100
-optimizer = optim.Adam(model.parameters(),lr=myLr)
-loss_fn = LogMarginalLikelihood()
+def myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = 1):
+    optimizer = optim.Adam(model.parameters(),lr=myLr)
+    loss_fn = LogMarginalLikelihood()
 
-for iter in range(Niter):
-    # Forward pass
-    mu, L = model(xT_train)
+    for iter in range(Niter):
+        # Forward pass
+        mu, L = model(xT_train)
 
-    # Backprop
-    loss = -loss_fn(mu,L,yT_train)
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-    if iter==60:  #70
-        optimizer.param_groups[0]['lr']=1e-3
-    #print(model.TLCovariance.length)
-    print(f"i: {iter+1}, Loss: {loss.item()}")
+        # Backprop
+        loss = -loss_fn(mu,L,yT_train)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        if iter==70:  #70
+            optimizer.param_groups[0]['lr']=1e-3
+        #print(model.TLCovariance.length)
+        print(f"i: {iter+1}, Loss: {loss.item()}")
+
+myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = 50)
+def bypass_params(model_trained,model_cv):
+    model_cv.lik_std_noise = model_trained.lik_std_noise
+    model_cv.TLCovariance[0].length = model_trained.TLCovariance[0].length.clone()
+    model_cv.TLCovariance[1].length = model_trained.TLCovariance[1].length.clone()
+    model_cv.TLCovariance[2].length = model_trained.TLCovariance[2].length.clone()
+    model_cv.CoregCovariance[0].lengthscale = model_trained.CoregCovariance[0].lengthscale.clone()
+    model_cv.CoregCovariance[1].lengthscale = model_trained.CoregCovariance[1].lengthscale.clone()
+    model_cv.CoregCovariance[2].lengthscale = model_trained.CoregCovariance[2].lengthscale.clone()
+    model_cv.LambdaDiDj.muDi = model_trained.LambdaDiDj.muDi.clone()
+    model_cv.LambdaDiDj.bDi = model_trained.LambdaDiDj.bDi.clone()
+
+"Leave one out cross-validation"
+Val_LML = LogMarginalLikelihood()
+TestLogLoss_All = []
+for i in range(yT_all_train.shape[0]):
+    model_cv = []
+    yT_train_cv = np.delete(yT_all_train,i,axis=0)
+    yT_val_cv = yT_all_train[i:i+1,:]
+    xT_train_cv = np.delete(xT_all_train, i, axis=0)
+    xT_val_cv = xT_all_train[i:i + 1, :]
+    print(f"shape cv train:{xT_train_cv.shape}")
+    #print(f"cv train:{xT_train_cv}")
+    print(f"shape cv val:{xT_val_cv.shape}")
+    #print(f"cv val:{xT_val_cv}")
+    xT_train_cv = torch.from_numpy(xT_train_cv)
+    yT_train_cv = torch.from_numpy(yT_train_cv)
+    xT_val_cv = torch.from_numpy(xT_val_cv)
+    yT_val_cv = torch.from_numpy(yT_val_cv)
+
+    "model fit with Cross-val"
+    model_cv = TLMOGaussianProcess(xT_train_cv, yT_train_cv, xS_train, yS_train, idxS=idx_S, DrugC=DrugC, NDomains=NDomains)
+    bypass_params(model, model_cv)  #Here we bypass the fitted parameters from the MOGP trained over all data
+    myTrain(model_cv, xT_train_cv, yT_train_cv, myLr=1e-5, Niter=1) #Here we might refine the hyper-params a bit
+    "Here we put the model in prediciton mode"
+    model_cv.eval()
+    model_cv.Train_mode = False
+    DrugCtoPred_cv = list(np.linspace(0.142857, 1, 7))
+    with torch.no_grad():
+        "NOTE: It is important to validate the model with the noisy prediction"
+        "I noticed it is necessary to include the outputs' uncertainty when validating"
+        "that is the why noiseless=False, this guarantees including the noise uncertainty of the outputs in preditions"
+        "validating with noiseless=True can lead to selecting an underfitted model"
+        mpred_cv, Cpred_cv = model_cv(xT_val_cv, DrugC_new=DrugCtoPred_cv, noiseless=False)
+        Lpred_cv = torch.linalg.cholesky(Cpred_cv)  #Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
+        Val_loss = -Val_LML(mpred_cv, Lpred_cv, yT_val_cv)
+        print(f"Val Loss: {Val_loss.item()}")
+    TestLogLoss_All.append(Val_loss.numpy())
+
+print(f"Mean cv TestLogLoss: {np.mean(TestLogLoss_All)}")
+
 
 "Here we have to assign the flag to change from self.Train_mode = True to False"
 print("check difference between model.eval and model.train")
 model.eval()
 model.Train_mode = False
-plot_test = True
+plot_test = False
 if plot_test:
     x_test = xT_test.clone()
     Name_DrugID_plot = Name_DrugID_test

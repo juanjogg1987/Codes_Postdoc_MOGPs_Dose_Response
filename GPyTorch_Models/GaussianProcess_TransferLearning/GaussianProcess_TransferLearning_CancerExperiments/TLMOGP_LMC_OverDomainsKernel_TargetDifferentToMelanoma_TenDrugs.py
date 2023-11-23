@@ -354,7 +354,7 @@ df_all_target = df_all_target.dropna()
 
 "COSMIC_IDs for SCLC: 713885, 687985, 906808, 1299062, 910692, 687997, 688015, 1240189, 1322212, 688027  (Exp:2,4,5 seed 35), "
 
-CosmicID_target = 910948 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
+CosmicID_target =906826 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
 df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
 
 
@@ -426,6 +426,7 @@ reload(MyUtils)
 x_lin = np.linspace(0.142857, 1, 1000)
 x_real_dose = np.linspace(0.142857, 1, Dnorm_cell)  #Here is Dnorm_cell due to using GDSC2 that has 7 doses
 Ydose50,Ydose_res,IC50,AUC,Emax = MyUtils.Get_IC50_AUC_Emax(params_4_sig_target,x_lin,x_real_dose)
+AUC = np.array(AUC)[:, None]
 
 def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_train_drug):
     plt.figure(fig_num)
@@ -569,9 +570,20 @@ for i in range(x_test.shape[0]):
         yT_pred_sample = i_sample.sample().reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
         plt.plot(DrugCtoPred, yT_pred_sample[i, :], alpha=0.1)
 
+"Compute AUC of prediction"
+AUC_pred = []
+Ncurves = yT_pred.shape[0]
+for i in range(Ncurves):
+    AUC_pred.append(metrics.auc(DrugCtoPred, yT_pred[i,:]))
+AUC_pred = np.array(AUC_pred)[:,None]
+
 if plot_test:
     Test_MSE = torch.mean((yT_test-yT_pred[:,::Oversample_N])**2)
     print(f"Test_MSE: {Test_MSE}")
+    AUC_test = AUC[idx_test]
+    print(f"Test AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
 else:
     Train_MSE = torch.mean((yT_train - yT_pred[:, ::Oversample_N]) ** 2)
     print(f"Train_MSE: {Train_MSE}")
+    AUC_test = AUC[idx_train]
+    print(f"Train AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
