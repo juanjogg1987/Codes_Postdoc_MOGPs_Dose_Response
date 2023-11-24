@@ -354,12 +354,25 @@ df_all_target = df_all_target.dropna()
 
 "COSMIC_IDs for SCLC: 713885, 687985, 906808, 1299062, 910692, 687997, 688015, 1240189, 1322212, 688027  (Exp:2,4,5 seed 35), "
 
-CosmicID_target =906826 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
+myset_target = set(df_all_target['COSMIC_ID'].values)
+myLabels = np.arange(0,myset_target.__len__())
+CosmicIDs_All_Target = list(myset_target)
+"Here we order the list of target COSMIC_IDs from smallest CosmicID to biggest"
+CosmicIDs_All_Target.sort()
+CellLine_pos = 1
+print(f"The CosmicID of the selected Target Cell-line: {CosmicIDs_All_Target[CellLine_pos]}")
+CosmicID_target = CosmicIDs_All_Target[CellLine_pos] #906826 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
 df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
 
+#idx_train = np.array([0,1,3,4,5,6,7])  #Exp1:3,4,8 ,Exp2 (906826):0,2,6  Exp3 (749709):1,6,8
+#idx_test = np.delete(np.arange(0,df_target.shape[0]),idx_train)
 
-idx_train = np.array([0,1,3,4,5,6,7])  #Exp1:3,4,8 ,Exp2 (906826):0,2,6  Exp3 (749709):1,6,8
-idx_test = np.delete(np.arange(0,df_target.shape[0]),idx_train)
+
+"Here we select the drug we will use as testing"
+which_drug = 1057
+idx_test = np.where(df_target['DRUG_ID']==which_drug)[0]
+assert idx_test.shape[0]>0 #The drug selected was not tested in the cell-line
+idx_train = np.delete(np.arange(0,df_target.shape[0]),idx_test)
 
 df_target_test = df_target.iloc[idx_test]
 df_target_train = df_target.iloc[idx_train]
@@ -452,8 +465,8 @@ yT_test = yT[idx_test]
 
 myset_source = set(df_source['COSMIC_ID'].values)
 myLabels = np.arange(0,myset_source.__len__())
-"TODO: the line list(myset_source) create a disordered list, I need to put it in order"
 CosmicID_labels = list(myset_source)
+"Here we order the list from smallest CosmicID to biggest"
 CosmicID_labels.sort()
 dict_CosmicID2Label = dict(zip(CosmicID_labels,myLabels))
 df_source_sort = df_source.sort_values(by='COSMIC_ID')
@@ -526,7 +539,7 @@ def myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = 1):
         #print(model.TLCovariance.length)
         print(f"i: {iter+1}, Loss: {loss.item()}")
 
-myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = 50)
+myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = 100)
 def bypass_params(model_trained,model_cv):
     model_cv.lik_std_noise = model_trained.lik_std_noise
     model_cv.TLCovariance[0].length = model_trained.TLCovariance[0].length.clone()
