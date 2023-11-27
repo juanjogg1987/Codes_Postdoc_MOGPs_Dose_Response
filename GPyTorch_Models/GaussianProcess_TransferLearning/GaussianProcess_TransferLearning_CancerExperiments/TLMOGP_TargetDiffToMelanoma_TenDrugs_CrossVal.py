@@ -265,39 +265,37 @@ warnings.filterwarnings("ignore")
 
 class commandLine:
     def __init__(self):
-        opts, args = getopt.getopt(sys.argv[1:], 'i:s:k:w:r:p:c:a:n:')
+        opts, args = getopt.getopt(sys.argv[1:], 'n:r:p:w:s:t:i:d:')
         # opts = dict(opts)
         # print(opts)
-        self.N_iter_epoch = 1200    #number of iterations
+        self.N_iter = 200    #number of iterations
         self.which_seed = 1011    #change seed to initialise the hyper-parameters
-        self.rank = 7
-        self.scale = 1
         self.weight = 1
         self.bash = "1"
-        self.N_CellLines_perc = 100   #Here we treat this variable as percentage. Try to put this values as multiple of Num_drugs?
-        self.sel_cancer = 3
-        self.seed_for_N = 1
+        self.sel_cancer_Source = 3
+        self.sel_cancer_Target = 3
+        self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.which_drug = 1036   #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
             # print(op,arg)
-            if op == '-i':
-                self.N_iter_epoch = arg
+            if op == '-n':
+                self.N_iter = arg
             if op == '-r':  # (r)and seed
                 self.which_seed = arg
-            if op == '-k':  # ran(k)
-                self.rank = arg
-            if op == '-s':  # (r)and seed
-                self.scale = arg
             if op == '-p':  # (p)ython bash
                 self.bash = arg
             if op == '-w':
                 self.weight = arg
-            if op == '-c':
-                self.N_CellLines_perc = arg
-            if op == '-a':
-                self.sel_cancer = arg
-            if op == '-n':
-                self.seed_for_N = arg
+            if op == '-s':
+                self.sel_cancer_Source = arg
+            if op == '-t':
+                self.sel_cancer_Target = arg
+            if op == '-i':
+                self.idx_CID_Target = arg
+            if op == '-d':
+                self.which_drug = arg
+
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 config = commandLine()
@@ -359,7 +357,7 @@ myLabels = np.arange(0,myset_target.__len__())
 CosmicIDs_All_Target = list(myset_target)
 "Here we order the list of target COSMIC_IDs from smallest CosmicID to biggest"
 CosmicIDs_All_Target.sort()
-CellLine_pos = 1
+CellLine_pos = 37
 print(f"The CosmicID of the selected Target Cell-line: {CosmicIDs_All_Target[CellLine_pos]}")
 CosmicID_target = CosmicIDs_All_Target[CellLine_pos] #906826 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
 df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
@@ -412,7 +410,7 @@ print(yT.shape)
 for i in range(2, Dnorm_cell+1):
     yT = np.concatenate((yT, np.clip(df_target["norm_cells_" + str(i)].values[:, None], 1.0e-9, np.inf)), 1)
 
-print("Ytrain size: ", yT.shape)
+print("yT size: ", yT.shape)
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Since we fitted the dose response curves with a Sigmoid4_parameters function"
@@ -440,6 +438,8 @@ x_lin = np.linspace(0.142857, 1, 1000)
 x_real_dose = np.linspace(0.142857, 1, Dnorm_cell)  #Here is Dnorm_cell due to using GDSC2 that has 7 doses
 Ydose50,Ydose_res,IC50,AUC,Emax = MyUtils.Get_IC50_AUC_Emax(params_4_sig_target,x_lin,x_real_dose)
 AUC = np.array(AUC)[:, None]
+IC50 = np.array(IC50)[:, None]
+Emax = np.array(Emax)[:, None]
 
 def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_train_drug):
     plt.figure(fig_num)
@@ -483,7 +483,7 @@ print(yS_train.shape)
 for i in range(2, Dnorm_cell+1):
     yS_train = np.concatenate((yS_train, np.clip(df_source_sort["norm_cells_" + str(i)].values[:, None], 1.0e-9, np.inf)), 1)
 
-print("Ytrain size: ", yS_train.shape)
+print("yS size: ", yS_train.shape)
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Make all variable passed to the model tensor to operate in pytorch"
@@ -498,9 +498,10 @@ yT_test = torch.from_numpy(yT_test)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "This is the number of source domains plus target domain."
 "In this cancer application we are refering to each domain as each cell-line with the Cosmic_ID"
-"There are 54 cell-lines or CosmicIDs in the Source (Melanoma) + 1 cell-line of the Target"
-"Then the total NDomains = 55"
-NDomains = 55
+"There are CosmicID_labels.__len__() cell-lines or CosmicIDs in the Source (Melanoma) + 1 cell-line of the Target"
+"Then the total NDomains = CosmicID_labels.__len__() + 1"
+NDomains = CosmicID_labels.__len__() + 1 #CosmicID_labels.__len__() contains the CosmicIDs of Source Domains
+print(f"Number Nsource Domains: {CosmicID_labels.__len__()}, so total NDomains Source + Target: {NDomains}")
 DrugC = list(np.linspace(0.142857,1.0,7))
 assert DrugC.__len__() == yS_train.shape[1] and DrugC.__len__() == yT_train.shape[1]
 model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC=DrugC,NDomains=NDomains)
@@ -517,8 +518,8 @@ with torch.no_grad():
     model.CoregCovariance[2].lengthscale = torch.rand(1)  #1*
     model.LambdaDiDj.muDi = torch.rand(NDomains)[:, None]
     model.LambdaDiDj.bDi = torch.rand(NDomains)[:, None]
-    print(model.LambdaDiDj.muDi)
-print(f"Noises std: {model.lik_std_noise}")
+    #print(model.LambdaDiDj.muDi)
+#print(f"Noises std: {model.lik_std_noise}")
 
 "Training process below"
 def myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = 1):
@@ -539,7 +540,8 @@ def myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = 1):
         #print(model.TLCovariance.length)
         print(f"i: {iter+1}, Loss: {loss.item()}")
 
-myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = 100)
+"Train the model with all yT data"
+myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter =10)
 def bypass_params(model_trained,model_cv):
     model_cv.lik_std_noise = model_trained.lik_std_noise
     model_cv.TLCovariance[0].length = model_trained.TLCovariance[0].length.clone()
@@ -605,7 +607,10 @@ else:
     Name_DrugID_plot = Name_DrugID_train
     plotname = 'Train'
 
-Oversample_N = 3
+"The Oversample_N below is to generate equaly spaced drug concentrations between the original 7 drug concentrations"
+"i.e., if Oversample_N = 2: means that each 2 positions we'd have the original drug concentration tested in cell-line"
+"we'd have DrugCtoPred = [0.1428, 0.2142, 0.2857, 0.3571,0.4285,0.4999,0.5714,0.6428,0.7142,0.7857,0.8571,0.9285,1.0]"
+Oversample_N = 15
 DrugCtoPred = list(np.linspace(0.142857,1,7+6*(Oversample_N-1)))
 #DrugCtoPred = list(np.linspace(0.142857,1,28))
 sel_concentr = 0
@@ -614,6 +619,72 @@ with torch.no_grad():
     mpred, Cpred = model(x_test,DrugC_new = DrugCtoPred,noiseless=True)
 
 yT_pred = mpred.reshape(DrugCtoPred.__len__(),x_test.shape[0]).T
+
+"Compute AUC of prediction"
+AUC_pred = []
+Ncurves = yT_pred.shape[0]
+for i in range(Ncurves):
+    AUC_pred.append(metrics.auc(DrugCtoPred, yT_pred[i,:]))
+AUC_pred = np.array(AUC_pred)[:,None]
+
+"Compute IC50 of prediction"
+x_dose_new = np.array(DrugCtoPred)
+Ydose50_pred = []
+IC50_pred = []
+Emax_pred = []
+for i in range(Ncurves):
+    y_resp_interp = yT_pred[i,:].clone() #pchip_interpolate(x_dose, y_resp, x_dose_new)
+
+    Emax_pred.append(y_resp_interp[-1])
+
+    res1 = y_resp_interp < 0.507
+    res2 = y_resp_interp > 0.493
+    res_aux = np.where(res1 & res2)[0]
+    if (res1 & res2).sum() > 0:
+        res_IC50 = np.arange(res_aux[0], res_aux[0] + res_aux.shape[0]) == res_aux
+        res_aux = res_aux[res_IC50].copy()
+    else:
+        res_aux = res1 & res2
+
+    if (res1 & res2).sum() > 0:
+        Ydose50_pred.append(y_resp_interp[res_aux].mean())
+        IC50_pred.append(x_dose_new[res_aux].mean())
+    elif y_resp_interp[-1] < 0.5:
+        for dose_j in range(x_dose_new.shape[0]):
+            if (y_resp_interp[dose_j] < 0.5):
+                break
+        Ydose50_pred.append(y_resp_interp[dose_j])
+        aux_IC50 = x_dose_new[dose_j]  # it has to be a float not an array to avoid bug
+        IC50_pred.append(aux_IC50)
+    else:
+        Ydose50_pred.append(0.5)
+        IC50_pred.append(1.5)
+
+IC50_pred = np.array(IC50_pred)[:,None]
+Emax_pred = np.array(Emax_pred)[:,None]
+
+"Below we use ::Oversample_N in order to obtain the exact locations of drug concentration for which we have data"
+"in order to compute the error between the yT_test (true observed values) and the yT_pred (predicted)"
+if plot_test:
+    Test_MSE = torch.mean((yT_test-yT_pred[:,::Oversample_N])**2)
+    print(f"Test_MSE: {Test_MSE}")
+    AUC_test = AUC[idx_test]
+    print(f"Test AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
+    IC50_test = IC50[idx_test]
+    print(f"Test IC50_MSE:{np.mean((IC50_pred - IC50_test)**2)}")
+    Emax_test = Emax[idx_test]
+    print(f"Test Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
+else:
+    Train_MSE = torch.mean((yT_train - yT_pred[:, ::Oversample_N]) ** 2)
+    print(f"Train_MSE: {Train_MSE}")
+    AUC_test = AUC[idx_train]
+    print(f"Train AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
+    IC50_test = IC50[idx_train]
+    print(f"Train IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}")
+    Emax_test = Emax[idx_train]
+    print(f"Train Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
+
+"Plot the prediction for the test yT"
 from torch.distributions.multivariate_normal import MultivariateNormal
 plt.close('all')
 for i in range(x_test.shape[0]):
@@ -621,6 +692,8 @@ for i in range(x_test.shape[0]):
     plt.ylim([-0.02,1.05])
     #plt.plot(x,mpred1,'.')
     plt.plot(DrugCtoPred,yT_pred[i,:],'blue')
+    plt.plot(IC50_pred[i],0.5,'x')
+    plt.plot(x_lin, np.ones_like(x_lin) * Emax_pred[i], 'r')  # Plot a horizontal line as Emax
     if plot_test:
         plt.plot(DrugC, yT_test[i,:], 'ro')
     else:
@@ -635,21 +708,3 @@ for i in range(x_test.shape[0]):
         i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
         yT_pred_sample = i_sample.sample().reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
         plt.plot(DrugCtoPred, yT_pred_sample[i, :], alpha=0.1)
-
-"Compute AUC of prediction"
-AUC_pred = []
-Ncurves = yT_pred.shape[0]
-for i in range(Ncurves):
-    AUC_pred.append(metrics.auc(DrugCtoPred, yT_pred[i,:]))
-AUC_pred = np.array(AUC_pred)[:,None]
-
-if plot_test:
-    Test_MSE = torch.mean((yT_test-yT_pred[:,::Oversample_N])**2)
-    print(f"Test_MSE: {Test_MSE}")
-    AUC_test = AUC[idx_test]
-    print(f"Test AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
-else:
-    Train_MSE = torch.mean((yT_train - yT_pred[:, ::Oversample_N]) ** 2)
-    print(f"Train_MSE: {Train_MSE}")
-    AUC_test = AUC[idx_train]
-    print(f"Train AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
