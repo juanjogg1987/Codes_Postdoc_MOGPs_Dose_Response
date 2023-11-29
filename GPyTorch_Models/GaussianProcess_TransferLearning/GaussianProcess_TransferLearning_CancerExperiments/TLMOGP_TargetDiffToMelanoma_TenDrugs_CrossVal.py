@@ -1,6 +1,10 @@
+from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import nn, optim
 import gpytorch
+
+#import matplotlib as mpl
+#mpl.use("TkAgg")  # or can use 'TkAgg', whatever you have/prefer
 import matplotlib.pyplot as plt
 
 import sys
@@ -235,12 +239,13 @@ import pandas as pd
 import random
 import warnings
 warnings.filterwarnings("ignore")
-from sklearn.preprocessing import MinMaxScaler
+##from sklearn.preprocessing import MinMaxScaler
 random.seed(Nseed)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Here we preprocess and prepare our data"
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
+#_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
+_FOLDER = "/rds/general/user/jgiraldo/home/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/" #HPC path
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 def sigmoid_4_param(x, x0, L, k, d):
@@ -268,14 +273,14 @@ class commandLine:
         opts, args = getopt.getopt(sys.argv[1:], 'n:r:p:w:s:t:i:d:')
         # opts = dict(opts)
         # print(opts)
-        self.N_iter = 200    #number of iterations
-        self.which_seed = 1011    #change seed to initialise the hyper-parameters
-        self.weight = 1
+        self.N_iter = 30    #number of iterations
+        self.which_seed = 35    #change seed to initialise the hyper-parameters
+        self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = "1"
         self.sel_cancer_Source = 3
-        self.sel_cancer_Target = 3
-        self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
-        self.which_drug = 1036   #This is the drug we will select as test for the target domain.
+        self.sel_cancer_Target = 0
+        self.idx_CID_Target = 43  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.which_drug = 1057   #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
             # print(op,arg)
@@ -304,10 +309,10 @@ dict_cancers={0:'GDSC2_EGFR_PI3K_MAPK_Breast_1000FR.csv',1:'GDSC2_EGFR_PI3K_MAPK
               2:'GDSC2_EGFR_PI3K_MAPK_LUAD.csv',3:'GDSC2_EGFR_PI3K_MAPK_melanoma.csv',4:'GDSC2_EGFR_PI3K_MAPK_SCLC.csv'}
 
 #indx_cancer = np.array([0,1,2,3,4])
-indx_cancer_train = np.array([int(config.sel_cancer)])
+indx_cancer_train = np.array([int(config.sel_cancer_Source)])
 
 name_file_cancer = dict_cancers[indx_cancer_train[0]]
-name_file_cancer_target = dict_cancers[0]
+name_file_cancer_target = dict_cancers[int(config.sel_cancer_Target)]
 print("Source Cancer:",name_file_cancer)
 print("Target Cancer:",name_file_cancer_target)
 
@@ -357,7 +362,7 @@ myLabels = np.arange(0,myset_target.__len__())
 CosmicIDs_All_Target = list(myset_target)
 "Here we order the list of target COSMIC_IDs from smallest CosmicID to biggest"
 CosmicIDs_All_Target.sort()
-CellLine_pos = 37
+CellLine_pos = int(config.idx_CID_Target) #37
 print(f"The CosmicID of the selected Target Cell-line: {CosmicIDs_All_Target[CellLine_pos]}")
 CosmicID_target = CosmicIDs_All_Target[CellLine_pos] #906826 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
 df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
@@ -367,7 +372,7 @@ df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_ind
 
 
 "Here we select the drug we will use as testing"
-which_drug = 1057
+which_drug = int(config.which_drug) #1057
 idx_test = np.where(df_target['DRUG_ID']==which_drug)[0]
 assert idx_test.shape[0]>0 #The drug selected was not tested in the cell-line
 idx_train = np.delete(np.arange(0,df_target.shape[0]),idx_test)
@@ -427,8 +432,8 @@ for i in range(2, 5):  #here there are four params for sigmoid4
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 from sklearn import metrics
 from importlib import reload
-import Utils_SummaryMetrics_KLRelevance
-import Utils_SummaryMetrics_KLRelevance as MyUtils
+import Utils_TransferLearning
+import Utils_TransferLearning as MyUtils
 reload(MyUtils)
 
 "Be careful that x starts from 0.111111 for 9 or 5 drug concentrations in GDSC1 dataset"
@@ -506,13 +511,14 @@ DrugC = list(np.linspace(0.142857,1.0,7))
 assert DrugC.__len__() == yS_train.shape[1] and DrugC.__len__() == yT_train.shape[1]
 model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC=DrugC,NDomains=NDomains)
 # model.covariance.length=0.05
-torch.manual_seed(35)   #Ex1: 15 (run 100 iter)  #Exp2 (906826): 35  (run 100 iter)
+myseed = int(config.which_seed)
+torch.manual_seed(myseed)   #Ex1: 15 (run 100 iter)  #Exp2 (906826): 35  (run 100 iter)
 with torch.no_grad():
     #model.lik_std_noise= torch.nn.Parameter(0.5*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
     model.lik_std_noise = torch.nn.Parameter(1.0*torch.randn(NDomains))
-    model.TLCovariance[0].length = 2*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None]
-    model.TLCovariance[1].length = 6*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
-    model.TLCovariance[2].length = 10*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
+    model.TLCovariance[0].length = float(config.weight)*2.*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None]
+    model.TLCovariance[1].length = float(config.weight)*6.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
+    model.TLCovariance[2].length = float(config.weight)*10.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
     model.CoregCovariance[0].lengthscale = torch.rand(1) #1*
     model.CoregCovariance[1].lengthscale = torch.rand(1)  #1*
     model.CoregCovariance[2].lengthscale = torch.rand(1)  #1*
@@ -522,7 +528,7 @@ with torch.no_grad():
 #print(f"Noises std: {model.lik_std_noise}")
 
 "Training process below"
-def myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = 1):
+def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
     optimizer = optim.Adam(model.parameters(),lr=myLr)
     loss_fn = LogMarginalLikelihood()
 
@@ -535,13 +541,13 @@ def myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = 1):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        if iter==70:  #70
-            optimizer.param_groups[0]['lr']=1e-3
+        if iter==100:  #70
+            optimizer.param_groups[0]['lr']=3e-3
         #print(model.TLCovariance.length)
         print(f"i: {iter+1}, Loss: {loss.item()}")
 
 "Train the model with all yT data"
-myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter =10)
+myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = config.N_iter)
 def bypass_params(model_trained,model_cv):
     model_cv.lik_std_noise = model_trained.lik_std_noise
     model_cv.TLCovariance[0].length = model_trained.TLCovariance[0].length.clone()
@@ -590,20 +596,22 @@ for i in range(yT_all_train.shape[0]):
         print(f"Val Loss: {Val_loss.item()}")
     TestLogLoss_All.append(Val_loss.numpy())
 
-print(f"Mean cv TestLogLoss: {np.mean(TestLogLoss_All)}")
+print(f"Mean cv ValLogLoss: {np.mean(TestLogLoss_All)}")
 
 
 "Here we have to assign the flag to change from self.Train_mode = True to False"
 print("check difference between model.eval and model.train")
 model.eval()
 model.Train_mode = False
-plot_test = False
+plot_test = True
 if plot_test:
     x_test = xT_test.clone()
+    y_test = yT_test.clone()
     Name_DrugID_plot = Name_DrugID_test
     plotname = 'Test'
 else:
     x_test = xT_train.clone()
+    y_test = yT_train.clone()
     Name_DrugID_plot = Name_DrugID_train
     plotname = 'Train'
 
@@ -612,11 +620,17 @@ else:
 "we'd have DrugCtoPred = [0.1428, 0.2142, 0.2857, 0.3571,0.4285,0.4999,0.5714,0.6428,0.7142,0.7857,0.8571,0.9285,1.0]"
 Oversample_N = 15
 DrugCtoPred = list(np.linspace(0.142857,1,7+6*(Oversample_N-1)))
+"Below we refer as exact in the sense that those are the exact location of drug concent. for which we have exact data"
+DrugCtoPred_exact = list(np.linspace(0.142857, 1, 7))
 #DrugCtoPred = list(np.linspace(0.142857,1,28))
 sel_concentr = 0
 with torch.no_grad():
-    #mpred1,Cpred1 = model(x)
-    mpred, Cpred = model(x_test,DrugC_new = DrugCtoPred,noiseless=True)
+    mpred, Cpred = model(x_test,DrugC_new = DrugCtoPred,noiseless=False)
+    "To assess the TestLogLoss we have to also include the noise uncertainty, so we use noiseless=False"
+    mpred_exact, Cpred_exact = model(x_test, DrugC_new=DrugCtoPred_exact, noiseless=False)
+    Lpred_exact = torch.linalg.cholesky(Cpred_exact)  # Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
+    Test_loss = -Val_LML(mpred_exact, Lpred_exact, y_test)
+    print(f"Test Loss: {Test_loss.item()}")
 
 yT_pred = mpred.reshape(DrugCtoPred.__len__(),x_test.shape[0]).T
 
@@ -687,9 +701,10 @@ else:
 "Plot the prediction for the test yT"
 from torch.distributions.multivariate_normal import MultivariateNormal
 plt.close('all')
+#plt.switch_backend('agg')
 for i in range(x_test.shape[0]):
     plt.figure(i+1)
-    plt.ylim([-0.02,1.05])
+    plt.ylim([-0.02,1.1])
     #plt.plot(x,mpred1,'.')
     plt.plot(DrugCtoPred,yT_pred[i,:],'blue')
     plt.plot(IC50_pred[i],0.5,'x')
@@ -704,7 +719,12 @@ for i in range(x_test.shape[0]):
     plt.ylabel('Cell viability',fontsize=14)
     plt.grid(True)
 
-    for j in range(30):
-        i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
-        yT_pred_sample = i_sample.sample().reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
-        plt.plot(DrugCtoPred, yT_pred_sample[i, :], alpha=0.1)
+    # for j in range(30):
+    #     i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
+    #     yT_pred_sample = i_sample.sample().reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
+    #     plt.plot(DrugCtoPred, yT_pred_sample[i, :], alpha=0.1)
+
+    std_pred = torch.sqrt(torch.diag(Cpred)).reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
+    plt.plot(DrugCtoPred, yT_pred[i, :]+2.0*std_pred[i,:], '--b')
+    plt.plot(DrugCtoPred, yT_pred[i, :] - 2.0 * std_pred[i, :], '--b')
+
