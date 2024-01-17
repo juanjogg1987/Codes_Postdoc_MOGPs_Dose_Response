@@ -16,6 +16,7 @@ from TransferLearning_Kernels import TL_Kernel_var, Kernel_CrossDomains, TLRelat
 
 from numpy import linalg as la
 import numpy as np
+import os
 
 def isPD(B):
     """Returns true when input is positive-definite, via Cholesky"""
@@ -244,8 +245,8 @@ random.seed(Nseed)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Here we preprocess and prepare our data"
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-#_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
-_FOLDER = "/rds/general/user/jgiraldo/home/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/" #HPC path
+_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
+#_FOLDER = "/rds/general/user/jgiraldo/home/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/" #HPC path
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 def sigmoid_4_param(x, x0, L, k, d):
@@ -273,13 +274,13 @@ class commandLine:
         opts, args = getopt.getopt(sys.argv[1:], 'n:r:p:w:s:t:i:d:')
         # opts = dict(opts)
         # print(opts)
-        self.N_iter = 30    #number of iterations
+        self.N_iter = 3    #number of iterations
         self.which_seed = 35    #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
-        self.bash = "1"
+        self.bash = "15"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 0
-        self.idx_CID_Target = 43  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.idx_CID_Target = 42  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
         self.which_drug = 1057   #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
@@ -546,7 +547,7 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
         #print(model.TLCovariance.length)
         print(f"i: {iter+1}, Loss: {loss.item()}")
 
-"Train the model with all yT data"
+"Train the model with all yT training data"
 myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = config.N_iter)
 def bypass_params(model_trained,model_cv):
     model_cv.lik_std_noise = model_trained.lik_std_noise
@@ -580,7 +581,7 @@ for i in range(yT_all_train.shape[0]):
     "model fit with Cross-val"
     model_cv = TLMOGaussianProcess(xT_train_cv, yT_train_cv, xS_train, yS_train, idxS=idx_S, DrugC=DrugC, NDomains=NDomains)
     bypass_params(model, model_cv)  #Here we bypass the fitted parameters from the MOGP trained over all data
-    myTrain(model_cv, xT_train_cv, yT_train_cv, myLr=1e-5, Niter=1) #Here we might refine the hyper-params a bit
+    myTrain(model_cv, xT_train_cv, yT_train_cv, myLr=1e-5, Niter=1) #Here we could refine hyper-params a bit if wished
     "Here we put the model in prediciton mode"
     model_cv.eval()
     model_cv.Train_mode = False
@@ -598,6 +599,19 @@ for i in range(yT_all_train.shape[0]):
 
 print(f"Mean cv ValLogLoss: {np.mean(TestLogLoss_All)}")
 
+path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
+#path_home = '/rds/general/user/jgiraldo/home/TransferLearning_Results/'
+path_val = path_home+'TLMOGP_OneCell_OneDrug_Testing/TargetCancer'+str(config.sel_cancer_Target)+'/Drug_'+str(config.which_drug)+'/CellLine'+str(config.idx_CID_Target)+'_CID'+str(CosmicID_target)+'/'
+
+# check whether directory already exists
+if not os.path.exists(path_val):
+  #os.mkdir(path_val)   #Use this for a single dir
+  os.makedirs(path_val) #Use this for a multiple sub dirs
+
+"Here we save the Validation Log Loss in path_val in order to have a list of different bashes to select the best model"
+f = open(path_val+'Validation.txt', "a")
+f.write(f"\nbash{str(config.bash)}, ValLogLoss:{np.mean(TestLogLoss_All)}")
+f.close()
 
 "Here we have to assign the flag to change from self.Train_mode = True to False"
 print("check difference between model.eval and model.train")
@@ -689,6 +703,7 @@ if plot_test:
     Emax_test = Emax[idx_test]
     print(f"Test Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
 else:
+    "Here we just allow the errors of training when we wish to explore their specific values"
     Train_MSE = torch.mean((yT_train - yT_pred[:, ::Oversample_N]) ** 2)
     print(f"Train_MSE: {Train_MSE}")
     AUC_test = AUC[idx_train]
@@ -697,6 +712,11 @@ else:
     print(f"Train IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}")
     Emax_test = Emax[idx_train]
     print(f"Train Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
+
+"Here we save the Test Log Loss metric in the same folder path_val where we had also saved the Validation Log Loss"
+f = open(path_val + 'Test.txt', "a")
+f.write(f"\nbash{str(config.bash)}, TestLogLoss:{Test_loss.item()}, IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}, AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}, Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
+f.close()
 
 "Plot the prediction for the test yT"
 from torch.distributions.multivariate_normal import MultivariateNormal
@@ -707,8 +727,8 @@ for i in range(x_test.shape[0]):
     plt.ylim([-0.02,1.1])
     #plt.plot(x,mpred1,'.')
     plt.plot(DrugCtoPred,yT_pred[i,:],'blue')
-    plt.plot(IC50_pred[i],0.5,'x')
-    plt.plot(x_lin, np.ones_like(x_lin) * Emax_pred[i], 'r')  # Plot a horizontal line as Emax
+    #plt.plot(IC50_pred[i],0.5,'x')   # Plot an x in predicted IC50 location
+    #plt.plot(x_lin, np.ones_like(x_lin) * Emax_pred[i], 'r')  # Plot a horizontal line as Emax
     if plot_test:
         plt.plot(DrugC, yT_test[i,:], 'ro')
     else:
@@ -727,4 +747,11 @@ for i in range(x_test.shape[0]):
     std_pred = torch.sqrt(torch.diag(Cpred)).reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
     plt.plot(DrugCtoPred, yT_pred[i, :]+2.0*std_pred[i,:], '--b')
     plt.plot(DrugCtoPred, yT_pred[i, :] - 2.0 * std_pred[i, :], '--b')
+
+    # check whether directory already exists
+    path_plot = path_val + 'Test_plot/'
+    if not os.path.exists(path_plot):
+        # os.mkdir(path_val)   #Use this for a single dir
+        os.makedirs(path_plot)  # Use this for a multiple sub dirs
+    plt.savefig(path_plot+'plotbash'+str(config.bash)+'.pdf')
 

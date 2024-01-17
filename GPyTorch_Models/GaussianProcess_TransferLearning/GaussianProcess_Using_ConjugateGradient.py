@@ -145,7 +145,7 @@ print(model(x))
 
 "Training process below"
 myLr = 1.0e-3
-Niter = 1200
+Niter = 10
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
