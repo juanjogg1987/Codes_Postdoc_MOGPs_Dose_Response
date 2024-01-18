@@ -277,10 +277,10 @@ class commandLine:
         self.N_iter = 3    #number of iterations
         self.which_seed = 35    #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
-        self.bash = "15"
+        self.bash = "None"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 0
-        self.idx_CID_Target = 42  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
         self.which_drug = 1057   #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
@@ -548,7 +548,7 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
         print(f"i: {iter+1}, Loss: {loss.item()}")
 
 "Train the model with all yT training data"
-myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = config.N_iter)
+myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = int(config.N_iter))
 def bypass_params(model_trained,model_cv):
     model_cv.lik_std_noise = model_trained.lik_std_noise
     model_cv.TLCovariance[0].length = model_trained.TLCovariance[0].length.clone()
@@ -599,9 +599,9 @@ for i in range(yT_all_train.shape[0]):
 
 print(f"Mean cv ValLogLoss: {np.mean(TestLogLoss_All)}")
 
-path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
-#path_home = '/rds/general/user/jgiraldo/home/TransferLearning_Results/'
-path_val = path_home+'TLMOGP_OneCell_OneDrug_Testing/TargetCancer'+str(config.sel_cancer_Target)+'/Drug_'+str(config.which_drug)+'/CellLine'+str(config.idx_CID_Target)+'_CID'+str(CosmicID_target)+'/'
+#path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
+path_home = '/rds/general/user/jgiraldo/home/TransferLearning_Results/'
+path_val = path_home+'Jobs_TLMOGP_OneCell_OneDrug_Testing/TargetCancer'+str(config.sel_cancer_Target)+'/Drug_'+str(config.which_drug)+'/CellLine'+str(config.idx_CID_Target)+'_CID'+str(CosmicID_target)+'/'
 
 # check whether directory already exists
 if not os.path.exists(path_val):
@@ -610,7 +610,7 @@ if not os.path.exists(path_val):
 
 "Here we save the Validation Log Loss in path_val in order to have a list of different bashes to select the best model"
 f = open(path_val+'Validation.txt', "a")
-f.write(f"\nbash{str(config.bash)}, ValLogLoss:{np.mean(TestLogLoss_All)}")
+f.write(f"\nbash{str(config.bash)}, ValLogLoss:{np.mean(TestLogLoss_All)}, CrossVal_N:{yT_train.shape[0]}")
 f.close()
 
 "Here we have to assign the flag to change from self.Train_mode = True to False"
@@ -715,7 +715,7 @@ else:
 
 "Here we save the Test Log Loss metric in the same folder path_val where we had also saved the Validation Log Loss"
 f = open(path_val + 'Test.txt', "a")
-f.write(f"\nbash{str(config.bash)}, TestLogLoss:{Test_loss.item()}, IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}, AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}, Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
+f.write(f"\nbash{str(config.bash)}, TestLogLoss:{Test_loss.item()}, IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}, AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}, Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}, CrossVal_N:{yT_train.shape[0]}")
 f.close()
 
 "Plot the prediction for the test yT"
