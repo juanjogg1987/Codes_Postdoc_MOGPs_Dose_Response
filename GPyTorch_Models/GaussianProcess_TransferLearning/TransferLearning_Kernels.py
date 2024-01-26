@@ -4,7 +4,7 @@ import gpytorch
 from matplotlib import pyplot as plt
 
 # import positivity constraint
-from gpytorch.constraints import Positive
+from gpytorch.constraints import Positive, Interval
 
 class TL_Kernel(gpytorch.kernels.Kernel):
     # the kernel is stationary
@@ -374,3 +374,95 @@ class TLRelatedness(gpytorch.kernels.Kernel):
         lambdasDij = lambdasDij * torch.logical_not(Dii) + Dii
 
         return lambdasDij
+
+class Kernel_ICM(gpytorch.kernels.Kernel):
+    # the kernel is stationary
+    is_stationary = True
+
+    # We will register the parameter when initializing the kernel
+    def __init__(self, NDomains,adq_prior=None,adq_constraint=None,length_prior=None, length_constraint=None, **kwargs):
+        super().__init__(**kwargs)
+        self.NDomains = NDomains
+
+        # set the parameter constraint to be positive, when nothing is specified
+        if length_constraint is None:
+            length_constraint = Positive()
+
+        if adq_constraint is None:
+            adq_constraint = Interval(-1, 1) #Positive()
+
+        # register the raw parameter
+        self.register_parameter(
+            name='raw_length', parameter=torch.nn.Parameter(torch.zeros(*self.batch_shape, 1, 1))
+        )
+        self.register_parameter(
+            name='raw_adq', parameter=torch.nn.Parameter(torch.randn(*self.batch_shape, NDomains, 1))
+        )
+        # register the constraint
+        self.register_constraint("raw_length", length_constraint)
+        self.register_constraint("raw_adq", adq_constraint)
+
+        # set the parameter prior, see
+        # https://docs.gpytorch.ai/en/latest/module.html#gpytorch.Module.register_prior
+        "The ifs below are just a template, but not already tested by Juan, so I do not know if it would work"
+        if length_prior is not None:
+            self.register_prior(
+                "length_prior",
+                length_prior,
+                lambda m: m.length,
+                lambda m, v : m._set_length(v),
+            )
+        if adq_prior is not None:
+            self.register_prior(
+                "adq_prior",
+                adq_prior,
+                lambda m: m.adq,
+                lambda m, v : m._set_adq(v),
+            )
+
+
+    # now set up the 'actual' paramter
+    @property
+    def length(self):
+        # when accessing the parameter, apply the constraint transform
+        return self.raw_length_constraint.transform(self.raw_length)
+
+    @property
+    def adq(self):
+        # when accessing the parameter, apply the constraint transform
+        return self.raw_adq_constraint.transform(self.raw_adq)
+
+    @length.setter
+    def length(self, value):
+        return self._set_length(value)
+
+    @adq.setter
+    def adq(self, value):
+        return self._set_adq(value)
+
+    def _set_length(self, value):
+        if not torch.is_tensor(value):
+            value = torch.as_tensor(value).to(self.raw_length)
+        # when setting the paramater, transform the actual value to a raw one by applying the inverse transform
+        self.initialize(raw_length=self.raw_length_constraint.inverse_transform(value))
+
+    def _set_adq(self, value):
+        if not torch.is_tensor(value):
+            value = torch.as_tensor(value).to(self.raw_adq)
+        # when setting the paramater, transform the actual value to a raw one by applying the inverse transform
+        self.initialize(raw_adq=self.raw_adq_constraint.inverse_transform(value))
+
+    # this is the kernel function
+    def forward(self, x1, x2, idx1=None,idx2=None,square_dist=True, diag=False,**params):
+        # apply lengthscale
+        if idx2 is None:
+            idx2 = idx1
+
+        #A, B = torch.meshgrid(self.length[idx1].flatten() ** 2.0, self.length[idx2].flatten() ** 2.0)
+        # Below the s2i and s2j are already treated as variances
+        a2i, a2j = torch.meshgrid(self.adq[idx1].flatten(), self.adq[idx2].flatten())
+        a2i_times_a2j = a2i*a2j  #Multiplication of linear combination
+        # calculate the distance between inputs
+        diff = -1.0/(self.length) * self.covar_dist(x1, x2, square_dist=square_dist, diag=diag, **params)
+
+        return a2i_times_a2j*diff.exp_()

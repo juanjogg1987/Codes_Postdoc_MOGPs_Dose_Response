@@ -8,7 +8,7 @@ sys.path.append('..')
 from importlib import reload
 import TransferLearning_Kernels
 reload(TransferLearning_Kernels)
-from TransferLearning_Kernels import TL_Kernel_var, Kernel_ICM
+from TransferLearning_Kernels import TL_Kernel_var
 
 from numpy import linalg as la
 import numpy as np
@@ -110,8 +110,7 @@ class TLMOGaussianProcess(nn.Module):
         #self.idxT = [NDomains - 1] * xT.shape[0] * self.Douts #Replicate the target domain index as per the number of outputs
         #self.all_y = torch.cat([self.yS, self.yT])
         assert NDomains == (max(idxS)+1) #This is to assert that the Domains meant by user coincide with max label
-        #self.TLCovariance = TL_Kernel_var(NDomains=NDomains) #gpytorch.kernels.RBFKernel()
-        self.TLCovariance = Kernel_ICM(NDomains=NDomains)+Kernel_ICM(NDomains=NDomains)+Kernel_ICM(NDomains=NDomains)+Kernel_ICM(NDomains=NDomains)
+        self.TLCovariance = TL_Kernel_var(NDomains=NDomains) #gpytorch.kernels.RBFKernel()
         self.CoregCovariance = gpytorch.kernels.RBFKernel()
         self.Train_mode = True
         self.lik_std_noise = torch.nn.Parameter(1.0*torch.ones(NDomains)) #torch.tensor([0.07])
@@ -218,7 +217,7 @@ class TLMOGaussianProcess(nn.Module):
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 Nsize = 150
-Nseed = 9
+Nseed = 2
 torch.manual_seed(Nseed)
 import math
 import random
@@ -228,7 +227,7 @@ x1 = torch.rand(Nsize)[:,None]
 torch.manual_seed(Nseed)
 random.seed(Nseed)
 
-indx = torch.arange(50,100) #50,90
+indx = torch.arange(50,90)
 indx0 = torch.arange(0,100)
 #print(indx)
 x0 = x1[indx0]
@@ -269,18 +268,14 @@ plt.plot(Many_x2,Many_y2[:,1],'m.',alpha=0.5)
 # model.covariance.length=0.05
 torch.manual_seed(5)
 with torch.no_grad():
-    model.lik_std_noise=torch.nn.Parameter(0.7*torch.randn(NDomains))
-    #print(f"Check kernel {model.TLCovariance.kernels[0].length}")
-    model.TLCovariance.kernels[0].length = 0.01
-    model.TLCovariance.kernels[1].length = 0.05
-    model.TLCovariance.kernels[2].length = 0.06
-    #model.TLCovariance.length = 0.1*torch.rand(NDomains)[:,None]
-    #print(model.TLCovariance.length)
+    model.lik_std_noise=torch.nn.Parameter(torch.randn(NDomains))
+    model.TLCovariance.length = 0.1*torch.rand(NDomains)[:,None]
+    print(model.TLCovariance.length)
 print(f"Noises std: {model.lik_std_noise}")
 
 "Training process below"
 myLr = 5e-3
-Niter = 1500
+Niter = 700
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
@@ -293,7 +288,7 @@ for iter in range(Niter):
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
-    #print(model.TLCovariance.length)
+    print(model.TLCovariance.length)
     print(f"Loss: {loss.item()}")
 
 

@@ -257,7 +257,7 @@ print(f"Noises std: {model.lik_std_noise}")
 #
 "Training process below"
 myLr = 5e-3
-Niter = 200
+Niter = 300
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
@@ -279,7 +279,7 @@ print("check difference between model.eval and model.train")
 model.eval()
 model.Train_mode = False
 x_test = torch.linspace(0, 1, 200)[:,None]
-sel_concentr = 0
+sel_concentr = 1
 with torch.no_grad():
     #mpred1,Cpred1 = model(x)
     mpred, Cpred = model(x_test,DrugC_new = [DrugC[sel_concentr]],noiseless=True)
