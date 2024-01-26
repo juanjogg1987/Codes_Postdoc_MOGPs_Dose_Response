@@ -83,7 +83,7 @@ class LogMarginalLikelihood(nn.Module):
         alpha = torch.linalg.solve(L.t(), torch.linalg.solve(L, y-mu))
         N = y.shape[0]
         return -0.5*torch.matmul(y.t()-mu.t(),alpha)-torch.diag(L).log().sum()-N*0.5*torch.log(torch.tensor([2*torch.pi]))
-class TLMOGaussianProcess(nn.Module):
+class BMKMOGaussianProcess(nn.Module):
     'This model expects the data from source and target domains with:'
     'idxS as a list of labels with integer values between 0 to NDomains-2'
     'by deafult the idxT for the target domain will be labeled as NDomains-1'
@@ -111,7 +111,7 @@ class TLMOGaussianProcess(nn.Module):
         #self.all_y = torch.cat([self.yS, self.yT])
         assert NDomains == (max(idxS)+1) #This is to assert that the Domains meant by user coincide with max label
         #self.TLCovariance = TL_Kernel_var(NDomains=NDomains) #gpytorch.kernels.RBFKernel()
-        self.TLCovariance = Kernel_ICM(NDomains=NDomains)+Kernel_ICM(NDomains=NDomains)+Kernel_ICM(NDomains=NDomains)+Kernel_ICM(NDomains=NDomains)
+        self.TLCovariance = Kernel_ICM(NDomains=NDomains)+Kernel_ICM(NDomains=NDomains)+Kernel_ICM(NDomains=NDomains)#+Kernel_ICM(NDomains=NDomains)
         self.CoregCovariance = gpytorch.kernels.RBFKernel()
         self.Train_mode = True
         self.lik_std_noise = torch.nn.Parameter(1.0*torch.ones(NDomains)) #torch.tensor([0.07])
@@ -125,14 +125,11 @@ class TLMOGaussianProcess(nn.Module):
         if self.Train_mode:
             xS = torch.kron(torch.ones(self.Douts, 1), xS)
             assert (xS == self.xS).sum() == xS.shape[0] #This is just to check if the xS to init the model is the same
-            # Here we compute the Covariance matrices between source-target, source-source and target domains
-            #KTS = self.CoregCovariance(self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance(xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate()
+            # Here we compute the Covariance matrices between source-source domains
             KSS = self.CoregCovariance(self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance(xS,idx1=self.idxS).evaluate()
-            #KTT = self.CoregCovariance(self.DrugC_xT,self.DrugC_xT).evaluate()*self.TLCovariance(self.xT,idx1=self.idxT).evaluate()
 
             # Here we include the respective noise terms associated to each domain
             CSS = KSS + torch.diag(self.lik_std_noise[self.idxS].pow(2))
-            #CTT = KTT + torch.diag(self.lik_std_noise[self.idxT].pow(2))
 
             # The code below aim to correct for numerical instabilities when CSS becomes Non-PSD
             if not isPD_torch(CSS):
@@ -142,32 +139,12 @@ class TLMOGaussianProcess(nn.Module):
                 CSS = 0.0*CSS + CSS_aux  #This operation aims to keep the gradients working over lik_std_noise
 
             self.LSS = torch.linalg.cholesky(CSS)
-            #alphaSS1 = torch.linalg.solve(self.LSS, self.yS)
-            #alphaSS = torch.linalg.solve(self.LSS.t(), alphaSS1)
-
-            # Compute the mean of the conditional distribution p(yT|XT,XS,yS)
-            #self.mu_star = torch.matmul(KTS,alphaSS)
-            # Compute the Covariance of the conditional distribution p(yT|XT,XS,yS)
-            #vTT = torch.linalg.solve(self.LSS, KTS.t())
-            #C_star = CTT - torch.matmul(vTT.t(),vTT) #+ 1e-4*torch.eye(xT.shape[0])  #jitter?
-            #self.L = torch.linalg.cholesky(C_star)
             #TODO I should use a prior with mean in 1.0 so that the model predicts values in 1 when is uncertain!!
             self.mu_star = torch.zeros_like(self.yS)
             return self.mu_star, self.LSS  # here we return the mean and covariance
         else:
             "We replicate the target domain index as per the number of drug concentration we want to test"
             "notice that it is not limited to D number of outputs, but actually the number of concentrations"
-            # Here we compute the full covariance of xS and xT together
-            # xST = torch.cat([self.xS, self.xT])
-            # idxST = self.idxS + self.idxT
-            # self.DrugC_xSxT = torch.cat([self.DrugC_xS, self.DrugC_xT])
-            # all_K_xST = self.CoregCovariance(self.DrugC_xSxT).evaluate() * self.TLCovariance(xST, idx1=idxST).evaluate()
-            # all_K_xST_noise = all_K_xST + torch.diag(self.lik_std_noise[idxST].pow(2))  # + 0.1*torch.eye(xST.shape[0]) #Jitter?
-            # if not isPD_torch(all_K_xST_noise):
-            #     with torch.no_grad():
-            #         all_K_xST_noise = torch.from_numpy(nearestPD(all_K_xST_noise.numpy()))
-            # self.all_L = torch.linalg.cholesky(all_K_xST_noise)  # + 1e-4*torch.eye(xST.shape[0])
-
             # Here we receive a list of possible drug concentrations to predict
             if DrugC_new is None:
                 DrugC_new = self.DrugC
@@ -217,7 +194,7 @@ class TLMOGaussianProcess(nn.Module):
 # print(model(x2))
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-Nsize = 150
+Nsize = int(150*1)
 Nseed = 9
 torch.manual_seed(Nseed)
 import math
@@ -256,7 +233,7 @@ idx2 = [2]*y2.shape[0]
 NDomains = 3
 DrugC = [0.1,0.5]
 assert DrugC.__len__() == y0.shape[1] and DrugC.__len__() == y1.shape[1] and DrugC.__len__() == y2.shape[1]
-model = TLMOGaussianProcess(train_xS,train_yS,idxS=idx0+idx1+idx2,DrugC=DrugC,NDomains=NDomains)
+model = BMKMOGaussianProcess(train_xS,train_yS,idxS=idx0+idx1+idx2,DrugC=DrugC,NDomains=NDomains)
 plt.plot(Many_x2,Many_y2[:,0],'y.',alpha=0.5)
 plt.plot(Many_x2,Many_y2[:,1],'m.',alpha=0.5)
 
@@ -267,13 +244,16 @@ plt.plot(Many_x2,Many_y2[:,1],'m.',alpha=0.5)
 #plt.plot(x1,y1[:,1],'m.',alpha=0.5)
 
 # model.covariance.length=0.05
-torch.manual_seed(5)
+torch.manual_seed(1)
 with torch.no_grad():
     model.lik_std_noise=torch.nn.Parameter(0.7*torch.randn(NDomains))
     #print(f"Check kernel {model.TLCovariance.kernels[0].length}")
     model.TLCovariance.kernels[0].length = 0.01
     model.TLCovariance.kernels[1].length = 0.05
     model.TLCovariance.kernels[2].length = 0.06
+    for k_count in range(model.TLCovariance.kernels.__len__()):
+        model.TLCovariance.kernels[k_count].adq = 0.1*torch.randn(NDomains)[:,None]
+    #model.TLCovariance.kernels[3].length = 0.07
     #model.TLCovariance.length = 0.1*torch.rand(NDomains)[:,None]
     #print(model.TLCovariance.length)
 print(f"Noises std: {model.lik_std_noise}")

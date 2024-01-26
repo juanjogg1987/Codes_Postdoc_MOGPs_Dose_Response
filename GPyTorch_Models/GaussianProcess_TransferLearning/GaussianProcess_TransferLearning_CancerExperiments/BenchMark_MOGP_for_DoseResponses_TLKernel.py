@@ -83,7 +83,7 @@ class LogMarginalLikelihood(nn.Module):
         alpha = torch.linalg.solve(L.t(), torch.linalg.solve(L, y-mu))
         N = y.shape[0]
         return -0.5*torch.matmul(y.t()-mu.t(),alpha)-torch.diag(L).log().sum()-N*0.5*torch.log(torch.tensor([2*torch.pi]))
-class TLMOGaussianProcess(nn.Module):
+class BMKMOGaussianProcess(nn.Module):
     'This model expects the data from source and target domains with:'
     'idxS as a list of labels with integer values between 0 to NDomains-2'
     'by deafult the idxT for the target domain will be labeled as NDomains-1'
@@ -216,8 +216,8 @@ class TLMOGaussianProcess(nn.Module):
 # print(model(x2))
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-Nsize = 150
-Nseed = 2
+Nsize = int(150*1)
+Nseed = 9
 torch.manual_seed(Nseed)
 import math
 import random
@@ -227,7 +227,7 @@ x1 = torch.rand(Nsize)[:,None]
 torch.manual_seed(Nseed)
 random.seed(Nseed)
 
-indx = torch.arange(50,90)
+indx = torch.arange(50,100)
 indx0 = torch.arange(0,100)
 #print(indx)
 x0 = x1[indx0]
@@ -255,7 +255,8 @@ idx2 = [2]*y2.shape[0]
 NDomains = 3
 DrugC = [0.1,0.5]
 assert DrugC.__len__() == y0.shape[1] and DrugC.__len__() == y1.shape[1] and DrugC.__len__() == y2.shape[1]
-model = TLMOGaussianProcess(train_xS,train_yS,idxS=idx0+idx1+idx2,DrugC=DrugC,NDomains=NDomains)
+torch.manual_seed(16)
+model = BMKMOGaussianProcess(train_xS,train_yS,idxS=idx0+idx1+idx2,DrugC=DrugC,NDomains=NDomains)
 plt.plot(Many_x2,Many_y2[:,0],'y.',alpha=0.5)
 plt.plot(Many_x2,Many_y2[:,1],'m.',alpha=0.5)
 
@@ -268,14 +269,14 @@ plt.plot(Many_x2,Many_y2[:,1],'m.',alpha=0.5)
 # model.covariance.length=0.05
 torch.manual_seed(5)
 with torch.no_grad():
-    model.lik_std_noise=torch.nn.Parameter(torch.randn(NDomains))
-    model.TLCovariance.length = 0.1*torch.rand(NDomains)[:,None]
+    model.lik_std_noise=torch.nn.Parameter(0.5*torch.randn(NDomains))
+    model.TLCovariance.length = 0.01*torch.rand(NDomains)[:,None]
     print(model.TLCovariance.length)
 print(f"Noises std: {model.lik_std_noise}")
 
 "Training process below"
 myLr = 5e-3
-Niter = 700
+Niter = 1500
 optimizer = optim.Adam(model.parameters(),lr=myLr)
 loss_fn = LogMarginalLikelihood()
 
@@ -288,7 +289,7 @@ for iter in range(Niter):
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
-    print(model.TLCovariance.length)
+    #print(model.TLCovariance.length)
     print(f"Loss: {loss.item()}")
 
 

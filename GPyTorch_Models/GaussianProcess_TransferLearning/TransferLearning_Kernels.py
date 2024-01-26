@@ -457,12 +457,14 @@ class Kernel_ICM(gpytorch.kernels.Kernel):
         # apply lengthscale
         if idx2 is None:
             idx2 = idx1
-
-        #A, B = torch.meshgrid(self.length[idx1].flatten() ** 2.0, self.length[idx2].flatten() ** 2.0)
+        x1_ = x1.div(self.length)
+        x2_ = x2.div(self.length)
+        # calculate the distance between inputs
         # Below the s2i and s2j are already treated as variances
         a2i, a2j = torch.meshgrid(self.adq[idx1].flatten(), self.adq[idx2].flatten())
         a2i_times_a2j = a2i*a2j  #Multiplication of linear combination
         # calculate the distance between inputs
-        diff = -1.0/(self.length) * self.covar_dist(x1, x2, square_dist=square_dist, diag=diag, **params)
-
+        diff = -1.0 * self.covar_dist(x1_, x2_, square_dist=square_dist, diag=diag, **params)
+        # prevent divide by 0 errors
+        diff.where(diff == 0, torch.as_tensor(1e-20))
         return a2i_times_a2j*diff.exp_()
