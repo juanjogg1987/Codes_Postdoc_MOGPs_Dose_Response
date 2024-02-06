@@ -180,8 +180,8 @@ class BMKMOGaussianProcess(nn.Module):
                 print("NDomain_sel = 0 by default, this would predict for domain 0. Set NDomain_sel as per the domain to predict")
             idxS_new = [NDomain_sel] * xS.shape[0] * NewDouts  #Here xS is the new input value for which we want to pred
             DrugC_xS = torch.kron(DrugC_new, torch.ones(xS.shape[0], 1))
-            "Be careful with operation using xT.shape, from here it changes the original shape"
-            xS = torch.kron(torch.ones(NewDouts, 1), xS)
+            "Be careful with operation using xS.shape, from here it changes the original shape"
+            xS = torch.kron(torch.ones(NewDouts, 1), xS.reshape(-1)).reshape(-1, self.Pfeat)
             alpha1 = torch.linalg.solve(self.LSS, self.yS)  #Here LSS contains info of all source domains (all outputs)
             alpha = torch.linalg.solve(self.LSS.t(), alpha1)
             KSS_xnew_xnew = self.CoregCovariance(DrugC_xS).evaluate() * self.TLCovariance(xS, idx1=idxS_new).evaluate()

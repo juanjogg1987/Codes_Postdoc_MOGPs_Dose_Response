@@ -12,7 +12,7 @@ sys.path.append('..')
 from importlib import reload
 import TransferLearning_Kernels
 reload(TransferLearning_Kernels)
-from TransferLearning_Kernels import TL_Kernel_var, Kernel_CrossDomains, TLRelatedness, Kernel_ICM
+from TransferLearning_Kernels import TL_Kernel_var, Kernel_CrossDomains, TLRelatedness, Kernel_ICM,Kernel_ICM_LessParams
 
 from numpy import linalg as la
 import numpy as np
@@ -257,9 +257,12 @@ class BMKMOGaussianProcess(nn.Module):
         #self.idxT = [NDomains - 1] * xT.shape[0] * self.Douts #Replicate the target domain index as per the number of outputs
         #self.all_y = torch.cat([self.yS, self.yT])
         assert NDomains == (max(idxS)+1) #This is to assert that the Domains meant by user coincide with max label
-        #self.TLCovariance = TL_Kernel_var(NDomains=NDomains) #gpytorch.kernels.RBFKernel()
-        self.TLCovariance = Kernel_ICM(NDomains=NDomains)+Kernel_ICM(NDomains=NDomains)+Kernel_ICM(NDomains=NDomains)#+Kernel_ICM(NDomains=NDomains)
-        self.CoregCovariance = gpytorch.kernels.RBFKernel()
+        #self.TLCovariance = Kernel_ICM(NDomains=NDomains)+Kernel_ICM(NDomains=NDomains)+Kernel_ICM(NDomains=NDomains)#+Kernel_ICM(NDomains=NDomains)
+        self.TLCovariance = Kernel_ICM(NDomains=NDomains)
+        for i in range(NDomains-1):
+            self.TLCovariance += Kernel_ICM(NDomains=NDomains)
+        #self.CoregCovariance = gpytorch.kernels.RBFKernel()
+        self.CoregCovariance = [gpytorch.kernels.RBFKernel(),gpytorch.kernels.RBFKernel(),gpytorch.kernels.RBFKernel()]
         self.Train_mode = True
         self.lik_std_noise = torch.nn.Parameter(1.0*torch.ones(NDomains)) #torch.tensor([0.07])
         #self.lik_std_noise = 0.05 * torch.ones(NDomains)
@@ -270,10 +273,15 @@ class BMKMOGaussianProcess(nn.Module):
 
     def forward(self,xS, DrugC_new = None,NDomain_sel = None,noiseless = True):
         if self.Train_mode:
-            xS = torch.kron(torch.ones(self.Douts, 1), xS)
-            assert (xS == self.xS).sum() == xS.shape[0] #This is just to check if the xS to init the model is the same
+            #xS = torch.kron(torch.ones(self.Douts, 1), xS)
+            xS = torch.kron(torch.ones(self.Douts, 1), xS.reshape(-1)).reshape(-1, self.Pfeat)
+            assert (xS == self.xS).sum() == (xS.shape[0] * xS.shape[1])  # This is just to check if the xT to init the model is the same
+            assert xS.shape[1] == self.xS.shape[1]  # Thiis is to check if the xT to init the model has same Pfeatures
             # Here we compute the Covariance matrices between source-source domains
-            KSS = self.CoregCovariance(self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance(xS,idx1=self.idxS).evaluate()
+            #KSS = self.CoregCovariance(self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance(xS,idx1=self.idxS).evaluate()
+            KSS = (self.CoregCovariance[0](self.DrugC_xS, self.DrugC_xS).evaluate()+
+                   self.CoregCovariance[1](self.DrugC_xS, self.DrugC_xS).evaluate()+
+                   self.CoregCovariance[2](self.DrugC_xS, self.DrugC_xS).evaluate())* self.TLCovariance(xS,idx1=self.idxS).evaluate()
 
             # Here we include the respective noise terms associated to each domain
             CSS = KSS + torch.diag(self.lik_std_noise[self.idxS].pow(2))
@@ -306,13 +314,17 @@ class BMKMOGaussianProcess(nn.Module):
             idxS_new = [NDomain_sel] * xS.shape[0] * NewDouts  #Here xS is the new input value for which we want to pred
             DrugC_xS = torch.kron(DrugC_new, torch.ones(xS.shape[0], 1))
             "Be careful with operation using xT.shape, from here it changes the original shape"
-            xS = torch.kron(torch.ones(NewDouts, 1), xS)
+            xS = torch.kron(torch.ones(NewDouts, 1), xS.reshape(-1)).reshape(-1, self.Pfeat)
             alpha1 = torch.linalg.solve(self.LSS, self.yS)  #Here LSS contains info of all source domains (all outputs)
             alpha = torch.linalg.solve(self.LSS.t(), alpha1)
-            KSS_xnew_xnew = self.CoregCovariance(DrugC_xS).evaluate() * self.TLCovariance(xS, idx1=idxS_new).evaluate()
+            KSS_xnew_xnew = (self.CoregCovariance[0](DrugC_xS).evaluate()+
+                             self.CoregCovariance[1](DrugC_xS).evaluate()+
+                             self.CoregCovariance[2](DrugC_xS).evaluate())* self.TLCovariance(xS, idx1=idxS_new).evaluate()
 
             # Rep. Concentr. similar to coreginalisation
-            K_xnew_xS = self.CoregCovariance(DrugC_xS,self.DrugC_xS).evaluate() * self.TLCovariance(xS,self.xS, idx1=idxS_new,idx2=self.idxS).evaluate()
+            K_xnew_xS = (self.CoregCovariance[0](DrugC_xS,self.DrugC_xS).evaluate()+
+                         self.CoregCovariance[1](DrugC_xS,self.DrugC_xS).evaluate()+
+                         self.CoregCovariance[2](DrugC_xS,self.DrugC_xS).evaluate())* self.TLCovariance(xS,self.xS, idx1=idxS_new,idx2=self.idxS).evaluate()
 
             f_mu = torch.matmul(K_xnew_xS, alpha)
             v = torch.linalg.solve(self.LSS, K_xnew_xS.t())
@@ -367,14 +379,14 @@ class commandLine:
         opts, args = getopt.getopt(sys.argv[1:], 'n:r:p:w:s:t:i:d:')
         # opts = dict(opts)
         # print(opts)
-        self.N_iter = 3    #number of iterations
+        self.N_iter = 40    #number of iterations
         self.which_seed = 35    #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = "None"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 0
         self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
-        self.which_drug = 1057   #This is the drug we will select as test for the target domain.
+        self.which_drug = 1059#1560   #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
             # print(op,arg)
@@ -600,60 +612,63 @@ yT_test = torch.from_numpy(yT_test)
 "There are CosmicID_labels.__len__() cell-lines or CosmicIDs in the Source (Melanoma) + 1 cell-line of the Target"
 "Then the total NDomains = CosmicID_labels.__len__() + 1"
 NDomains = CosmicID_labels.__len__() + 1 #CosmicID_labels.__len__() contains the CosmicIDs of Source Domains
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+idx_T = [NDomains - 1] * xT_train.shape[0]   #Here we generate the label for the target domain
+yS_train = torch.cat([yS_train,yT_train])
+xS_train = torch.cat([xS_train,xT_train])
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 print(f"Number Nsource Domains: {CosmicID_labels.__len__()}, so total NDomains Source + Target: {NDomains}")
 DrugC = list(np.linspace(0.142857,1.0,7))
 assert DrugC.__len__() == yS_train.shape[1] and DrugC.__len__() == yT_train.shape[1]
-model = BMKMOGaussianProcess(xS_train,yS_train,idxS=idx_S,DrugC=DrugC,NDomains=NDomains-1)
+model = BMKMOGaussianProcess(xS_train,yS_train,idxS=idx_S+idx_T,DrugC=DrugC,NDomains=NDomains)
 #TODO I need to work on a general way to create a linear combination of Q kernels_ICM
 
-# myseed = int(config.which_seed)
-# torch.manual_seed(myseed)   #Ex1: 15 (run 100 iter)  #Exp2 (906826): 35  (run 100 iter)
-# with torch.no_grad():
-#     #model.lik_std_noise= torch.nn.Parameter(0.5*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
-#     model.lik_std_noise = torch.nn.Parameter(1.0*torch.randn(NDomains))
-#     model.TLCovariance[0].length = float(config.weight)*2.*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None]
-#     model.TLCovariance[1].length = float(config.weight)*6.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
-#     model.TLCovariance[2].length = float(config.weight)*10.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
-#     model.CoregCovariance[0].lengthscale = torch.rand(1) #1*
-#     model.CoregCovariance[1].lengthscale = torch.rand(1)  #1*
-#     model.CoregCovariance[2].lengthscale = torch.rand(1)  #1*
-#     model.LambdaDiDj.muDi = torch.rand(NDomains)[:, None]
-#     model.LambdaDiDj.bDi = torch.rand(NDomains)[:, None]
-#     #print(model.LambdaDiDj.muDi)
-# #print(f"Noises std: {model.lik_std_noise}")
-#
-# "Training process below"
-# def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
-#     optimizer = optim.Adam(model.parameters(),lr=myLr)
-#     loss_fn = LogMarginalLikelihood()
-#
-#     for iter in range(Niter):
-#         # Forward pass
-#         mu, L = model(xT_train)
-#
-#         # Backprop
-#         loss = -loss_fn(mu,L,yT_train)
-#         optimizer.zero_grad()
-#         loss.backward()
-#         optimizer.step()
-#         if iter==100:  #70
-#             optimizer.param_groups[0]['lr']=3e-3
-#         #print(model.TLCovariance.length)
-#         print(f"i: {iter+1}, Loss: {loss.item()}")
-#
-# "Train the model with all yT training data"
-# myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = int(config.N_iter))
-# def bypass_params(model_trained,model_cv):
-#     model_cv.lik_std_noise = model_trained.lik_std_noise
-#     model_cv.TLCovariance[0].length = model_trained.TLCovariance[0].length.clone()
-#     model_cv.TLCovariance[1].length = model_trained.TLCovariance[1].length.clone()
-#     model_cv.TLCovariance[2].length = model_trained.TLCovariance[2].length.clone()
-#     model_cv.CoregCovariance[0].lengthscale = model_trained.CoregCovariance[0].lengthscale.clone()
-#     model_cv.CoregCovariance[1].lengthscale = model_trained.CoregCovariance[1].lengthscale.clone()
-#     model_cv.CoregCovariance[2].lengthscale = model_trained.CoregCovariance[2].lengthscale.clone()
-#     model_cv.LambdaDiDj.muDi = model_trained.LambdaDiDj.muDi.clone()
-#     model_cv.LambdaDiDj.bDi = model_trained.LambdaDiDj.bDi.clone()
-#
+myseed = int(config.which_seed)
+torch.manual_seed(myseed)   #Ex1: 15 (run 100 iter)  #Exp2 (906826): 35  (run 100 iter)
+with torch.no_grad():
+    model.lik_std_noise = torch.nn.Parameter(1.0*torch.randn(NDomains))
+    for i_kern in range(model.TLCovariance.kernels.__len__()):
+        #model.TLCovariance.kernels[i_kern].adq = 0.2*torch.randn(NDomains)[:,None]
+        model.TLCovariance.kernels[i_kern].length = 2.*np.sqrt(xS_train.shape[1])*torch.rand(1)
+
+    # model.CoregCovariance[0].lengthscale = torch.rand(1) #1*
+    # model.CoregCovariance[1].lengthscale = torch.rand(1)  #1*
+    # model.CoregCovariance[2].lengthscale = torch.rand(1)  #1*
+    #print(model.LambdaDiDj.muDi)
+#print(f"Noises std: {model.lik_std_noise}")
+
+"Training process below"
+def myTrain(model,x_train,y_train,myLr = 1e-2,Niter = 1):
+    optimizer = optim.Adam(model.parameters(),lr=myLr)
+    loss_fn = LogMarginalLikelihood()
+
+    for iter in range(Niter):
+        # Forward pass
+        mu, L = model(x_train)
+
+        # Backprop
+        loss = -loss_fn(mu,L,y_train)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        if iter==100:  #70
+            optimizer.param_groups[0]['lr']=3e-3
+        #print(model.TLCovariance.length)
+        print(f"i: {iter+1}, Loss: {loss.item()}")
+
+"Train the model with all yT training data"
+myTrain(model,xS_train,yS_train,myLr = 3e-2,Niter = int(config.N_iter))
+def bypass_params(model_trained,model_cv):
+    model_cv.lik_std_noise = model_trained.lik_std_noise
+    model_cv.TLCovariance[0].length = model_trained.TLCovariance[0].length.clone()
+    model_cv.TLCovariance[1].length = model_trained.TLCovariance[1].length.clone()
+    model_cv.TLCovariance[2].length = model_trained.TLCovariance[2].length.clone()
+    model_cv.CoregCovariance[0].lengthscale = model_trained.CoregCovariance[0].lengthscale.clone()
+    model_cv.CoregCovariance[1].lengthscale = model_trained.CoregCovariance[1].lengthscale.clone()
+    model_cv.CoregCovariance[2].lengthscale = model_trained.CoregCovariance[2].lengthscale.clone()
+    model_cv.LambdaDiDj.muDi = model_trained.LambdaDiDj.muDi.clone()
+    model_cv.LambdaDiDj.bDi = model_trained.LambdaDiDj.bDi.clone()
+
 # "Leave one out cross-validation"
 # Val_LML = LogMarginalLikelihood()
 # TestLogLoss_All = []
@@ -706,146 +721,147 @@ model = BMKMOGaussianProcess(xS_train,yS_train,idxS=idx_S,DrugC=DrugC,NDomains=N
 # f = open(path_val+'Validation.txt', "a")
 # f.write(f"\nbash{str(config.bash)}, ValLogLoss:{np.mean(TestLogLoss_All)}, CrossVal_N:{yT_train.shape[0]}")
 # f.close()
-#
-# "Here we have to assign the flag to change from self.Train_mode = True to False"
-# print("check difference between model.eval and model.train")
-# model.eval()
-# model.Train_mode = False
-# plot_test = True
-# if plot_test:
-#     x_test = xT_test.clone()
-#     y_test = yT_test.clone()
-#     Name_DrugID_plot = Name_DrugID_test
-#     plotname = 'Test'
-# else:
-#     x_test = xT_train.clone()
-#     y_test = yT_train.clone()
-#     Name_DrugID_plot = Name_DrugID_train
-#     plotname = 'Train'
-#
-# "The Oversample_N below is to generate equaly spaced drug concentrations between the original 7 drug concentrations"
-# "i.e., if Oversample_N = 2: means that each 2 positions we'd have the original drug concentration tested in cell-line"
-# "we'd have DrugCtoPred = [0.1428, 0.2142, 0.2857, 0.3571,0.4285,0.4999,0.5714,0.6428,0.7142,0.7857,0.8571,0.9285,1.0]"
-# Oversample_N = 15
-# DrugCtoPred = list(np.linspace(0.142857,1,7+6*(Oversample_N-1)))
-# "Below we refer as exact in the sense that those are the exact location of drug concent. for which we have exact data"
-# DrugCtoPred_exact = list(np.linspace(0.142857, 1, 7))
-# #DrugCtoPred = list(np.linspace(0.142857,1,28))
-# sel_concentr = 0
-# with torch.no_grad():
-#     mpred, Cpred = model(x_test,DrugC_new = DrugCtoPred,noiseless=False)
-#     "To assess the TestLogLoss we have to also include the noise uncertainty, so we use noiseless=False"
-#     mpred_exact, Cpred_exact = model(x_test, DrugC_new=DrugCtoPred_exact, noiseless=False)
-#     Lpred_exact = torch.linalg.cholesky(Cpred_exact)  # Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
-#     Test_loss = -Val_LML(mpred_exact, Lpred_exact, y_test)
-#     print(f"Test Loss: {Test_loss.item()}")
-#
-# yT_pred = mpred.reshape(DrugCtoPred.__len__(),x_test.shape[0]).T
-#
-# "Compute AUC of prediction"
-# AUC_pred = []
-# Ncurves = yT_pred.shape[0]
-# for i in range(Ncurves):
-#     AUC_pred.append(metrics.auc(DrugCtoPred, yT_pred[i,:]))
-# AUC_pred = np.array(AUC_pred)[:,None]
-#
-# "Compute IC50 of prediction"
-# x_dose_new = np.array(DrugCtoPred)
-# Ydose50_pred = []
-# IC50_pred = []
-# Emax_pred = []
-# for i in range(Ncurves):
-#     y_resp_interp = yT_pred[i,:].clone() #pchip_interpolate(x_dose, y_resp, x_dose_new)
-#
-#     Emax_pred.append(y_resp_interp[-1])
-#
-#     res1 = y_resp_interp < 0.507
-#     res2 = y_resp_interp > 0.493
-#     res_aux = np.where(res1 & res2)[0]
-#     if (res1 & res2).sum() > 0:
-#         res_IC50 = np.arange(res_aux[0], res_aux[0] + res_aux.shape[0]) == res_aux
-#         res_aux = res_aux[res_IC50].copy()
-#     else:
-#         res_aux = res1 & res2
-#
-#     if (res1 & res2).sum() > 0:
-#         Ydose50_pred.append(y_resp_interp[res_aux].mean())
-#         IC50_pred.append(x_dose_new[res_aux].mean())
-#     elif y_resp_interp[-1] < 0.5:
-#         for dose_j in range(x_dose_new.shape[0]):
-#             if (y_resp_interp[dose_j] < 0.5):
-#                 break
-#         Ydose50_pred.append(y_resp_interp[dose_j])
-#         aux_IC50 = x_dose_new[dose_j]  # it has to be a float not an array to avoid bug
-#         IC50_pred.append(aux_IC50)
-#     else:
-#         Ydose50_pred.append(0.5)
-#         IC50_pred.append(1.5)
-#
-# IC50_pred = np.array(IC50_pred)[:,None]
-# Emax_pred = np.array(Emax_pred)[:,None]
-#
-# "Below we use ::Oversample_N in order to obtain the exact locations of drug concentration for which we have data"
-# "in order to compute the error between the yT_test (true observed values) and the yT_pred (predicted)"
-# if plot_test:
-#     Test_MSE = torch.mean((yT_test-yT_pred[:,::Oversample_N])**2)
-#     print(f"Test_MSE: {Test_MSE}")
-#     AUC_test = AUC[idx_test]
-#     print(f"Test AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
-#     IC50_test = IC50[idx_test]
-#     print(f"Test IC50_MSE:{np.mean((IC50_pred - IC50_test)**2)}")
-#     Emax_test = Emax[idx_test]
-#     print(f"Test Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
-# else:
-#     "Here we just allow the errors of training when we wish to explore their specific values"
-#     Train_MSE = torch.mean((yT_train - yT_pred[:, ::Oversample_N]) ** 2)
-#     print(f"Train_MSE: {Train_MSE}")
-#     AUC_test = AUC[idx_train]
-#     print(f"Train AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
-#     IC50_test = IC50[idx_train]
-#     print(f"Train IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}")
-#     Emax_test = Emax[idx_train]
-#     print(f"Train Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
-#
+
+"Here we have to assign the flag to change from self.Train_mode = True to False"
+print("check difference between model.eval and model.train")
+model.eval()
+model.Train_mode = False
+plot_test = True
+if plot_test:
+    x_test = xT_test.clone()
+    y_test = yT_test.clone()
+    Name_DrugID_plot = Name_DrugID_test
+    plotname = 'Test'
+else:
+    x_test = xT_train.clone()
+    y_test = yT_train.clone()
+    Name_DrugID_plot = Name_DrugID_train
+    plotname = 'Train'
+
+"The Oversample_N below is to generate equaly spaced drug concentrations between the original 7 drug concentrations"
+"i.e., if Oversample_N = 2: means that each 2 positions we'd have the original drug concentration tested in cell-line"
+"we'd have DrugCtoPred = [0.1428, 0.2142, 0.2857, 0.3571,0.4285,0.4999,0.5714,0.6428,0.7142,0.7857,0.8571,0.9285,1.0]"
+Oversample_N = 15
+DrugCtoPred = list(np.linspace(0.142857,1,7+6*(Oversample_N-1)))
+"Below we refer as exact in the sense that those are the exact location of drug concent. for which we have exact data"
+DrugCtoPred_exact = list(np.linspace(0.142857, 1, 7))
+#DrugCtoPred = list(np.linspace(0.142857,1,28))
+sel_concentr = 0
+with torch.no_grad():
+    #model(x_test, DrugC_new=[DrugC[sel_concentr]], NDomain_sel=2, noiseless=True)
+    mpred, Cpred = model(x_test,DrugC_new = DrugCtoPred, NDomain_sel=54,noiseless=False)
+    "To assess the TestLogLoss we have to also include the noise uncertainty, so we use noiseless=False"
+    mpred_exact, Cpred_exact = model(x_test, DrugC_new=DrugCtoPred_exact, NDomain_sel=54, noiseless=False)
+    Lpred_exact = torch.linalg.cholesky(Cpred_exact)  # Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
+    #Test_loss = -Val_LML(mpred_exact, Lpred_exact, y_test)
+    #print(f"Test Loss: {Test_loss.item()}")
+
+yT_pred = mpred.reshape(DrugCtoPred.__len__(),x_test.shape[0]).T
+
+"Compute AUC of prediction"
+AUC_pred = []
+Ncurves = yT_pred.shape[0]
+for i in range(Ncurves):
+    AUC_pred.append(metrics.auc(DrugCtoPred, yT_pred[i,:]))
+AUC_pred = np.array(AUC_pred)[:,None]
+
+"Compute IC50 of prediction"
+x_dose_new = np.array(DrugCtoPred)
+Ydose50_pred = []
+IC50_pred = []
+Emax_pred = []
+for i in range(Ncurves):
+    y_resp_interp = yT_pred[i,:].clone() #pchip_interpolate(x_dose, y_resp, x_dose_new)
+
+    Emax_pred.append(y_resp_interp[-1])
+
+    res1 = y_resp_interp < 0.507
+    res2 = y_resp_interp > 0.493
+    res_aux = np.where(res1 & res2)[0]
+    if (res1 & res2).sum() > 0:
+        res_IC50 = np.arange(res_aux[0], res_aux[0] + res_aux.shape[0]) == res_aux
+        res_aux = res_aux[res_IC50].copy()
+    else:
+        res_aux = res1 & res2
+
+    if (res1 & res2).sum() > 0:
+        Ydose50_pred.append(y_resp_interp[res_aux].mean())
+        IC50_pred.append(x_dose_new[res_aux].mean())
+    elif y_resp_interp[-1] < 0.5:
+        for dose_j in range(x_dose_new.shape[0]):
+            if (y_resp_interp[dose_j] < 0.5):
+                break
+        Ydose50_pred.append(y_resp_interp[dose_j])
+        aux_IC50 = x_dose_new[dose_j]  # it has to be a float not an array to avoid bug
+        IC50_pred.append(aux_IC50)
+    else:
+        Ydose50_pred.append(0.5)
+        IC50_pred.append(1.5)
+
+IC50_pred = np.array(IC50_pred)[:,None]
+Emax_pred = np.array(Emax_pred)[:,None]
+
+"Below we use ::Oversample_N in order to obtain the exact locations of drug concentration for which we have data"
+"in order to compute the error between the yT_test (true observed values) and the yT_pred (predicted)"
+if plot_test:
+    Test_MSE = torch.mean((yT_test-yT_pred[:,::Oversample_N])**2)
+    print(f"Test_MSE: {Test_MSE}")
+    AUC_test = AUC[idx_test]
+    print(f"Test AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
+    IC50_test = IC50[idx_test]
+    print(f"Test IC50_MSE:{np.mean((IC50_pred - IC50_test)**2)}")
+    Emax_test = Emax[idx_test]
+    print(f"Test Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
+else:
+    "Here we just allow the errors of training when we wish to explore their specific values"
+    Train_MSE = torch.mean((yT_train - yT_pred[:, ::Oversample_N]) ** 2)
+    print(f"Train_MSE: {Train_MSE}")
+    AUC_test = AUC[idx_train]
+    print(f"Train AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
+    IC50_test = IC50[idx_train]
+    print(f"Train IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}")
+    Emax_test = Emax[idx_train]
+    print(f"Train Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
+
 # "Here we save the Test Log Loss metric in the same folder path_val where we had also saved the Validation Log Loss"
 # f = open(path_val + 'Test.txt', "a")
 # f.write(f"\nbash{str(config.bash)}, TestLogLoss:{Test_loss.item()}, IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}, AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}, Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}, CrossVal_N:{yT_train.shape[0]}")
 # f.close()
-#
-# "Plot the prediction for the test yT"
-# from torch.distributions.multivariate_normal import MultivariateNormal
-# plt.close('all')
-# #plt.switch_backend('agg')
-# for i in range(x_test.shape[0]):
-#     plt.figure(i+1)
-#     plt.ylim([-0.02,1.1])
-#     #plt.plot(x,mpred1,'.')
-#     plt.plot(DrugCtoPred,yT_pred[i,:],'blue')
-#     #plt.plot(IC50_pred[i],0.5,'x')   # Plot an x in predicted IC50 location
-#     #plt.plot(x_lin, np.ones_like(x_lin) * Emax_pred[i], 'r')  # Plot a horizontal line as Emax
-#     if plot_test:
-#         plt.plot(DrugC, yT_test[i,:], 'ro')
-#     else:
-#         plt.plot(DrugC, yT_train[i, :], 'ro')
-#
-#     plt.title(f"CosmicID: {CosmicID_target}, {plotname} DrugID: {Name_DrugID_plot[i]}",fontsize=14)
-#     plt.xlabel('Dose concentration',fontsize=14)
-#     plt.ylabel('Cell viability',fontsize=14)
-#     plt.grid(True)
-#
-#     # for j in range(30):
-#     #     i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
-#     #     yT_pred_sample = i_sample.sample().reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
-#     #     plt.plot(DrugCtoPred, yT_pred_sample[i, :], alpha=0.1)
-#
-#     std_pred = torch.sqrt(torch.diag(Cpred)).reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
-#     plt.plot(DrugCtoPred, yT_pred[i, :]+2.0*std_pred[i,:], '--b')
-#     plt.plot(DrugCtoPred, yT_pred[i, :] - 2.0 * std_pred[i, :], '--b')
-#
-#     # check whether directory already exists
-#     path_plot = path_val + 'Test_plot/'
-#     if not os.path.exists(path_plot):
-#         # os.mkdir(path_val)   #Use this for a single dir
-#         os.makedirs(path_plot)  # Use this for a multiple sub dirs
-#     plt.savefig(path_plot+'plotbash'+str(config.bash)+'.pdf')
+
+"Plot the prediction for the test yT"
+from torch.distributions.multivariate_normal import MultivariateNormal
+plt.close('all')
+#plt.switch_backend('agg')
+for i in range(x_test.shape[0]):
+    plt.figure(i+1)
+    plt.ylim([-0.02,1.1])
+    #plt.plot(x,mpred1,'.')
+    plt.plot(DrugCtoPred,yT_pred[i,:],'blue')
+    #plt.plot(IC50_pred[i],0.5,'x')   # Plot an x in predicted IC50 location
+    #plt.plot(x_lin, np.ones_like(x_lin) * Emax_pred[i], 'r')  # Plot a horizontal line as Emax
+    if plot_test:
+        plt.plot(DrugC, yT_test[i,:], 'ro')
+    else:
+        plt.plot(DrugC, yT_train[i, :], 'ro')
+
+    plt.title(f"CosmicID: {CosmicID_target}, {plotname} DrugID: {Name_DrugID_plot[i]}",fontsize=14)
+    plt.xlabel('Dose concentration',fontsize=14)
+    plt.ylabel('Cell viability',fontsize=14)
+    plt.grid(True)
+
+    # for j in range(30):
+    #     i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
+    #     yT_pred_sample = i_sample.sample().reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
+    #     plt.plot(DrugCtoPred, yT_pred_sample[i, :], alpha=0.1)
+
+    std_pred = torch.sqrt(torch.diag(Cpred)).reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
+    plt.plot(DrugCtoPred, yT_pred[i, :]+2.0*std_pred[i,:], '--b')
+    plt.plot(DrugCtoPred, yT_pred[i, :] - 2.0 * std_pred[i, :], '--b')
+
+    # # check whether directory already exists
+    # path_plot = path_val + 'Test_plot/'
+    # if not os.path.exists(path_plot):
+    #     # os.mkdir(path_val)   #Use this for a single dir
+    #     os.makedirs(path_plot)  # Use this for a multiple sub dirs
+    # plt.savefig(path_plot+'plotbash'+str(config.bash)+'.pdf')
 
