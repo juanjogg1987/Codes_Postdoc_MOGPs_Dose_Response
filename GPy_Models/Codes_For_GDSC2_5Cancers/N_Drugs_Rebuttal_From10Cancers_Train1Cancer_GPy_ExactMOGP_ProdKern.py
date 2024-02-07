@@ -43,7 +43,7 @@ class commandLine:
         self.weight = 1
         self.bash = "1"
         self.N_CellLines_perc = 100   #Here we treat this variable as percentage. Try to put this values as multiple of Num_drugs?
-        self.sel_cancer = 3
+        self.sel_cancer = 1
         self.seed_for_N = 1
 
         for op, arg in opts:
@@ -408,6 +408,12 @@ for Nfold in range(nsplits,-1,-1):
     "Below we substract one due to being the label associated to the output"
     Dim = Xtrain.shape[1]-1
 
+    AddKern_dict = {0: [95, 389, 407, Dim], 1: [89, 416, 435, Dim],
+                    2: [28, 300, 319, Dim], 3: [97, 429, 448, Dim],
+                    4: [116, 471, 478, Dim],5: [56, 307, 349, Dim],
+                    6: [52, 335, 344, Dim], 7: [235, 461, 493, Dim],
+                    8: [98, 437, 456, Dim], 9: [132, 245, 264, Dim]}
+
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     #num_latents = int(config.num_latentGPs) #9
@@ -433,7 +439,8 @@ for Nfold in range(nsplits,-1,-1):
     #TODO: due to having different features per cancer. A features can have std = 0 for one cancer, but not for other
     split_dim = 4
     #AddKern_loc = [279, 697,768,Dim]
-    AddKern_loc = [89, 416, 435, Dim]
+    AddKern_loc = AddKern_dict[int(config.sel_cancer)]
+    #AddKern_loc = [89, 416, 435, Dim]
     mykern = GPy.kern.RBF(AddKern_loc[0], active_dims=list(np.arange(0, AddKern_loc[0])))
     print(list(np.arange(0, AddKern_loc[0])))
     for i in range(1, split_dim):
@@ -455,7 +462,7 @@ for Nfold in range(nsplits,-1,-1):
     #model.optimize(optimizer='lbfgsb',messages=True,max_iters=30)
     #model.optimize(max_iters=int(config.N_iter_epoch))
     if Nfold == nsplits:
-        model.optimize(optimizer='adam',messages=True,max_iters=50,ipython_notebook=False,step_rate=0.01)
+        model.optimize(optimizer='adam',messages=True,max_iters=500,ipython_notebook=False,step_rate=0.01)
         model_all = model
     else:
         bypass_model_params(model_all,model)
@@ -539,17 +546,20 @@ for Nfold in range(nsplits,-1,-1):
     AUC_pred = np.array(AUC_pred)[:, None]
     Emax_pred = np.array(Emax_pred)[:, None]
 
-    posy = 0
-    plt.figure(Nfold+nsplits+2)
-    plt.plot(x_dose_new, Y_pred_interp_all[posy])
-    plt.plot(x_dose_new, std_upper_interp_all[posy],'b--')
-    plt.plot(x_dose_new, std_lower_interp_all[posy], 'b--')
-    plt.plot(x_dose, Yval_curve[posy, :], '.')
-    plt.plot(IC50_pred[posy], Ydose50_pred[posy], 'rx')
-    plt.plot(x_dose_new, np.ones_like(x_dose_new) * Emax_pred[posy], 'r')  # Plot a horizontal line as Emax
-    plt.plot(x_dose_new, np.ones_like(x_dose_new) * Emax_val[posy], 'r')  # Plot a horizontal line as Emax
-    plt.title(f"AUC = {AUC_pred[posy]}")
-    print(AUC_pred[posy])
+    #posy = 0
+    if Nfold == nsplits:
+        for posy in range(Y_pred_interp_all.__len__()):
+            plt.figure(Nfold+nsplits+2+posy)
+            plt.plot(x_dose_new, Y_pred_interp_all[posy])
+            plt.plot(x_dose_new, std_upper_interp_all[posy],'b--')
+            plt.plot(x_dose_new, std_lower_interp_all[posy], 'b--')
+            plt.plot(x_dose, Yval_curve[posy, :], '.')
+            #plt.plot(IC50_pred[posy], Ydose50_pred[posy], 'rx')
+            #plt.plot(x_dose_new, np.ones_like(x_dose_new) * Emax_pred[posy], 'r')  # Plot a horizontal line as Emax
+            #plt.plot(x_dose_new, np.ones_like(x_dose_new) * Emax_val[posy], 'r')  # Plot a horizontal line as Emax
+            plt.title(f"AUC = {AUC_pred[posy]}")
+            plt.ylim([-0.05,1.2])
+    #print(AUC_pred[posy])
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
