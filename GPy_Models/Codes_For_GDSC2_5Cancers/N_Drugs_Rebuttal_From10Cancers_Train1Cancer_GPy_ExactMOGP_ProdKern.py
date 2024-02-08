@@ -7,7 +7,7 @@ warnings.filterwarnings("ignore")
 from sklearn.preprocessing import MinMaxScaler
 import os
 
-#_FOLDER = "/home/ac1jjgg/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
+#_FOLDER = "/rds/general/user/jgiraldo/home/Dataset_5Cancers/GDSC2_10drugs/" #HPC path
 _FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_10drugs/"
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -36,7 +36,7 @@ class commandLine:
         opts, args = getopt.getopt(sys.argv[1:], 'i:s:k:w:r:p:c:a:n:')
         # opts = dict(opts)
         # print(opts)
-        self.N_iter_epoch = 1200    #number of iterations
+        self.N_iter = 700    #number of iterations
         self.which_seed = 1011    #change seed to initialise the hyper-parameters
         self.rank = 7
         self.scale = 1
@@ -49,7 +49,7 @@ class commandLine:
         for op, arg in opts:
             # print(op,arg)
             if op == '-i':
-                self.N_iter_epoch = arg
+                self.N_iter = arg
             if op == '-r':  # (r)and seed
                 self.which_seed = arg
             if op == '-k':  # ran(k)
@@ -314,6 +314,22 @@ def bypass_model_params(model1,model2):
     model2.Gaussian_noise.variance = model1.Gaussian_noise.variance
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"This is a function to just select the features related to ID, include IC50, Emax, AUC and get rid of genomics features"
+def SummaryMetrics_DataFrameTest(df_4Cancers_test):
+    df_4Cancers_test = df_4Cancers_test[df_4Cancers_test.columns[0:25]]
+
+    for i in range(7):
+        df_4Cancers_test['norm_cell_' + str(i + 1) + '_MOGP'] = m_pred_curve[:, i]
+
+    df_4Cancers_test['AUC_MOGP'] = AUC_pred
+    df_4Cancers_test['AUC_s4'] = AUC_val
+    df_4Cancers_test['Emax_MOGP'] = Emax_pred
+    df_4Cancers_test['Emax_s4'] = Emax_val
+    df_4Cancers_test['IC50_MOGP'] = IC50_pred
+    df_4Cancers_test['IC50_s4'] = IC50_val
+    return df_4Cancers_test
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Create a K-fold for cross-validation"
 from sklearn.model_selection import KFold, cross_val_score
 Ndata = Xall.shape[0]
@@ -408,6 +424,8 @@ for Nfold in range(nsplits,-1,-1):
     "Below we substract one due to being the label associated to the output"
     Dim = Xtrain.shape[1]-1
 
+    "For each cancer the feature that are actually informative change, so"
+    "We created the dict below to properly assign the active features per kernel as per the cancer type"
     AddKern_dict = {0: [95, 389, 407, Dim], 1: [89, 416, 435, Dim],
                     2: [28, 300, 319, Dim], 3: [97, 429, 448, Dim],
                     4: [116, 471, 478, Dim],5: [56, 307, 349, Dim],
@@ -416,10 +434,6 @@ for Nfold in range(nsplits,-1,-1):
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    #num_latents = int(config.num_latentGPs) #9
-    #num_tasks = Ytrain.shape[1]
-    #split_dim = int(config.split_dim)
-    #num_inducing = int(config.inducing)
 
     myseed = int(config.which_seed)
     np.random.seed(myseed)
@@ -459,10 +473,8 @@ for Nfold in range(nsplits,-1,-1):
     model = GPy.models.GPRegression(Xtrain, Ytrain, kern)
     Init_Ws = float(config.weight) * np.random.randn(Ntasks,rank)
     model.kern.coregion.W = Init_Ws
-    #model.optimize(optimizer='lbfgsb',messages=True,max_iters=30)
-    #model.optimize(max_iters=int(config.N_iter_epoch))
     if Nfold == nsplits:
-        model.optimize(optimizer='adam',messages=True,max_iters=500,ipython_notebook=False,step_rate=0.01)
+        model.optimize(optimizer='adam',messages=True,max_iters=int(config.N_iter),ipython_notebook=False,step_rate=0.01)
         model_all = model
     else:
         bypass_model_params(model_all,model)
@@ -598,26 +610,16 @@ for Nfold in range(nsplits,-1,-1):
         AllPred_MSE_AllFolds.append(AllPred_MSE.copy())
         Spearman_AllFolds.append(spear_corr_all)
         SpearActualIC50_AllFolds.append(spear_corr_actualIC50)
+    else:
+        df_4Cancers_test = SummaryMetrics_DataFrameTest(df_4Cancers_test)
     #break
     print("Yval shape",Yval.shape)
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-# """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-# """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-# "Here we just select the features related to ID and get rid of genomics features"
-# df_4Cancers_test = df_4Cancers_test[df_4Cancers_test.columns[0:25]]
-#
-# for i in range(7):
-#     df_4Cancers_test['norm_cell_'+str(i+1)+'_MOGP'] = m_pred_curve[:,i]
-#
-# df_4Cancers_test['AUC_MOGP'] = AUC_pred
-# df_4Cancers_test['AUC_s4'] = AUC_val
-# df_4Cancers_test['Emax_MOGP'] = Emax_pred
-# df_4Cancers_test['Emax_s4'] = Emax_val
-# df_4Cancers_test['IC50_MOGP'] = IC50_pred
-# df_4Cancers_test['IC50_s4'] = IC50_val
-#
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
 # "Save model and predictions"
 #
 # path_cancer = './N_drugs_'+str(Num_drugs)+'/Cancer_'+str(config.sel_cancer)+'/Train'+str(N_CellLines_perc)+'/seed'+str(rand_state_N)+'/'
