@@ -30,29 +30,10 @@ Seeds_for_N = [1]
 Test_cancers = [int(config.Test_cancer)]
 
 #path_file = '/rds/general/user/jgiraldo/home/TransferLearning_Results/Jobs_TLMOGP_OneCell_OneDrug_Testing/'
-path_file = './bash_Cancer'+str(Test_cancers[0])+'_Train1Cancer_GPyjobs_N_Drugs_GPy_ExactMOGP_ProdKern/'
+path_file = './JobsRebuttal_Cancer'+str(Test_cancers[0])+'_Train1Cancer_GPyjobs_N_Drugs_GPy_ExactMOGP_ProdKern/'
 if not os.path.exists(path_file):
     # os.mkdir(path_file)   #Use this for a single dir
     os.makedirs(path_file)  #Use this for a multiple sub dirs
-
-# if op == '-i':
-#     self.N_iter = arg
-# if op == '-r':  # (r)and seed
-#     self.which_seed = arg
-# if op == '-k':  # ran(k)
-#     self.rank = arg
-# if op == '-s':  # (r)and seed
-#     self.scale = arg
-# if op == '-p':  # (p)ython bash
-#     self.bash = arg
-# if op == '-w':
-#     self.weight = arg
-# if op == '-c':
-#     self.N_CellLines_perc = arg
-# if op == '-a':
-#     self.sel_cancer = arg
-# if op == '-n':
-#     self.seed_for_N = arg
 
 mycount = 0
 for myseed in seeds:
@@ -64,11 +45,11 @@ for myseed in seeds:
                         for sel_cancer in Test_cancers:
                             "Here we save the Validation Log Loss in path_val in order to have a list of different bashes to select the best model"
                             f = open(path_file + 'bash' + str(mycount) + '.sh', "w")
-                            f.write(f"\n#PBS -l walltime=00:30:00")
-                            f.write(f"\n#PBS -l select=1:ncpus=32:mem=16gb")
+                            f.write(f"\n#PBS -l walltime=01:30:00")
+                            f.write(f"\n#PBS -l select=1:ncpus=32:mem=24gb")
                             f.write(f"\n\nmodule load anaconda3/personal\nsource activate py38_gpy")
                             f.write(
                                 f"\n\npython /rds/general/user/jgiraldo/home/PaperPrecisionOncology_Rebuttal/N_Drugs_Rebuttal_From10Cancers_Train1Cancer_GPy_ExactMOGP_ProdKern.py")
-                            f.write(f" -i {1000} -r {myseed} -k {k} -s {scale} -p {mycount} -w {w} -c {N_Cells} -a {sel_cancer} -n {Seed_N}")
+                            f.write(f" -i {800} -r {myseed} -k {k} -s {scale} -p {mycount} -w {w} -c {N_Cells} -a {sel_cancer} -n {Seed_N}")
                             f.close()
                             mycount = mycount + 1

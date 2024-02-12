@@ -102,10 +102,8 @@ df_to_read = pd.read_csv(_FOLDER + name_for_KLrelevance)  # .sample(n=N_CellLine
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Split of Training and Testing data"
-df_4Cancers_traintest_d1 = df_to_read[
-    df_to_read["DRUG_ID"] == 1012]  # .sample(n=N_CellLines,random_state = rand_state_N)
-df_4Cancers_traintest_d2 = df_to_read[
-    df_to_read["DRUG_ID"] == 1021]  # .sample(n=N_CellLines,random_state = rand_state_N)
+df_4Cancers_traintest_d1 = df_to_read[df_to_read["DRUG_ID"] == 1012]  # .sample(n=N_CellLines,random_state = rand_state_N)
+df_4Cancers_traintest_d2 = df_to_read[df_to_read["DRUG_ID"] == 1021]  # .sample(n=N_CellLines,random_state = rand_state_N)
 df_4Cancers_traintest_d3 = df_to_read[df_to_read["DRUG_ID"] == 1036]  # .sample(n=N_CellLines,random_state=rand_state_N)
 df_4Cancers_traintest_d4 = df_to_read[df_to_read["DRUG_ID"] == 1053]  # .sample(n=N_CellLines,random_state=rand_state_N)
 df_4Cancers_traintest_d5 = df_to_read[df_to_read["DRUG_ID"] == 1058]  # .sample(n=N_CellLines,random_state=rand_state_N)
@@ -113,8 +111,7 @@ df_4Cancers_traintest_d6 = df_to_read[df_to_read["DRUG_ID"] == 1059]  # .sample(
 df_4Cancers_traintest_d7 = df_to_read[df_to_read["DRUG_ID"] == 1061]  # .sample(n=N_CellLines,random_state=rand_state_N)
 df_4Cancers_traintest_d8 = df_to_read[df_to_read["DRUG_ID"] == 1149]  # .sample(n=N_CellLines,random_state=rand_state_N)
 df_4Cancers_traintest_d9 = df_to_read[df_to_read["DRUG_ID"] == 1372]  # .sample(n=N_CellLines,random_state=rand_state_N)
-df_4Cancers_traintest_d10 = df_to_read[
-    df_to_read["DRUG_ID"] == 1373]  # .sample(n=N_CellLines,random_state=rand_state_N)
+df_4Cancers_traintest_d10 = df_to_read[df_to_read["DRUG_ID"] == 1373]  # .sample(n=N_CellLines,random_state=rand_state_N)
 
 N_per_drug = [df_4Cancers_traintest_d1.shape[0], df_4Cancers_traintest_d2.shape[0], df_4Cancers_traintest_d3.shape[0],
               df_4Cancers_traintest_d4.shape[0], df_4Cancers_traintest_d5.shape[0], df_4Cancers_traintest_d6.shape[0],
@@ -601,7 +598,7 @@ for Nfold in range(nsplits, -1, -1):
     AUC_pred = np.array(AUC_pred)[:, None]
     Emax_pred = np.array(Emax_pred)[:, None]
 
-    # posy = 0
+    "The lines belos plot the dose response prediction over test set uncomment to plot!"
     if Nfold == nsplits:
         for posy in range(Y_pred_interp_all.__len__()):
             plt.figure(Nfold + nsplits + 2 + posy)
@@ -614,7 +611,6 @@ for Nfold in range(nsplits, -1, -1):
             # plt.plot(x_dose_new, np.ones_like(x_dose_new) * Emax_val[posy], 'r')  # Plot a horizontal line as Emax
             plt.title(f"AUC = {AUC_pred[posy]}")
             plt.ylim([-0.05, 1.2])
-    # print(AUC_pred[posy])
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -669,8 +665,10 @@ for Nfold in range(nsplits, -1, -1):
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Save model and predictions"
 
-path_cancer = './N_drugs_' + str(Num_drugs) + '/Cancer_' + str(config.sel_cancer) + '/Train' + str(
-    N_CellLines_perc) + '/seed' + str(rand_state_N) + '/'
+#path_cancer = '/rds/general/user/jgiraldo/home/PaperPrecisionOncology_Rebuttal/Experiments_Results/'
+#path_cancer =path_cancer + './N_drugs_' + str(Num_drugs) + '/Cancer_' + str(config.sel_cancer) + '/Train' + str(N_CellLines_perc) + '/seed' + str(rand_state_N) + '/'
+
+path_cancer = 'Models_5Cancers/N_drugs_' + str(Num_drugs) + '/Cancer_' + str(config.sel_cancer) + '/Train' + str(N_CellLines_perc) + '/seed' + str(rand_state_N) + '/'
 if not os.path.exists(path_cancer):
     os.makedirs(path_cancer)
 f = open(path_cancer + "Metrics.txt", "a+")
@@ -691,10 +689,6 @@ f.close()
 
 "The last model should have been trained over all dataset without splitting"
 
-#final_path = '/data/ac1jjgg/Data_Marina/GPy_results/Codes_for_GDSC2_5Cancers/Train1Cancer/N_drugs_'+str(Num_drugs)+'/Cancer_'+str(config.sel_cancer)+'/Train'+str(config.N_CellLines_perc)+'/seed'+str(rand_state_N)+'/'
-final_path ='Models_5Cancers/Train1Cancer/N_drugs_'+str(Num_drugs)+'/Cancer_'+str(config.sel_cancer)+'/Train'+str(config.N_CellLines_perc)+'/seed'+str(rand_state_N)+'/'
-if not os.path.exists(final_path):
-   os.makedirs(final_path)
-#np.save(final_path+'m_'+str(config.bash)+'.npy', model.param_array)  #This is to save the model if desired!
+#np.save(path_cancer+'m_'+str(config.bash)+'.npy', model.param_array)  #This is to save the model if desired!
 
-df_4Cancers_test.to_csv(final_path+'MOGP_Predict_C'+str(config.sel_cancer)+'_Train'+str(N_CellLines_perc)+'_m_'+str(config.bash)+'.csv')
+df_4Cancers_test.to_csv(path_cancer+'MOGP_Predict_C'+str(config.sel_cancer)+'_Train'+str(N_CellLines_perc)+'_m_'+str(config.bash)+'.csv')
