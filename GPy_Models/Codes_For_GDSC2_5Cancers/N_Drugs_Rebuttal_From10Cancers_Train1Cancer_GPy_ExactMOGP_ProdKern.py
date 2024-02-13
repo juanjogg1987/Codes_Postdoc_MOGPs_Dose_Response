@@ -363,332 +363,332 @@ def SummaryMetrics_DataFrameTest(df_4Cancers_test, m_pred_curve, AUC_pred, AUC_v
     return df_4Cancers_test
 
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"Create a K-fold for cross-validation"
-from sklearn.model_selection import KFold, cross_val_score
-
-Ndata = Xall.shape[0]
-Xind = np.arange(Ndata)
-nsplits = 5  # Ndata
-k_fold = KFold(n_splits=nsplits, shuffle=True, random_state=1)
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-NegMLL_AllFolds = []
-Emax_abs_AllFolds = []
-AUC_abs_AllFolds = []
-IC50_MSE_AllFolds = []
-Med_MSE_AllFolds = []
-AllPred_MSE_AllFolds = []
-Mean_MSE_AllFolds = []
-Spearman_AllFolds = []
-SpearActualIC50_AllFolds = []
-All_Models = []
-Ntasks = 7
-list_folds = list(k_fold.split(Xall))
-
-model_all = []
-
-# for Nfold in range(nsplits,nsplits+1):
-for Nfold in range(nsplits, -1, -1):
-    model = []
-    "The first if below is for the cross-val"
-    "Then the else is for using all data to save the model trained over all data"
-    if Nfold < nsplits:
-        train_ind, test_ind = list_folds[Nfold]
-        print(f"{test_ind} to Val in IC50")
-
-        Xval_aux = Xall[test_ind].copy()
-        Ylabel_val = np.array([i * np.ones(Xval_aux.shape[0]) for i in range(Ntasks)]).flatten()[:, None]
-
-        Xval = np.concatenate((np.tile(Xval_aux, (Ntasks, 1)), Ylabel_val), 1)
-
-        # Xval = Xall[train_ind].copy()
-        Xtrain_aux = Xall[train_ind].copy()
-        Ylabel_train = np.array([i * np.ones(Xtrain_aux.shape[0]) for i in range(Ntasks)]).flatten()[:, None]
-        Xtrain = np.concatenate((np.tile(Xtrain_aux, (Ntasks, 1)), Ylabel_train), 1)
-
-        Yval = Yall[test_ind].T.flatten().copy()[:, None]
-        # Yval = Yall[train_ind].copy()
-        Ytrain = Yall[train_ind].T.flatten().copy()[:, None]
-
-        Emax_val = Emax_all[test_ind].copy()
-        AUC_val = AUC_all[test_ind].copy()
-        IC50_val = IC50_all[test_ind].copy()
-
-        # Emax_val = Emax_all[train_ind].copy()
-        # AUC_val = AUC_all[train_ind].copy()
-        # IC50_val = IC50_all[train_ind].copy()
-
-    else:
-        print(f"Train ovell all Data")
-        # _, test_ind = list_folds[0] #Just assigning by defaul fold0 as the test (of course not to report it as a result)
-        Xval_aux = X_test_features.copy()  # Xall[test_ind].copy()
-        Ylabel_val = np.array([i * np.ones(Xval_aux.shape[0]) for i in range(Ntasks)]).flatten()[:, None]
-
-        Xval = np.concatenate((np.tile(Xval_aux, (Ntasks, 1)), Ylabel_val), 1)
-
-        Xtrain_aux = Xall.copy()
-        Ylabel_train = np.array([i * np.ones(Xtrain_aux.shape[0]) for i in range(Ntasks)]).flatten()[:, None]
-        Xtrain = np.concatenate((np.tile(Xtrain_aux, (Ntasks, 1)), Ylabel_train), 1)
-
-        Yval = y_test_drug.T.flatten().copy()[:, None]
-        Ytrain = Yall.T.flatten().copy()[:, None]
-
-        Emax_val = Emax_test.copy()
-        AUC_val = AUC_test.copy()
-        IC50_val = IC50_test.copy()
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    import GPy
-    from matplotlib import pyplot as plt
-
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    import os
-
-    # os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-    mean_all = np.zeros_like(Yval)
-    models_outs = []
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    rank = int(config.rank)  # Rank for the MultitaskKernel
-    "Below we substract one due to being the label associated to the output"
-    Dim = Xtrain.shape[1] - 1
-
-    "For each cancer the feature that are actually informative change, so"
-    "We created the dict below to properly assign the active features per kernel as per the cancer type"
-    AddKern_dict = {0: [95, 389, 407, Dim], 1: [89, 416, 435, Dim],
-                    2: [28, 300, 319, Dim], 3: [97, 429, 448, Dim],
-                    4: [116, 471, 478, Dim], 5: [56, 307, 349, Dim],
-                    6: [52, 335, 344, Dim], 7: [235, 461, 493, Dim],
-                    8: [98, 437, 456, Dim], 9: [132, 245, 264, Dim]}
-
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-    myseed = int(config.which_seed)
-    np.random.seed(myseed)
-
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    "Product Kernels"
-    "Below we use the locations:"
-    "0:AddKern_loc[0] for Mutation"
-    "AddKern_loc[0]:AddKern_loc[1] for PANCAN"
-    "AddKern_loc[1]:AddKern_loc[2] for COPY-Number"
-    "AddKern_loc[2]:end for Drugs compounds"
-    """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    # TODO: Create a particular list AddKern_loc for each cancer type this
-    # TODO: due to having different features per cancer. A features can have std = 0 for one cancer, but not for other
-    split_dim = 4
-    # AddKern_loc = [279, 697,768,Dim]
-    AddKern_loc = AddKern_dict[int(config.sel_cancer)]
-    # AddKern_loc = [89, 416, 435, Dim]
-    mykern = GPy.kern.RBF(AddKern_loc[0], active_dims=list(np.arange(0, AddKern_loc[0])))
-    print(list(np.arange(0, AddKern_loc[0])))
-    for i in range(1, split_dim):
-        mykern = mykern * GPy.kern.RBF(AddKern_loc[i] - AddKern_loc[i - 1],
-                                       active_dims=list(np.arange(AddKern_loc[i - 1], AddKern_loc[i])))
-        print(list(np.arange(AddKern_loc[i - 1], AddKern_loc[i])))
-
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    mykern.rbf.lengthscale = float(config.scale) * np.sqrt(Dim) * np.random.rand()
-    mykern.rbf.variance.fix()
-    for i in range(1, split_dim):
-        eval("mykern.rbf_" + str(
-            i) + ".lengthscale.setfield(float(config.scale)* np.sqrt(Dim) * np.random.rand(), np.float64)")
-        eval("mykern.rbf_" + str(i) + ".variance.fix()")
-
-    kern = mykern ** GPy.kern.Coregionalize(1, output_dim=Ntasks, rank=rank)
-    model = GPy.models.GPRegression(Xtrain, Ytrain, kern)
-    Init_Ws = float(config.weight) * np.random.randn(Ntasks, rank)
-    model.kern.coregion.W = Init_Ws
-    if Nfold == nsplits:
-        model.optimize(optimizer='adam', messages=True, max_iters=int(config.N_iter), ipython_notebook=False,
-                       step_rate=0.01)
-        model_all = model
-    else:
-        bypass_model_params(model_all, model)
-    # model[:] = np.load('/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/Test_Data_ToPlot_GDSC2_5Cancers/Three_drugs/m_924.npy')
-
-    m_pred, v_pred = model.predict(Xval, full_cov=False)
-    plt.figure(Nfold + 1)
-    plt.plot(Yval, 'bx')
-    plt.plot(m_pred, 'ro')
-    plt.plot(m_pred + 2 * np.sqrt(v_pred), '--m')
-    plt.plot(m_pred - 2 * np.sqrt(v_pred), '--m')
-
-    Yval_curve = Yval.reshape(Ntasks, Xval_aux.shape[0]).T.copy()
-    m_pred_curve = m_pred.reshape(Ntasks, Xval_aux.shape[0]).T.copy()
-    v_pred_curve = v_pred.reshape(Ntasks, Xval_aux.shape[0]).T.copy()
-
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-    "Negative Log Predictive Density (NLPD)"
-    Val_NMLL = -np.mean(model.log_predictive_density(Xval, Yval))
-    print("NegLPD Val", Val_NMLL)
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    from scipy.interpolate import interp1d
-    from scipy.interpolate import pchip_interpolate
-
-    "Be careful that x starts from 0.111111 for 9 drugs,"
-    "but x starts from 0.142857143 for the case of 7 drugs"
-    x_dose = np.linspace(0.142857143, 1.0, 7)
-    x_dose_new = np.linspace(0.142857143, 1.0, 1000)
-    Ydose50_pred = []
-    IC50_pred = []
-    AUC_pred = []
-    Emax_pred = []
-    Y_pred_interp_all = []
-    std_upper_interp_all = []
-    std_lower_interp_all = []
-    for i in range(Yval_curve.shape[0]):
-        y_resp = m_pred_curve[i, :].copy()
-        std_upper = y_resp + 2 * np.sqrt(v_pred_curve[i, :])
-        std_lower = y_resp - 2 * np.sqrt(v_pred_curve[i, :])
-        f = interp1d(x_dose, y_resp)
-        # f2 = interp1d(x_dose, y_resp, kind='cubic')
-        y_resp_interp = pchip_interpolate(x_dose, y_resp, x_dose_new)
-        std_upper_interp = pchip_interpolate(x_dose, std_upper, x_dose_new)
-        std_lower_interp = pchip_interpolate(x_dose, std_lower, x_dose_new)
-
-        # y_resp_interp = f2(x_dose_new)
-        Y_pred_interp_all.append(y_resp_interp)
-        std_upper_interp_all.append(std_upper_interp)
-        std_lower_interp_all.append(std_lower_interp)
-        AUC_pred.append(metrics.auc(x_dose_new, y_resp_interp))
-        Emax_pred.append(y_resp_interp[-1])
-
-        res1 = y_resp_interp < 0.507
-        res2 = y_resp_interp > 0.493
-        res_aux = np.where(res1 & res2)[0]
-        if (res1 & res2).sum() > 0:
-            res_IC50 = np.arange(res_aux[0], res_aux[0] + res_aux.shape[0]) == res_aux
-            res_aux = res_aux[res_IC50].copy()
-        else:
-            res_aux = res1 & res2
-
-        if (res1 & res2).sum() > 0:
-            Ydose50_pred.append(y_resp_interp[res_aux].mean())
-            IC50_pred.append(x_dose_new[res_aux].mean())
-        elif y_resp_interp[-1] < 0.5:
-            for dose_j in range(x_dose_new.shape[0]):
-                if (y_resp_interp[dose_j] < 0.5):
-                    break
-            Ydose50_pred.append(y_resp_interp[dose_j])
-            aux_IC50 = x_dose_new[dose_j]  # it has to be a float not an array to avoid bug
-            IC50_pred.append(aux_IC50)
-        else:
-            Ydose50_pred.append(0.5)
-            IC50_pred.append(1.5)
-
-    Ydose50_pred = np.array(Ydose50_pred)
-    IC50_pred = np.array(IC50_pred)[:, None]
-    AUC_pred = np.array(AUC_pred)[:, None]
-    Emax_pred = np.array(Emax_pred)[:, None]
-
-    "The lines belos plot the dose response prediction over test set uncomment to plot!"
-    if Nfold == nsplits:
-        for posy in range(Y_pred_interp_all.__len__()):
-            plt.figure(Nfold + nsplits + 2 + posy)
-            plt.plot(x_dose_new, Y_pred_interp_all[posy])
-            plt.plot(x_dose_new, std_upper_interp_all[posy], 'b--')
-            plt.plot(x_dose_new, std_lower_interp_all[posy], 'b--')
-            plt.plot(x_dose, Yval_curve[posy, :], '.')
-            # plt.plot(IC50_pred[posy], Ydose50_pred[posy], 'rx')
-            # plt.plot(x_dose_new, np.ones_like(x_dose_new) * Emax_pred[posy], 'r')  # Plot a horizontal line as Emax
-            # plt.plot(x_dose_new, np.ones_like(x_dose_new) * Emax_val[posy], 'r')  # Plot a horizontal line as Emax
-            plt.title(f"AUC = {AUC_pred[posy]}")
-            plt.ylim([-0.05, 1.2])
-
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-    Emax_abs = np.mean(np.abs(Emax_val - Emax_pred))
-    AUC_abs = np.mean(np.abs(AUC_val - AUC_pred))
-    IC50_MSE = np.mean((IC50_val - IC50_pred) ** 2)
-    MSE_curves = np.mean((m_pred_curve - Yval_curve) ** 2, 1)
-    AllPred_MSE = np.mean((m_pred_curve - Yval_curve) ** 2)
-    print("IC50 MSE:", IC50_MSE)
-    print("AUC MAE:", AUC_abs)
-    print("Emax MAE:", Emax_abs)
-    Med_MSE = np.median(MSE_curves)
-    Mean_MSE = np.mean(MSE_curves)
-    print("Med_MSE:", Med_MSE)
-    print("Mean_MSE:", Mean_MSE)
-    print("All Predictions MSE:", AllPred_MSE)
-
-    from scipy.stats import spearmanr
-
-    pos_Actual_IC50 = IC50_val != 1.5
-    spear_corr_all, p_value_all = spearmanr(IC50_val, IC50_pred)
-    spear_corr_actualIC50, p_value_actual = spearmanr(IC50_val[pos_Actual_IC50], IC50_pred[pos_Actual_IC50])
-    print("Spearman_all Corr: ", spear_corr_all)
-    print("Spearman p-value: ", p_value_all)
-    print("Spearman_actualIC50 Corr: ", spear_corr_actualIC50)
-    print("Spearman p-value: ", p_value_actual)
-
-    if Nfold < nsplits:
-        NegMLL_AllFolds.append(Val_NMLL.copy())
-        Emax_abs_AllFolds.append(Emax_abs.copy())
-        AUC_abs_AllFolds.append(AUC_abs.copy())
-        IC50_MSE_AllFolds.append(IC50_MSE.copy())
-        Med_MSE_AllFolds.append(Med_MSE.copy())
-        Mean_MSE_AllFolds.append(Mean_MSE.copy())
-        AllPred_MSE_AllFolds.append(AllPred_MSE.copy())
-        Spearman_AllFolds.append(spear_corr_all)
-        SpearActualIC50_AllFolds.append(spear_corr_actualIC50)
-    else:
-        print(f"Nfold:{Nfold} and nsplits:{nsplits}")
-        df_4Cancers_test = SummaryMetrics_DataFrameTest(df_4Cancers_test, m_pred_curve, AUC_pred, AUC_val, Emax_pred,
-                                                        Emax_val, IC50_pred, IC50_val)
-        IC50_MSE_test = IC50_MSE
-        AUC_abs_test = AUC_abs
-        Emax_abs_test = Emax_abs
-    # break
-    print("Yval shape", Yval.shape)
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"Save model and predictions"
-
-#path_cancer = '/rds/general/user/jgiraldo/home/PaperPrecisionOncology_Rebuttal/Experiments_Results/'
-#path_cancer =path_cancer + './N_drugs_' + str(Num_drugs) + '/Cancer_' + str(config.sel_cancer) + '/Train' + str(N_CellLines_perc) + '/seed' + str(rand_state_N) + '/'
-
-path_cancer = 'Models_5Cancers/N_drugs_' + str(Num_drugs) + '/Cancer_' + str(config.sel_cancer) + '/Train' + str(N_CellLines_perc) + '/seed' + str(rand_state_N) + '/'
-if not os.path.exists(path_cancer):
-    os.makedirs(path_cancer)
-f = open(path_cancer + "Metrics.txt", "a+")
-f.write("bash" + str(
-    config.bash) + f" Med_MSE={np.mean(Med_MSE_AllFolds):0.5f}({np.std(Med_MSE_AllFolds):0.5f}) Mean_MSE={np.mean(Mean_MSE_AllFolds):0.5f}({np.std(Mean_MSE_AllFolds):0.5f}) NegLPD={np.mean(NegMLL_AllFolds):0.5f}({np.std(NegMLL_AllFolds):0.5f}) IC50_MSE={np.mean(IC50_MSE_AllFolds):0.5f}({np.std(IC50_MSE_AllFolds):0.5f}) AUC_abs={np.mean(AUC_abs_AllFolds):0.5f}({np.std(AUC_abs_AllFolds):0.5f}) Emax_abs={np.mean(Emax_abs_AllFolds):0.5f}({np.std(Emax_abs_AllFolds):0.5f})\n")
-f.close()
-
-f = open(path_cancer + "Average_Metrics_IC50_AUC_Emax.txt", "a+")
-Aver_IC50_AUC_Emax_MSECurve = np.array(
-    [np.mean(IC50_MSE_AllFolds), np.mean(AUC_abs_AllFolds), np.mean(Emax_abs_AllFolds), np.mean(Mean_MSE_AllFolds)])
-f.write("bash" + str(config.bash) + f", {np.mean(Aver_IC50_AUC_Emax_MSECurve):0.5f} \n")
-f.close()
-
-f = open(path_cancer + "Test_Metrics_IC50_AUC_Emax.txt", "a+")
-f.write("bash" + str(
-    config.bash) + f" IC50_MSE={IC50_MSE_test:0.5f} AUC_abs={AUC_abs_test:0.5f} Emax_abs={Emax_abs_test:0.5f}\n")
-f.close()
-
-"The last model should have been trained over all dataset without splitting"
-
-#np.save(path_cancer+'m_'+str(config.bash)+'.npy', model.param_array)  #This is to save the model if desired!
-
-df_4Cancers_test.to_csv(path_cancer+'MOGP_Predict_C'+str(config.sel_cancer)+'_Train'+str(N_CellLines_perc)+'_m_'+str(config.bash)+'.csv')
+# """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+# """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+# "Create a K-fold for cross-validation"
+# from sklearn.model_selection import KFold, cross_val_score
+#
+# Ndata = Xall.shape[0]
+# Xind = np.arange(Ndata)
+# nsplits = 5  # Ndata
+# k_fold = KFold(n_splits=nsplits, shuffle=True, random_state=1)
+# """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+# """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+# NegMLL_AllFolds = []
+# Emax_abs_AllFolds = []
+# AUC_abs_AllFolds = []
+# IC50_MSE_AllFolds = []
+# Med_MSE_AllFolds = []
+# AllPred_MSE_AllFolds = []
+# Mean_MSE_AllFolds = []
+# Spearman_AllFolds = []
+# SpearActualIC50_AllFolds = []
+# All_Models = []
+# Ntasks = 7
+# list_folds = list(k_fold.split(Xall))
+#
+# model_all = []
+#
+# # for Nfold in range(nsplits,nsplits+1):
+# for Nfold in range(nsplits, -1, -1):
+#     model = []
+#     "The first if below is for the cross-val"
+#     "Then the else is for using all data to save the model trained over all data"
+#     if Nfold < nsplits:
+#         train_ind, test_ind = list_folds[Nfold]
+#         print(f"{test_ind} to Val in IC50")
+#
+#         Xval_aux = Xall[test_ind].copy()
+#         Ylabel_val = np.array([i * np.ones(Xval_aux.shape[0]) for i in range(Ntasks)]).flatten()[:, None]
+#
+#         Xval = np.concatenate((np.tile(Xval_aux, (Ntasks, 1)), Ylabel_val), 1)
+#
+#         # Xval = Xall[train_ind].copy()
+#         Xtrain_aux = Xall[train_ind].copy()
+#         Ylabel_train = np.array([i * np.ones(Xtrain_aux.shape[0]) for i in range(Ntasks)]).flatten()[:, None]
+#         Xtrain = np.concatenate((np.tile(Xtrain_aux, (Ntasks, 1)), Ylabel_train), 1)
+#
+#         Yval = Yall[test_ind].T.flatten().copy()[:, None]
+#         # Yval = Yall[train_ind].copy()
+#         Ytrain = Yall[train_ind].T.flatten().copy()[:, None]
+#
+#         Emax_val = Emax_all[test_ind].copy()
+#         AUC_val = AUC_all[test_ind].copy()
+#         IC50_val = IC50_all[test_ind].copy()
+#
+#         # Emax_val = Emax_all[train_ind].copy()
+#         # AUC_val = AUC_all[train_ind].copy()
+#         # IC50_val = IC50_all[train_ind].copy()
+#
+#     else:
+#         print(f"Train ovell all Data")
+#         # _, test_ind = list_folds[0] #Just assigning by defaul fold0 as the test (of course not to report it as a result)
+#         Xval_aux = X_test_features.copy()  # Xall[test_ind].copy()
+#         Ylabel_val = np.array([i * np.ones(Xval_aux.shape[0]) for i in range(Ntasks)]).flatten()[:, None]
+#
+#         Xval = np.concatenate((np.tile(Xval_aux, (Ntasks, 1)), Ylabel_val), 1)
+#
+#         Xtrain_aux = Xall.copy()
+#         Ylabel_train = np.array([i * np.ones(Xtrain_aux.shape[0]) for i in range(Ntasks)]).flatten()[:, None]
+#         Xtrain = np.concatenate((np.tile(Xtrain_aux, (Ntasks, 1)), Ylabel_train), 1)
+#
+#         Yval = y_test_drug.T.flatten().copy()[:, None]
+#         Ytrain = Yall.T.flatten().copy()[:, None]
+#
+#         Emax_val = Emax_test.copy()
+#         AUC_val = AUC_test.copy()
+#         IC50_val = IC50_test.copy()
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     import GPy
+#     from matplotlib import pyplot as plt
+#
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     import os
+#
+#     # os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+#     mean_all = np.zeros_like(Yval)
+#     models_outs = []
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     rank = int(config.rank)  # Rank for the MultitaskKernel
+#     "Below we substract one due to being the label associated to the output"
+#     Dim = Xtrain.shape[1] - 1
+#
+#     "For each cancer the feature that are actually informative change, so"
+#     "We created the dict below to properly assign the active features per kernel as per the cancer type"
+#     AddKern_dict = {0: [95, 389, 407, Dim], 1: [89, 416, 435, Dim],
+#                     2: [28, 300, 319, Dim], 3: [97, 429, 448, Dim],
+#                     4: [116, 471, 478, Dim], 5: [56, 307, 349, Dim],
+#                     6: [52, 335, 344, Dim], 7: [235, 461, 493, Dim],
+#                     8: [98, 437, 456, Dim], 9: [132, 245, 264, Dim]}
+#
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#
+#     myseed = int(config.which_seed)
+#     np.random.seed(myseed)
+#
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     "Product Kernels"
+#     "Below we use the locations:"
+#     "0:AddKern_loc[0] for Mutation"
+#     "AddKern_loc[0]:AddKern_loc[1] for PANCAN"
+#     "AddKern_loc[1]:AddKern_loc[2] for COPY-Number"
+#     "AddKern_loc[2]:end for Drugs compounds"
+#     """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     # TODO: Create a particular list AddKern_loc for each cancer type this
+#     # TODO: due to having different features per cancer. A features can have std = 0 for one cancer, but not for other
+#     split_dim = 4
+#     # AddKern_loc = [279, 697,768,Dim]
+#     AddKern_loc = AddKern_dict[int(config.sel_cancer)]
+#     # AddKern_loc = [89, 416, 435, Dim]
+#     mykern = GPy.kern.RBF(AddKern_loc[0], active_dims=list(np.arange(0, AddKern_loc[0])))
+#     print(list(np.arange(0, AddKern_loc[0])))
+#     for i in range(1, split_dim):
+#         mykern = mykern * GPy.kern.RBF(AddKern_loc[i] - AddKern_loc[i - 1],
+#                                        active_dims=list(np.arange(AddKern_loc[i - 1], AddKern_loc[i])))
+#         print(list(np.arange(AddKern_loc[i - 1], AddKern_loc[i])))
+#
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     mykern.rbf.lengthscale = float(config.scale) * np.sqrt(Dim) * np.random.rand()
+#     mykern.rbf.variance.fix()
+#     for i in range(1, split_dim):
+#         eval("mykern.rbf_" + str(
+#             i) + ".lengthscale.setfield(float(config.scale)* np.sqrt(Dim) * np.random.rand(), np.float64)")
+#         eval("mykern.rbf_" + str(i) + ".variance.fix()")
+#
+#     kern = mykern ** GPy.kern.Coregionalize(1, output_dim=Ntasks, rank=rank)
+#     model = GPy.models.GPRegression(Xtrain, Ytrain, kern)
+#     Init_Ws = float(config.weight) * np.random.randn(Ntasks, rank)
+#     model.kern.coregion.W = Init_Ws
+#     if Nfold == nsplits:
+#         model.optimize(optimizer='adam', messages=True, max_iters=int(config.N_iter), ipython_notebook=False,
+#                        step_rate=0.01)
+#         model_all = model
+#     else:
+#         bypass_model_params(model_all, model)
+#     # model[:] = np.load('/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/Test_Data_ToPlot_GDSC2_5Cancers/Three_drugs/m_924.npy')
+#
+#     m_pred, v_pred = model.predict(Xval, full_cov=False)
+#     plt.figure(Nfold + 1)
+#     plt.plot(Yval, 'bx')
+#     plt.plot(m_pred, 'ro')
+#     plt.plot(m_pred + 2 * np.sqrt(v_pred), '--m')
+#     plt.plot(m_pred - 2 * np.sqrt(v_pred), '--m')
+#
+#     Yval_curve = Yval.reshape(Ntasks, Xval_aux.shape[0]).T.copy()
+#     m_pred_curve = m_pred.reshape(Ntasks, Xval_aux.shape[0]).T.copy()
+#     v_pred_curve = v_pred.reshape(Ntasks, Xval_aux.shape[0]).T.copy()
+#
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#
+#     "Negative Log Predictive Density (NLPD)"
+#     Val_NMLL = -np.mean(model.log_predictive_density(Xval, Yval))
+#     print("NegLPD Val", Val_NMLL)
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     from scipy.interpolate import interp1d
+#     from scipy.interpolate import pchip_interpolate
+#
+#     "Be careful that x starts from 0.111111 for 9 drugs,"
+#     "but x starts from 0.142857143 for the case of 7 drugs"
+#     x_dose = np.linspace(0.142857143, 1.0, 7)
+#     x_dose_new = np.linspace(0.142857143, 1.0, 1000)
+#     Ydose50_pred = []
+#     IC50_pred = []
+#     AUC_pred = []
+#     Emax_pred = []
+#     Y_pred_interp_all = []
+#     std_upper_interp_all = []
+#     std_lower_interp_all = []
+#     for i in range(Yval_curve.shape[0]):
+#         y_resp = m_pred_curve[i, :].copy()
+#         std_upper = y_resp + 2 * np.sqrt(v_pred_curve[i, :])
+#         std_lower = y_resp - 2 * np.sqrt(v_pred_curve[i, :])
+#         f = interp1d(x_dose, y_resp)
+#         # f2 = interp1d(x_dose, y_resp, kind='cubic')
+#         y_resp_interp = pchip_interpolate(x_dose, y_resp, x_dose_new)
+#         std_upper_interp = pchip_interpolate(x_dose, std_upper, x_dose_new)
+#         std_lower_interp = pchip_interpolate(x_dose, std_lower, x_dose_new)
+#
+#         # y_resp_interp = f2(x_dose_new)
+#         Y_pred_interp_all.append(y_resp_interp)
+#         std_upper_interp_all.append(std_upper_interp)
+#         std_lower_interp_all.append(std_lower_interp)
+#         AUC_pred.append(metrics.auc(x_dose_new, y_resp_interp))
+#         Emax_pred.append(y_resp_interp[-1])
+#
+#         res1 = y_resp_interp < 0.507
+#         res2 = y_resp_interp > 0.493
+#         res_aux = np.where(res1 & res2)[0]
+#         if (res1 & res2).sum() > 0:
+#             res_IC50 = np.arange(res_aux[0], res_aux[0] + res_aux.shape[0]) == res_aux
+#             res_aux = res_aux[res_IC50].copy()
+#         else:
+#             res_aux = res1 & res2
+#
+#         if (res1 & res2).sum() > 0:
+#             Ydose50_pred.append(y_resp_interp[res_aux].mean())
+#             IC50_pred.append(x_dose_new[res_aux].mean())
+#         elif y_resp_interp[-1] < 0.5:
+#             for dose_j in range(x_dose_new.shape[0]):
+#                 if (y_resp_interp[dose_j] < 0.5):
+#                     break
+#             Ydose50_pred.append(y_resp_interp[dose_j])
+#             aux_IC50 = x_dose_new[dose_j]  # it has to be a float not an array to avoid bug
+#             IC50_pred.append(aux_IC50)
+#         else:
+#             Ydose50_pred.append(0.5)
+#             IC50_pred.append(1.5)
+#
+#     Ydose50_pred = np.array(Ydose50_pred)
+#     IC50_pred = np.array(IC50_pred)[:, None]
+#     AUC_pred = np.array(AUC_pred)[:, None]
+#     Emax_pred = np.array(Emax_pred)[:, None]
+#
+#     "The lines belos plot the dose response prediction over test set uncomment to plot!"
+#     if Nfold == nsplits:
+#         for posy in range(Y_pred_interp_all.__len__()):
+#             plt.figure(Nfold + nsplits + 2 + posy)
+#             plt.plot(x_dose_new, Y_pred_interp_all[posy])
+#             plt.plot(x_dose_new, std_upper_interp_all[posy], 'b--')
+#             plt.plot(x_dose_new, std_lower_interp_all[posy], 'b--')
+#             plt.plot(x_dose, Yval_curve[posy, :], '.')
+#             # plt.plot(IC50_pred[posy], Ydose50_pred[posy], 'rx')
+#             # plt.plot(x_dose_new, np.ones_like(x_dose_new) * Emax_pred[posy], 'r')  # Plot a horizontal line as Emax
+#             # plt.plot(x_dose_new, np.ones_like(x_dose_new) * Emax_val[posy], 'r')  # Plot a horizontal line as Emax
+#             plt.title(f"AUC = {AUC_pred[posy]}")
+#             plt.ylim([-0.05, 1.2])
+#
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#
+#     Emax_abs = np.mean(np.abs(Emax_val - Emax_pred))
+#     AUC_abs = np.mean(np.abs(AUC_val - AUC_pred))
+#     IC50_MSE = np.mean((IC50_val - IC50_pred) ** 2)
+#     MSE_curves = np.mean((m_pred_curve - Yval_curve) ** 2, 1)
+#     AllPred_MSE = np.mean((m_pred_curve - Yval_curve) ** 2)
+#     print("IC50 MSE:", IC50_MSE)
+#     print("AUC MAE:", AUC_abs)
+#     print("Emax MAE:", Emax_abs)
+#     Med_MSE = np.median(MSE_curves)
+#     Mean_MSE = np.mean(MSE_curves)
+#     print("Med_MSE:", Med_MSE)
+#     print("Mean_MSE:", Mean_MSE)
+#     print("All Predictions MSE:", AllPred_MSE)
+#
+#     from scipy.stats import spearmanr
+#
+#     pos_Actual_IC50 = IC50_val != 1.5
+#     spear_corr_all, p_value_all = spearmanr(IC50_val, IC50_pred)
+#     spear_corr_actualIC50, p_value_actual = spearmanr(IC50_val[pos_Actual_IC50], IC50_pred[pos_Actual_IC50])
+#     print("Spearman_all Corr: ", spear_corr_all)
+#     print("Spearman p-value: ", p_value_all)
+#     print("Spearman_actualIC50 Corr: ", spear_corr_actualIC50)
+#     print("Spearman p-value: ", p_value_actual)
+#
+#     if Nfold < nsplits:
+#         NegMLL_AllFolds.append(Val_NMLL.copy())
+#         Emax_abs_AllFolds.append(Emax_abs.copy())
+#         AUC_abs_AllFolds.append(AUC_abs.copy())
+#         IC50_MSE_AllFolds.append(IC50_MSE.copy())
+#         Med_MSE_AllFolds.append(Med_MSE.copy())
+#         Mean_MSE_AllFolds.append(Mean_MSE.copy())
+#         AllPred_MSE_AllFolds.append(AllPred_MSE.copy())
+#         Spearman_AllFolds.append(spear_corr_all)
+#         SpearActualIC50_AllFolds.append(spear_corr_actualIC50)
+#     else:
+#         print(f"Nfold:{Nfold} and nsplits:{nsplits}")
+#         df_4Cancers_test = SummaryMetrics_DataFrameTest(df_4Cancers_test, m_pred_curve, AUC_pred, AUC_val, Emax_pred,
+#                                                         Emax_val, IC50_pred, IC50_val)
+#         IC50_MSE_test = IC50_MSE
+#         AUC_abs_test = AUC_abs
+#         Emax_abs_test = Emax_abs
+#     # break
+#     print("Yval shape", Yval.shape)
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#
+# """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+# """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+# "Save model and predictions"
+#
+# #path_cancer = '/rds/general/user/jgiraldo/home/PaperPrecisionOncology_Rebuttal/Experiments_Results/'
+# #path_cancer =path_cancer + './N_drugs_' + str(Num_drugs) + '/Cancer_' + str(config.sel_cancer) + '/Train' + str(N_CellLines_perc) + '/seed' + str(rand_state_N) + '/'
+#
+# path_cancer = 'Models_5Cancers/N_drugs_' + str(Num_drugs) + '/Cancer_' + str(config.sel_cancer) + '/Train' + str(N_CellLines_perc) + '/seed' + str(rand_state_N) + '/'
+# if not os.path.exists(path_cancer):
+#     os.makedirs(path_cancer)
+# f = open(path_cancer + "Metrics.txt", "a+")
+# f.write("bash" + str(
+#     config.bash) + f" Med_MSE={np.mean(Med_MSE_AllFolds):0.5f}({np.std(Med_MSE_AllFolds):0.5f}) Mean_MSE={np.mean(Mean_MSE_AllFolds):0.5f}({np.std(Mean_MSE_AllFolds):0.5f}) NegLPD={np.mean(NegMLL_AllFolds):0.5f}({np.std(NegMLL_AllFolds):0.5f}) IC50_MSE={np.mean(IC50_MSE_AllFolds):0.5f}({np.std(IC50_MSE_AllFolds):0.5f}) AUC_abs={np.mean(AUC_abs_AllFolds):0.5f}({np.std(AUC_abs_AllFolds):0.5f}) Emax_abs={np.mean(Emax_abs_AllFolds):0.5f}({np.std(Emax_abs_AllFolds):0.5f})\n")
+# f.close()
+#
+# f = open(path_cancer + "Average_Metrics_IC50_AUC_Emax.txt", "a+")
+# Aver_IC50_AUC_Emax_MSECurve = np.array(
+#     [np.mean(IC50_MSE_AllFolds), np.mean(AUC_abs_AllFolds), np.mean(Emax_abs_AllFolds), np.mean(Mean_MSE_AllFolds)])
+# f.write("bash" + str(config.bash) + f", {np.mean(Aver_IC50_AUC_Emax_MSECurve):0.5f} \n")
+# f.close()
+#
+# f = open(path_cancer + "Test_Metrics_IC50_AUC_Emax.txt", "a+")
+# f.write("bash" + str(
+#     config.bash) + f" IC50_MSE={IC50_MSE_test:0.5f} AUC_abs={AUC_abs_test:0.5f} Emax_abs={Emax_abs_test:0.5f}\n")
+# f.close()
+#
+# "The last model should have been trained over all dataset without splitting"
+#
+# #np.save(path_cancer+'m_'+str(config.bash)+'.npy', model.param_array)  #This is to save the model if desired!
+#
+# df_4Cancers_test.to_csv(path_cancer+'MOGP_Predict_C'+str(config.sel_cancer)+'_Train'+str(N_CellLines_perc)+'_m_'+str(config.bash)+'.csv')

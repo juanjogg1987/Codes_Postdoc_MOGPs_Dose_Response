@@ -3,7 +3,16 @@ import pandas as pd
 import numpy as np
 
 _FOLDER = '/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/PaperPrecOncologyRebuttal_CSVs/'
-file_name = 'MOGP_Predict_C0_Train100_m_23.csv'
+sel_can = 9
+DictFileName = {0:'MOGP_Predict_C0_Train100_m_23.csv',1:'MOGP_Predict_C1_Train100_m_24.csv',
+                2:'MOGP_Predict_C2_Train100_m_35.csv',3:'MOGP_Predict_C3_Train100_m_26.csv',
+                4:'MOGP_Predict_C4_Train100_m_25.csv',5:'MOGP_Predict_C5_Train100_m_23.csv',
+                6:'MOGP_Predict_C6_Train100_m_25.csv',7:'MOGP_Predict_C7_Train100_m_25.csv',
+                8:'MOGP_Predict_C8_Train100_m_3.csv',9:'MOGP_Predict_C9_Train100_m_12.csv'}
+
+DictTitleName = {0:'SKCM',1:'SCLC',2:'PAAD',3:'OV',4:'LUAD',5:'HNSC',6:'ESCA',7:'COAD',8:'BRCA',9:'ALL'}
+
+file_name = DictFileName[sel_can]
 df = pd.read_csv(_FOLDER+file_name)
 
 import matplotlib.ticker as ticker
@@ -44,13 +53,13 @@ def create_scatter_plot(df, title, ax, xlim_scatter, ylim_scatter, xlim_regressi
 
     ax.xaxis.set_major_locator(ticker.MultipleLocator(0.1))
     ax.yaxis.set_major_locator(ticker.MultipleLocator(0.1))
-    ax.set_xlabel('Predicted ' + metric_name, fontsize=14)
-    ax.set_ylabel('Observed ' + metric_name, fontsize=14)
+    ax.set_xlabel('Predicted ' + metric_name, fontsize=15)
+    ax.set_ylabel('Observed ' + metric_name, fontsize=15)
 
     #ax.get_legend().remove()
     #ax.legend(loc='upper center',ncol=10)
     if show_legends:
-        ax.legend(bbox_to_anchor=(0.0, 0.58),loc='center left',prop = {'size': 8.5})
+        ax.legend(title='DrugID',bbox_to_anchor=(0.0, 0.56),loc='center left',prop = {'size': 8.5})
 
     # Calculate Pearson correlation coefficient and p-value
     r, p_value = pearsonr(df[metric_name + '_MOGP'], df[metric_name + '_s4'])
@@ -92,3 +101,5 @@ create_scatter_plot(df, '', axes[2],
                     metric_name = 'AUC',
                     show_legends=show_legend
                    )
+
+axes[0].set_title(f'MOGP performance on Test data for {DictTitleName[sel_can]}',fontsize=15)
