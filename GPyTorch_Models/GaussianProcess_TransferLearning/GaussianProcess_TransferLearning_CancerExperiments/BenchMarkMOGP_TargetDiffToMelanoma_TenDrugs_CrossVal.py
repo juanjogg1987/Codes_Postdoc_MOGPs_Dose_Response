@@ -385,8 +385,8 @@ class commandLine:
         self.bash = "None"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 0
-        self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
-        self.which_drug = 1059#1560   #This is the drug we will select as test for the target domain.
+        self.idx_CID_Target = 17#0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.which_drug = 2096#1560   #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
             # print(op,arg)
@@ -614,13 +614,13 @@ yT_test = torch.from_numpy(yT_test)
 NDomains = CosmicID_labels.__len__() + 1 #CosmicID_labels.__len__() contains the CosmicIDs of Source Domains
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 idx_T = [NDomains - 1] * xT_train.shape[0]   #Here we generate the label for the target domain
-yS_train = torch.cat([yS_train,yT_train])
-xS_train = torch.cat([xS_train,xT_train])
+yST_train = torch.cat([yS_train,yT_train])
+xST_train = torch.cat([xS_train,xT_train])
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 print(f"Number Nsource Domains: {CosmicID_labels.__len__()}, so total NDomains Source + Target: {NDomains}")
 DrugC = list(np.linspace(0.142857,1.0,7))
 assert DrugC.__len__() == yS_train.shape[1] and DrugC.__len__() == yT_train.shape[1]
-model = BMKMOGaussianProcess(xS_train,yS_train,idxS=idx_S+idx_T,DrugC=DrugC,NDomains=NDomains)
+model = BMKMOGaussianProcess(xST_train,yST_train,idxS=idx_S+idx_T,DrugC=DrugC,NDomains=NDomains)
 #TODO I need to work on a general way to create a linear combination of Q kernels_ICM
 
 myseed = int(config.which_seed)
@@ -631,9 +631,9 @@ with torch.no_grad():
         #model.TLCovariance.kernels[i_kern].adq = 0.2*torch.randn(NDomains)[:,None]
         model.TLCovariance.kernels[i_kern].length = 2.*np.sqrt(xS_train.shape[1])*torch.rand(1)
 
-    # model.CoregCovariance[0].lengthscale = torch.rand(1) #1*
-    # model.CoregCovariance[1].lengthscale = torch.rand(1)  #1*
-    # model.CoregCovariance[2].lengthscale = torch.rand(1)  #1*
+    model.CoregCovariance[0].lengthscale = 0.1 *torch.rand(1) #1*
+    model.CoregCovariance[1].lengthscale = 0.1*torch.rand(1)  #1*
+    model.CoregCovariance[2].lengthscale = 0.1*torch.rand(1)  #1*
     #print(model.LambdaDiDj.muDi)
 #print(f"Noises std: {model.lik_std_noise}")
 
@@ -657,56 +657,73 @@ def myTrain(model,x_train,y_train,myLr = 1e-2,Niter = 1):
         print(f"i: {iter+1}, Loss: {loss.item()}")
 
 "Train the model with all yT training data"
-myTrain(model,xS_train,yS_train,myLr = 3e-2,Niter = int(config.N_iter))
+myTrain(model,xST_train,yST_train,myLr = 3e-2,Niter = int(config.N_iter))
 def bypass_params(model_trained,model_cv):
     model_cv.lik_std_noise = model_trained.lik_std_noise
-    model_cv.TLCovariance[0].length = model_trained.TLCovariance[0].length.clone()
-    model_cv.TLCovariance[1].length = model_trained.TLCovariance[1].length.clone()
-    model_cv.TLCovariance[2].length = model_trained.TLCovariance[2].length.clone()
     model_cv.CoregCovariance[0].lengthscale = model_trained.CoregCovariance[0].lengthscale.clone()
     model_cv.CoregCovariance[1].lengthscale = model_trained.CoregCovariance[1].lengthscale.clone()
     model_cv.CoregCovariance[2].lengthscale = model_trained.CoregCovariance[2].lengthscale.clone()
-    model_cv.LambdaDiDj.muDi = model_trained.LambdaDiDj.muDi.clone()
-    model_cv.LambdaDiDj.bDi = model_trained.LambdaDiDj.bDi.clone()
 
-# "Leave one out cross-validation"
-# Val_LML = LogMarginalLikelihood()
-# TestLogLoss_All = []
-# for i in range(yT_all_train.shape[0]):
-#     model_cv = []
-#     yT_train_cv = np.delete(yT_all_train,i,axis=0)
-#     yT_val_cv = yT_all_train[i:i+1,:]
-#     xT_train_cv = np.delete(xT_all_train, i, axis=0)
-#     xT_val_cv = xT_all_train[i:i + 1, :]
-#     print(f"shape cv train:{xT_train_cv.shape}")
-#     #print(f"cv train:{xT_train_cv}")
-#     print(f"shape cv val:{xT_val_cv.shape}")
-#     #print(f"cv val:{xT_val_cv}")
-#     xT_train_cv = torch.from_numpy(xT_train_cv)
-#     yT_train_cv = torch.from_numpy(yT_train_cv)
-#     xT_val_cv = torch.from_numpy(xT_val_cv)
-#     yT_val_cv = torch.from_numpy(yT_val_cv)
-#
-#     "model fit with Cross-val"
-#     model_cv = TLMOGaussianProcess(xT_train_cv, yT_train_cv, xS_train, yS_train, idxS=idx_S, DrugC=DrugC, NDomains=NDomains)
-#     bypass_params(model, model_cv)  #Here we bypass the fitted parameters from the MOGP trained over all data
-#     myTrain(model_cv, xT_train_cv, yT_train_cv, myLr=1e-5, Niter=1) #Here we could refine hyper-params a bit if wished
-#     "Here we put the model in prediciton mode"
-#     model_cv.eval()
-#     model_cv.Train_mode = False
-#     DrugCtoPred_cv = list(np.linspace(0.142857, 1, 7))
-#     with torch.no_grad():
-#         "NOTE: It is important to validate the model with the noisy prediction"
-#         "I noticed it is necessary to include the outputs' uncertainty when validating"
-#         "that is the why noiseless=False, this guarantees including the noise uncertainty of the outputs in preditions"
-#         "validating with noiseless=True can lead to selecting an underfitted model"
-#         mpred_cv, Cpred_cv = model_cv(xT_val_cv, DrugC_new=DrugCtoPred_cv, noiseless=False)
-#         Lpred_cv = torch.linalg.cholesky(Cpred_cv)  #Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
-#         Val_loss = -Val_LML(mpred_cv, Lpred_cv, yT_val_cv)
-#         print(f"Val Loss: {Val_loss.item()}")
-#     TestLogLoss_All.append(Val_loss.numpy())
-#
-# print(f"Mean cv ValLogLoss: {np.mean(TestLogLoss_All)}")
+    for i_kern in range(model_trained.TLCovariance.kernels.__len__()):
+        model_cv.TLCovariance.kernels[i_kern].length = model_cv.TLCovariance.kernels[i_kern].length.clone()
+        model_cv.TLCovariance.kernels[i_kern].adq = model_cv.TLCovariance.kernels[i_kern].adq.clone()
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"Create a K-fold for cross-validation"
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+from sklearn.model_selection import KFold, cross_val_score
+Ndata = yST_train.shape[0]
+Xind = np.arange(Ndata)
+nsplits = 5 #Ndata
+k_fold = KFold(n_splits=nsplits,random_state=1,shuffle=True)
+list_folds = list(k_fold.split(yST_train))
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+"Leave one out cross-validation"
+Val_LML = LogMarginalLikelihood()
+TestLogLoss_All = []
+for Nfold in range(0,nsplits):
+    model_cv = []
+    train_ind, val_ind = list_folds[Nfold]
+    idx_ST_numpy = np.array(idx_S + idx_T)
+    idx_ST = list(idx_ST_numpy[train_ind])
+    yST_train_cv = yST_train[train_ind,:].clone()
+    yST_val_cv = yST_train[val_ind, :].clone()
+    xST_train_cv = xST_train[train_ind,:].clone()
+    xST_val_cv = xST_train[val_ind, :].clone()
+    #xT_val_cv = xT_all_train[i:i + 1, :]
+    #print(f"shape cv yST train:{yST_train_cv.shape}")
+    #print(f"shape cv xST train:{xST_train_cv.shape}")
+    print(f"shape cv yST val:{yST_val_cv.shape}")
+    print(f"shape cv xST val:{xST_val_cv.shape}")
+
+    "model fit with Cross-val"
+    #model_cv = TLMOGaussianProcess(xT_train_cv, yT_train_cv, xS_train, yS_train, idxS=idx_S, DrugC=DrugC, NDomains=NDomains)
+
+    model_cv = BMKMOGaussianProcess(xST_train_cv, yST_train_cv, idxS=idx_ST, DrugC=DrugC, NDomains=NDomains)
+
+    bypass_params(model, model_cv)  #Here we bypass the fitted parameters from the MOGP trained over all data
+    myTrain(model_cv, xST_train_cv, yST_train_cv, myLr=1e-5, Niter=1) #Here we could refine hyper-params a bit if wished
+    "Here we put the model in prediciton mode"
+    model_cv.eval()
+    model_cv.Train_mode = False
+    DrugCtoPred_cv = list(np.linspace(0.142857, 1, 7))
+    with torch.no_grad():
+        "NOTE: It is important to validate the model with the noisy prediction"
+        "I noticed it is necessary to include the outputs' uncertainty when validating"
+        "that is the why noiseless=False, this guarantees including the noise uncertainty of the outputs in preditions"
+        "validating with noiseless=True can lead to selecting an underfitted model"
+        mpred_cv, Cpred_cv = model_cv(xST_val_cv, DrugC_new=DrugCtoPred_cv, noiseless=False)
+        Lpred_cv = torch.linalg.cholesky(Cpred_cv)  #Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
+        Val_loss = -Val_LML(mpred_cv, Lpred_cv, yST_val_cv)
+        print(f"Val Loss: {Val_loss.item()}")
+    TestLogLoss_All.append(Val_loss.numpy())
+
+print(f"Mean cv ValLogLoss: {np.mean(TestLogLoss_All)}")
+
+#TODO: allow the model to receive a variable idxS_new to indicate what are the domains (outputs) we want to predict
+
 #
 # #path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
 # path_home = '/rds/general/user/jgiraldo/home/TransferLearning_Results/'
@@ -722,146 +739,146 @@ def bypass_params(model_trained,model_cv):
 # f.write(f"\nbash{str(config.bash)}, ValLogLoss:{np.mean(TestLogLoss_All)}, CrossVal_N:{yT_train.shape[0]}")
 # f.close()
 
-"Here we have to assign the flag to change from self.Train_mode = True to False"
-print("check difference between model.eval and model.train")
-model.eval()
-model.Train_mode = False
-plot_test = True
-if plot_test:
-    x_test = xT_test.clone()
-    y_test = yT_test.clone()
-    Name_DrugID_plot = Name_DrugID_test
-    plotname = 'Test'
-else:
-    x_test = xT_train.clone()
-    y_test = yT_train.clone()
-    Name_DrugID_plot = Name_DrugID_train
-    plotname = 'Train'
-
-"The Oversample_N below is to generate equaly spaced drug concentrations between the original 7 drug concentrations"
-"i.e., if Oversample_N = 2: means that each 2 positions we'd have the original drug concentration tested in cell-line"
-"we'd have DrugCtoPred = [0.1428, 0.2142, 0.2857, 0.3571,0.4285,0.4999,0.5714,0.6428,0.7142,0.7857,0.8571,0.9285,1.0]"
-Oversample_N = 15
-DrugCtoPred = list(np.linspace(0.142857,1,7+6*(Oversample_N-1)))
-"Below we refer as exact in the sense that those are the exact location of drug concent. for which we have exact data"
-DrugCtoPred_exact = list(np.linspace(0.142857, 1, 7))
-#DrugCtoPred = list(np.linspace(0.142857,1,28))
-sel_concentr = 0
-with torch.no_grad():
-    #model(x_test, DrugC_new=[DrugC[sel_concentr]], NDomain_sel=2, noiseless=True)
-    mpred, Cpred = model(x_test,DrugC_new = DrugCtoPred, NDomain_sel=54,noiseless=False)
-    "To assess the TestLogLoss we have to also include the noise uncertainty, so we use noiseless=False"
-    mpred_exact, Cpred_exact = model(x_test, DrugC_new=DrugCtoPred_exact, NDomain_sel=54, noiseless=False)
-    Lpred_exact = torch.linalg.cholesky(Cpred_exact)  # Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
-    #Test_loss = -Val_LML(mpred_exact, Lpred_exact, y_test)
-    #print(f"Test Loss: {Test_loss.item()}")
-
-yT_pred = mpred.reshape(DrugCtoPred.__len__(),x_test.shape[0]).T
-
-"Compute AUC of prediction"
-AUC_pred = []
-Ncurves = yT_pred.shape[0]
-for i in range(Ncurves):
-    AUC_pred.append(metrics.auc(DrugCtoPred, yT_pred[i,:]))
-AUC_pred = np.array(AUC_pred)[:,None]
-
-"Compute IC50 of prediction"
-x_dose_new = np.array(DrugCtoPred)
-Ydose50_pred = []
-IC50_pred = []
-Emax_pred = []
-for i in range(Ncurves):
-    y_resp_interp = yT_pred[i,:].clone() #pchip_interpolate(x_dose, y_resp, x_dose_new)
-
-    Emax_pred.append(y_resp_interp[-1])
-
-    res1 = y_resp_interp < 0.507
-    res2 = y_resp_interp > 0.493
-    res_aux = np.where(res1 & res2)[0]
-    if (res1 & res2).sum() > 0:
-        res_IC50 = np.arange(res_aux[0], res_aux[0] + res_aux.shape[0]) == res_aux
-        res_aux = res_aux[res_IC50].copy()
-    else:
-        res_aux = res1 & res2
-
-    if (res1 & res2).sum() > 0:
-        Ydose50_pred.append(y_resp_interp[res_aux].mean())
-        IC50_pred.append(x_dose_new[res_aux].mean())
-    elif y_resp_interp[-1] < 0.5:
-        for dose_j in range(x_dose_new.shape[0]):
-            if (y_resp_interp[dose_j] < 0.5):
-                break
-        Ydose50_pred.append(y_resp_interp[dose_j])
-        aux_IC50 = x_dose_new[dose_j]  # it has to be a float not an array to avoid bug
-        IC50_pred.append(aux_IC50)
-    else:
-        Ydose50_pred.append(0.5)
-        IC50_pred.append(1.5)
-
-IC50_pred = np.array(IC50_pred)[:,None]
-Emax_pred = np.array(Emax_pred)[:,None]
-
-"Below we use ::Oversample_N in order to obtain the exact locations of drug concentration for which we have data"
-"in order to compute the error between the yT_test (true observed values) and the yT_pred (predicted)"
-if plot_test:
-    Test_MSE = torch.mean((yT_test-yT_pred[:,::Oversample_N])**2)
-    print(f"Test_MSE: {Test_MSE}")
-    AUC_test = AUC[idx_test]
-    print(f"Test AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
-    IC50_test = IC50[idx_test]
-    print(f"Test IC50_MSE:{np.mean((IC50_pred - IC50_test)**2)}")
-    Emax_test = Emax[idx_test]
-    print(f"Test Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
-else:
-    "Here we just allow the errors of training when we wish to explore their specific values"
-    Train_MSE = torch.mean((yT_train - yT_pred[:, ::Oversample_N]) ** 2)
-    print(f"Train_MSE: {Train_MSE}")
-    AUC_test = AUC[idx_train]
-    print(f"Train AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
-    IC50_test = IC50[idx_train]
-    print(f"Train IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}")
-    Emax_test = Emax[idx_train]
-    print(f"Train Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
-
-# "Here we save the Test Log Loss metric in the same folder path_val where we had also saved the Validation Log Loss"
-# f = open(path_val + 'Test.txt', "a")
-# f.write(f"\nbash{str(config.bash)}, TestLogLoss:{Test_loss.item()}, IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}, AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}, Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}, CrossVal_N:{yT_train.shape[0]}")
-# f.close()
-
-"Plot the prediction for the test yT"
-from torch.distributions.multivariate_normal import MultivariateNormal
-plt.close('all')
-#plt.switch_backend('agg')
-for i in range(x_test.shape[0]):
-    plt.figure(i+1)
-    plt.ylim([-0.02,1.1])
-    #plt.plot(x,mpred1,'.')
-    plt.plot(DrugCtoPred,yT_pred[i,:],'blue')
-    #plt.plot(IC50_pred[i],0.5,'x')   # Plot an x in predicted IC50 location
-    #plt.plot(x_lin, np.ones_like(x_lin) * Emax_pred[i], 'r')  # Plot a horizontal line as Emax
-    if plot_test:
-        plt.plot(DrugC, yT_test[i,:], 'ro')
-    else:
-        plt.plot(DrugC, yT_train[i, :], 'ro')
-
-    plt.title(f"CosmicID: {CosmicID_target}, {plotname} DrugID: {Name_DrugID_plot[i]}",fontsize=14)
-    plt.xlabel('Dose concentration',fontsize=14)
-    plt.ylabel('Cell viability',fontsize=14)
-    plt.grid(True)
-
-    # for j in range(30):
-    #     i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
-    #     yT_pred_sample = i_sample.sample().reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
-    #     plt.plot(DrugCtoPred, yT_pred_sample[i, :], alpha=0.1)
-
-    std_pred = torch.sqrt(torch.diag(Cpred)).reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
-    plt.plot(DrugCtoPred, yT_pred[i, :]+2.0*std_pred[i,:], '--b')
-    plt.plot(DrugCtoPred, yT_pred[i, :] - 2.0 * std_pred[i, :], '--b')
-
-    # # check whether directory already exists
-    # path_plot = path_val + 'Test_plot/'
-    # if not os.path.exists(path_plot):
-    #     # os.mkdir(path_val)   #Use this for a single dir
-    #     os.makedirs(path_plot)  # Use this for a multiple sub dirs
-    # plt.savefig(path_plot+'plotbash'+str(config.bash)+'.pdf')
-
+# "Here we have to assign the flag to change from self.Train_mode = True to False"
+# print("check difference between model.eval and model.train")
+# model.eval()
+# model.Train_mode = False
+# plot_test = True
+# if plot_test:
+#     x_test = xT_test.clone()
+#     y_test = yT_test.clone()
+#     Name_DrugID_plot = Name_DrugID_test
+#     plotname = 'Test'
+# else:
+#     x_test = xT_train.clone()
+#     y_test = yT_train.clone()
+#     Name_DrugID_plot = Name_DrugID_train
+#     plotname = 'Train'
+#
+# "The Oversample_N below is to generate equaly spaced drug concentrations between the original 7 drug concentrations"
+# "i.e., if Oversample_N = 2: means that each 2 positions we'd have the original drug concentration tested in cell-line"
+# "we'd have DrugCtoPred = [0.1428, 0.2142, 0.2857, 0.3571,0.4285,0.4999,0.5714,0.6428,0.7142,0.7857,0.8571,0.9285,1.0]"
+# Oversample_N = 15
+# DrugCtoPred = list(np.linspace(0.142857,1,7+6*(Oversample_N-1)))
+# "Below we refer as exact in the sense that those are the exact location of drug concent. for which we have exact data"
+# DrugCtoPred_exact = list(np.linspace(0.142857, 1, 7))
+# #DrugCtoPred = list(np.linspace(0.142857,1,28))
+# sel_concentr = 0
+# with torch.no_grad():
+#     #model(x_test, DrugC_new=[DrugC[sel_concentr]], NDomain_sel=2, noiseless=True)
+#     mpred, Cpred = model(x_test,DrugC_new = DrugCtoPred, NDomain_sel=54,noiseless=False)
+#     "To assess the TestLogLoss we have to also include the noise uncertainty, so we use noiseless=False"
+#     mpred_exact, Cpred_exact = model(x_test, DrugC_new=DrugCtoPred_exact, NDomain_sel=54, noiseless=False)
+#     Lpred_exact = torch.linalg.cholesky(Cpred_exact)  # Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
+#     #Test_loss = -Val_LML(mpred_exact, Lpred_exact, y_test)
+#     #print(f"Test Loss: {Test_loss.item()}")
+#
+# yT_pred = mpred.reshape(DrugCtoPred.__len__(),x_test.shape[0]).T
+#
+# "Compute AUC of prediction"
+# AUC_pred = []
+# Ncurves = yT_pred.shape[0]
+# for i in range(Ncurves):
+#     AUC_pred.append(metrics.auc(DrugCtoPred, yT_pred[i,:]))
+# AUC_pred = np.array(AUC_pred)[:,None]
+#
+# "Compute IC50 of prediction"
+# x_dose_new = np.array(DrugCtoPred)
+# Ydose50_pred = []
+# IC50_pred = []
+# Emax_pred = []
+# for i in range(Ncurves):
+#     y_resp_interp = yT_pred[i,:].clone() #pchip_interpolate(x_dose, y_resp, x_dose_new)
+#
+#     Emax_pred.append(y_resp_interp[-1])
+#
+#     res1 = y_resp_interp < 0.507
+#     res2 = y_resp_interp > 0.493
+#     res_aux = np.where(res1 & res2)[0]
+#     if (res1 & res2).sum() > 0:
+#         res_IC50 = np.arange(res_aux[0], res_aux[0] + res_aux.shape[0]) == res_aux
+#         res_aux = res_aux[res_IC50].copy()
+#     else:
+#         res_aux = res1 & res2
+#
+#     if (res1 & res2).sum() > 0:
+#         Ydose50_pred.append(y_resp_interp[res_aux].mean())
+#         IC50_pred.append(x_dose_new[res_aux].mean())
+#     elif y_resp_interp[-1] < 0.5:
+#         for dose_j in range(x_dose_new.shape[0]):
+#             if (y_resp_interp[dose_j] < 0.5):
+#                 break
+#         Ydose50_pred.append(y_resp_interp[dose_j])
+#         aux_IC50 = x_dose_new[dose_j]  # it has to be a float not an array to avoid bug
+#         IC50_pred.append(aux_IC50)
+#     else:
+#         Ydose50_pred.append(0.5)
+#         IC50_pred.append(1.5)
+#
+# IC50_pred = np.array(IC50_pred)[:,None]
+# Emax_pred = np.array(Emax_pred)[:,None]
+#
+# "Below we use ::Oversample_N in order to obtain the exact locations of drug concentration for which we have data"
+# "in order to compute the error between the yT_test (true observed values) and the yT_pred (predicted)"
+# if plot_test:
+#     Test_MSE = torch.mean((yT_test-yT_pred[:,::Oversample_N])**2)
+#     print(f"Test_MSE: {Test_MSE}")
+#     AUC_test = AUC[idx_test]
+#     print(f"Test AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
+#     IC50_test = IC50[idx_test]
+#     print(f"Test IC50_MSE:{np.mean((IC50_pred - IC50_test)**2)}")
+#     Emax_test = Emax[idx_test]
+#     print(f"Test Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
+# else:
+#     "Here we just allow the errors of training when we wish to explore their specific values"
+#     Train_MSE = torch.mean((yT_train - yT_pred[:, ::Oversample_N]) ** 2)
+#     print(f"Train_MSE: {Train_MSE}")
+#     AUC_test = AUC[idx_train]
+#     print(f"Train AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
+#     IC50_test = IC50[idx_train]
+#     print(f"Train IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}")
+#     Emax_test = Emax[idx_train]
+#     print(f"Train Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
+#
+# # "Here we save the Test Log Loss metric in the same folder path_val where we had also saved the Validation Log Loss"
+# # f = open(path_val + 'Test.txt', "a")
+# # f.write(f"\nbash{str(config.bash)}, TestLogLoss:{Test_loss.item()}, IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}, AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}, Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}, CrossVal_N:{yT_train.shape[0]}")
+# # f.close()
+#
+# "Plot the prediction for the test yT"
+# from torch.distributions.multivariate_normal import MultivariateNormal
+# plt.close('all')
+# #plt.switch_backend('agg')
+# for i in range(x_test.shape[0]):
+#     plt.figure(i+1)
+#     plt.ylim([-0.02,1.1])
+#     #plt.plot(x,mpred1,'.')
+#     plt.plot(DrugCtoPred,yT_pred[i,:],'blue')
+#     #plt.plot(IC50_pred[i],0.5,'x')   # Plot an x in predicted IC50 location
+#     #plt.plot(x_lin, np.ones_like(x_lin) * Emax_pred[i], 'r')  # Plot a horizontal line as Emax
+#     if plot_test:
+#         plt.plot(DrugC, yT_test[i,:], 'ro')
+#     else:
+#         plt.plot(DrugC, yT_train[i, :], 'ro')
+#
+#     plt.title(f"CosmicID: {CosmicID_target}, {plotname} DrugID: {Name_DrugID_plot[i]}",fontsize=14)
+#     plt.xlabel('Dose concentration',fontsize=14)
+#     plt.ylabel('Cell viability',fontsize=14)
+#     plt.grid(True)
+#
+#     # for j in range(30):
+#     #     i_sample = MultivariateNormal(loc=mpred[:, 0], covariance_matrix=Cpred)
+#     #     yT_pred_sample = i_sample.sample().reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
+#     #     plt.plot(DrugCtoPred, yT_pred_sample[i, :], alpha=0.1)
+#
+#     std_pred = torch.sqrt(torch.diag(Cpred)).reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
+#     plt.plot(DrugCtoPred, yT_pred[i, :]+2.0*std_pred[i,:], '--b')
+#     plt.plot(DrugCtoPred, yT_pred[i, :] - 2.0 * std_pred[i, :], '--b')
+#
+#     # # check whether directory already exists
+#     # path_plot = path_val + 'Test_plot/'
+#     # if not os.path.exists(path_plot):
+#     #     # os.mkdir(path_val)   #Use this for a single dir
+#     #     os.makedirs(path_plot)  # Use this for a multiple sub dirs
+#     # plt.savefig(path_plot+'plotbash'+str(config.bash)+'.pdf')
+#

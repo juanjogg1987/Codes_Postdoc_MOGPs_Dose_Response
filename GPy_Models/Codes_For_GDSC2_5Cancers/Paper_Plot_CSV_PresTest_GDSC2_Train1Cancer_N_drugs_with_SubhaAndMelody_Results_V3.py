@@ -371,36 +371,54 @@ for i in range(5):
 #                 axs_all[i][j, k].set_xlim([0, 100])
 #
 "Here we include the legends, I just used the _nolegend_ for the one I did not want to show!!"
-axs_all[0][0,2].legend(["Avg.±std (MOGP)","MAE-seed (MOGP)"]+["_nolegend_"]*6+["Avg.±std (SRMF)","MAE-seed (SRMF)"]+["_nolegend_"]*6+["Median (BERK)","Mean (BERK)"],loc='upper right',bbox_to_anchor=(2.92, 1.25), ncol=6, fancybox=True, shadow=True)
+#axs_all[0][0,2].legend(["Avg.±std (MOGP)","MAE-seed (MOGP)"]+["_nolegend_"]*6+["Avg.±std (SRMF)","MAE-seed (SRMF)"]+["_nolegend_"]*6+["Median (BERK)","Mean (BERK)"],loc='upper right',bbox_to_anchor=(2.92, 1.25), ncol=6, fancybox=True, shadow=True)
 
-_FOLDER_CHEN = './Results_Benchmark_ChenYurui/'
-sel_c = 0
-dict_name = {0:'breast'}
-df_BenchM1 = pd.read_csv(_FOLDER_CHEN+'deepcdr_'+dict_name[sel_c]+'_cancer.csv')
-
-Nres = df_BenchM1.shape[0]
-Nper_metric = Nres/3
-
-All_Metrics = df_BenchM1['test_mae'].values
-All_Metrics_ordered = All_Metrics.reshape(6*3,6).T
-
-Total_Ncell = All_N_cells * cancer_Ntrain[sel_c] * 0.01
-New_X = np.linspace(Total_Ncell[0],Total_Ncell[-1],1000)
-New_X_per_seed = Total_Ncell.reshape(1, -1).repeat(6, axis=0)
-def plot_ChenYurui_BenchMark(All_Metrics_ordered,sel_c,which_metric = 'AUC'):
+def plot_ChenYurui_BenchMark(All_Metrics_ordered,sel_c,which_metric = 'AUC',color=None):
+    if color is None:
+        color='orange'
     dict_metric = {'AUC':All_Metrics_ordered[:,0:6],'Emax':All_Metrics_ordered[:,6:12],'IC50':All_Metrics_ordered[:,12:]}
     d_loc = {'AUC':0,'Emax':1,'IC50':2}
     Mean_ = np.mean(dict_metric[which_metric],0)
     std_ = np.std(dict_metric[which_metric],0)
     f_Mean_MAE_per_Nthdose_Ncells = pchip_interpolate(Total_Ncell, Mean_,New_X)
     f_std_MAE_per_Nthdose_Ncells = pchip_interpolate(Total_Ncell, std_,New_X)
-    axs_all[0][d_loc[which_metric],sel_c].plot(New_X_per_seed,dict_metric[which_metric],'.',color='orange',alpha=0.25)  #
-    axs_all[0][d_loc[which_metric],sel_c].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells, f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,color='orange',alpha=0.05)
-    axs_all[0][d_loc[which_metric],sel_c].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells,'-',color='orange',linewidth=0.7,label = 'Avg. Mean-Error ± Std')
 
-#axs_all[0][1,0].plot(New_X_per_seed,All_Metrics_ordered[:,6:12],'.',color='orange')
-#axs_all[0][2,0].plot(New_X_per_seed,All_Metrics_ordered[:,12:],'.',color='orange')
-plot_ChenYurui_BenchMark(All_Metrics_ordered,sel_c,which_metric='AUC')
-plot_ChenYurui_BenchMark(All_Metrics_ordered,sel_c,which_metric='Emax')
-plot_ChenYurui_BenchMark(All_Metrics_ordered,sel_c,which_metric='IC50')
+    axs_all[0][d_loc[which_metric], sel_c].fill_between(New_X,
+                                                        f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells,
+                                                        f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,
+                                                        color=color, alpha=0.02)
+    axs_all[0][d_loc[which_metric], sel_c].plot(New_X_per_seed, dict_metric[which_metric], '.', color=color, alpha=0.15,label='Mean-Error per seed')  #
+    axs_all[0][d_loc[which_metric], sel_c].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells, '-', color=color, linewidth=0.6,
+                                                label='Avg. Mean-Error ± Std')
 
+dict_name = {0:'breast',1:'COAD',2:'LUAD',3:'melanoma',4:'SCLC'}
+selcolor = {'DeepCDR':'orange','GraphDRP':'red','NeRD':'purple'}
+Names_BK_model = ['DeepCDR','GraphDRP','NeRD']
+for Name_BK in Names_BK_model:
+    BK_model = '/'+Name_BK+'/'
+
+    _FOLDER_CHEN = './Results_Benchmark_ChenYurui/'+BK_model
+    for sel_c in range(5):
+        #sel_c = 0
+        df_BenchM1 = pd.read_csv(_FOLDER_CHEN+dict_name[sel_c]+'.csv')
+
+        Nres = df_BenchM1.shape[0]
+        Nper_metric = Nres/3
+
+        All_Metrics = df_BenchM1['test_mae'].values
+        All_Metrics2 = df_BenchM1['test_rmse'].values
+        All_Metrics[-36:] = All_Metrics2[-36:]**2
+        All_Metrics_ordered = All_Metrics.reshape(6*3,6).T
+
+        Total_Ncell = All_N_cells * cancer_Ntrain[sel_c] * 0.01
+        New_X = np.linspace(Total_Ncell[0],Total_Ncell[-1],1000)
+        New_X_per_seed = Total_Ncell.reshape(1, -1).repeat(6, axis=0)
+
+        #axs_all[0][1,0].plot(New_X_per_seed,All_Metrics_ordered[:,6:12],'.',color='orange')
+        #axs_all[0][2,0].plot(New_X_per_seed,All_Metrics_ordered[:,12:],'.',color='orange')
+        plot_ChenYurui_BenchMark(All_Metrics_ordered,sel_c,which_metric='AUC',color=selcolor[Name_BK])
+        plot_ChenYurui_BenchMark(All_Metrics_ordered,sel_c,which_metric='Emax',color=selcolor[Name_BK])
+        plot_ChenYurui_BenchMark(All_Metrics_ordered,sel_c,which_metric='IC50',color=selcolor[Name_BK])
+
+#axs_all[0][0,2].legend(["Avg.±std (MOGP)","ME-seed (MOGP)"]+["_nolegend_"]*6+["Avg.±std (SRMF)","ME-seed (SRMF)"]+["_nolegend_"]*6+["Median (BERK)","Mean (BERK)"]+["_nolegend_"]*6+["Avg.±std (DeepCDR)","ME-seed (DeepCDR)"]+["_nolegend_"]*6+["Avg.±std (GraphDRP)","ME-seed (GraphDRP)"]+["_nolegend_"]*5+["Avg.±std (NeRD)","ME-seed (NeRD)"],loc='upper right',bbox_to_anchor=(3.1, 1.35), ncol=6, fancybox=True, shadow=True)
+axs_all[0][0,2].legend(["Avg.±std (MOGP)","ME-seed (MOGP)"]+["_nolegend_"]*6+["Avg.±std (SRMF)","ME-seed (SRMF)"]+["_nolegend_"]*6+["Median (BERK)","Mean (BERK)"]+["Avg.±std (DeepCDR)","ME-seed (DeepCDR)"]+["_nolegend_"]*6+["Avg.±std (GraphDRP)","ME-seed (GraphDRP)"]+["_nolegend_"]*6+["Avg.±std (NeRD)","ME-seed (NeRD)"],loc='upper right',bbox_to_anchor=(3.1, 1.35), ncol=6, fancybox=True, shadow=True)
