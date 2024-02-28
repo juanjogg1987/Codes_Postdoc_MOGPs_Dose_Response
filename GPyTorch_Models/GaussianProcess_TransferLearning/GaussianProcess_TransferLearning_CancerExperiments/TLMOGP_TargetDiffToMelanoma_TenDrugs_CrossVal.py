@@ -545,7 +545,11 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
         if iter==100:  #70
             optimizer.param_groups[0]['lr']=3e-3
         #print(model.TLCovariance.length)
-        print(f"i: {iter+1}, Loss: {loss.item()}")
+        print(f"i: {iter+1}, Loss: {loss.item()}")#
+        #print(f"TLlength1 {model.TLCovariance[1].length}")
+        #print(f"CoregCov1 {model.CoregCovariance[1].lengthscale}")
+        print(f"Lambda_muDi {model.LambdaDiDj.muDi}")
+        print(f"Lambda_bDi {model.LambdaDiDj.bDi}")
 
 "Train the model with all yT training data"
 myTrain(model,xT_train,yT_train,myLr = 3e-2,Niter = int(config.N_iter))
@@ -599,19 +603,19 @@ for i in range(yT_all_train.shape[0]):
 
 print(f"Mean cv ValLogLoss: {np.mean(TestLogLoss_All)}")
 
-#path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
-path_home = '/rds/general/user/jgiraldo/home/TransferLearning_Results/'
-path_val = path_home+'Jobs_TLMOGP_OneCell_OneDrug_Testing/TargetCancer'+str(config.sel_cancer_Target)+'/Drug_'+str(config.which_drug)+'/CellLine'+str(config.idx_CID_Target)+'_CID'+str(CosmicID_target)+'/'
-
-# check whether directory already exists
-if not os.path.exists(path_val):
-  #os.mkdir(path_val)   #Use this for a single dir
-  os.makedirs(path_val) #Use this for a multiple sub dirs
-
-"Here we save the Validation Log Loss in path_val in order to have a list of different bashes to select the best model"
-f = open(path_val+'Validation.txt', "a")
-f.write(f"\nbash{str(config.bash)}, ValLogLoss:{np.mean(TestLogLoss_All)}, CrossVal_N:{yT_train.shape[0]}")
-f.close()
+##path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
+# path_home = '/rds/general/user/jgiraldo/home/TransferLearning_Results/'
+# path_val = path_home+'Jobs_TLMOGP_OneCell_OneDrug_Testing/TargetCancer'+str(config.sel_cancer_Target)+'/Drug_'+str(config.which_drug)+'/CellLine'+str(config.idx_CID_Target)+'_CID'+str(CosmicID_target)+'/'
+#
+# # check whether directory already exists
+# if not os.path.exists(path_val):
+#   #os.mkdir(path_val)   #Use this for a single dir
+#   os.makedirs(path_val) #Use this for a multiple sub dirs
+#
+# "Here we save the Validation Log Loss in path_val in order to have a list of different bashes to select the best model"
+# f = open(path_val+'Validation.txt', "a")
+# f.write(f"\nbash{str(config.bash)}, ValLogLoss:{np.mean(TestLogLoss_All)}, CrossVal_N:{yT_train.shape[0]}")
+# f.close()
 
 "Here we have to assign the flag to change from self.Train_mode = True to False"
 print("check difference between model.eval and model.train")
@@ -713,10 +717,10 @@ else:
     Emax_test = Emax[idx_train]
     print(f"Train Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
 
-"Here we save the Test Log Loss metric in the same folder path_val where we had also saved the Validation Log Loss"
-f = open(path_val + 'Test.txt', "a")
-f.write(f"\nbash{str(config.bash)}, TestLogLoss:{Test_loss.item()}, IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}, AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}, Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}, CrossVal_N:{yT_train.shape[0]}")
-f.close()
+# "Here we save the Test Log Loss metric in the same folder path_val where we had also saved the Validation Log Loss"
+# f = open(path_val + 'Test.txt', "a")
+# f.write(f"\nbash{str(config.bash)}, TestLogLoss:{Test_loss.item()}, IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}, AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}, Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}, CrossVal_N:{yT_train.shape[0]}")
+# f.close()
 
 "Plot the prediction for the test yT"
 from torch.distributions.multivariate_normal import MultivariateNormal
@@ -748,10 +752,10 @@ for i in range(x_test.shape[0]):
     plt.plot(DrugCtoPred, yT_pred[i, :]+2.0*std_pred[i,:], '--b')
     plt.plot(DrugCtoPred, yT_pred[i, :] - 2.0 * std_pred[i, :], '--b')
 
-    # check whether directory already exists
-    path_plot = path_val + 'Test_plot/'
-    if not os.path.exists(path_plot):
-        # os.mkdir(path_val)   #Use this for a single dir
-        os.makedirs(path_plot)  # Use this for a multiple sub dirs
-    plt.savefig(path_plot+'plotbash'+str(config.bash)+'.pdf')
+    # # check whether directory already exists
+    # path_plot = path_val + 'Test_plot/'
+    # if not os.path.exists(path_plot):
+    #     # os.mkdir(path_val)   #Use this for a single dir
+    #     os.makedirs(path_plot)  # Use this for a multiple sub dirs
+    # plt.savefig(path_plot+'plotbash'+str(config.bash)+'.pdf')
 

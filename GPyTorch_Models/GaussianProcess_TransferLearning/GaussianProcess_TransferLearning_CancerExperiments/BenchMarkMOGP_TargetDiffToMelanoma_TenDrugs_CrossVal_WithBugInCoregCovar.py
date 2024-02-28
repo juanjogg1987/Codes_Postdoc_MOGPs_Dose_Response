@@ -261,11 +261,8 @@ class BMKMOGaussianProcess(nn.Module):
         self.TLCovariance = Kernel_ICM(NDomains=NDomains)
         for i in range(NDomains-1):
             self.TLCovariance += Kernel_ICM(NDomains=NDomains)
-        rank = 3    #This is the rank used to allow additional flexibility along the dose response curve
-        self.CoregCovariance = gpytorch.kernels.RBFKernel()
-        for i in range(rank-1):
-            self.CoregCovariance += gpytorch.kernels.RBFKernel()
-        #self.CoregCovariance = [gpytorch.kernels.RBFKernel(),gpytorch.kernels.RBFKernel(),gpytorch.kernels.RBFKernel()]
+        #self.CoregCovariance = gpytorch.kernels.RBFKernel()
+        self.CoregCovariance = [gpytorch.kernels.RBFKernel(),gpytorch.kernels.RBFKernel(),gpytorch.kernels.RBFKernel()]
         self.Train_mode = True
         self.lik_std_noise = torch.nn.Parameter(1.0*torch.ones(NDomains)) #torch.tensor([0.07])
         #self.lik_std_noise = 0.05 * torch.ones(NDomains)
@@ -282,7 +279,9 @@ class BMKMOGaussianProcess(nn.Module):
             assert xS.shape[1] == self.xS.shape[1]  # Thiis is to check if the xT to init the model has same Pfeatures
             # Here we compute the Covariance matrices between source-source domains
             #KSS = self.CoregCovariance(self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance(xS,idx1=self.idxS).evaluate()
-            KSS = (self.CoregCovariance(self.DrugC_xS, self.DrugC_xS).evaluate())* self.TLCovariance(xS,idx1=self.idxS).evaluate()
+            KSS = (self.CoregCovariance[0](self.DrugC_xS, self.DrugC_xS).evaluate()+
+                   self.CoregCovariance[1](self.DrugC_xS, self.DrugC_xS).evaluate()+
+                   self.CoregCovariance[2](self.DrugC_xS, self.DrugC_xS).evaluate())* self.TLCovariance(xS,idx1=self.idxS).evaluate()
 
             # Here we include the respective noise terms associated to each domain
             CSS = KSS + torch.diag(self.lik_std_noise[self.idxS].pow(2))
@@ -323,10 +322,14 @@ class BMKMOGaussianProcess(nn.Module):
             xS = torch.kron(torch.ones(NewDouts, 1), xS.reshape(-1)).reshape(-1, self.Pfeat)
             alpha1 = torch.linalg.solve(self.LSS, self.yS)  #Here LSS contains info of all source domains (all outputs)
             alpha = torch.linalg.solve(self.LSS.t(), alpha1)
-            KSS_xnew_xnew = (self.CoregCovariance(DrugC_xS).evaluate())* self.TLCovariance(xS, idx1=idxS_new).evaluate()
+            KSS_xnew_xnew = (self.CoregCovariance[0](DrugC_xS).evaluate()+
+                             self.CoregCovariance[1](DrugC_xS).evaluate()+
+                             self.CoregCovariance[2](DrugC_xS).evaluate())* self.TLCovariance(xS, idx1=idxS_new).evaluate()
 
             # Rep. Concentr. similar to coreginalisation
-            K_xnew_xS = (self.CoregCovariance(DrugC_xS,self.DrugC_xS).evaluate())* self.TLCovariance(xS,self.xS, idx1=idxS_new,idx2=self.idxS).evaluate()
+            K_xnew_xS = (self.CoregCovariance[0](DrugC_xS,self.DrugC_xS).evaluate()+
+                         self.CoregCovariance[1](DrugC_xS,self.DrugC_xS).evaluate()+
+                         self.CoregCovariance[2](DrugC_xS,self.DrugC_xS).evaluate())* self.TLCovariance(xS,self.xS, idx1=idxS_new,idx2=self.idxS).evaluate()
 
             f_mu = torch.matmul(K_xnew_xS, alpha)
             v = torch.linalg.solve(self.LSS, K_xnew_xS.t())
@@ -387,8 +390,8 @@ class commandLine:
         self.bash = "None"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 0
-        self.idx_CID_Target = 19 #  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
-        self.which_drug = 1057 #1062(22) #2096(17)   #This is the drug we will select as test for the target domain.
+        self.idx_CID_Target = 22 #  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.which_drug = 1062 #2096(17)   #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
             # print(op,arg)
@@ -633,10 +636,10 @@ with torch.no_grad():
         #model.TLCovariance.kernels[i_kern].adq = 0.2*torch.randn(NDomains)[:,None]
         model.TLCovariance.kernels[i_kern].length = 2.*np.sqrt(xS_train.shape[1])*torch.rand(1)
 
-    model.CoregCovariance.kernels[0].lengthscale = 2.0 *torch.rand(1) #1*
-    model.CoregCovariance.kernels[1].lengthscale = 2.0*torch.rand(1)  #1*
-    model.CoregCovariance.kernels[2].lengthscale = 2.0*torch.rand(1)  #1*
-
+    model.CoregCovariance[0].lengthscale = 2.0 *torch.rand(1) #1*
+    model.CoregCovariance[1].lengthscale = 2.0*torch.rand(1)  #1*
+    model.CoregCovariance[2].lengthscale = 2.0*torch.rand(1)  #1*
+    #print(model.LambdaDiDj.muDi)
 #print(f"Noises std: {model.lik_std_noise}")
 
 "Training process below"
@@ -658,17 +661,17 @@ def myTrain(model,x_train,y_train,myLr = 1e-2,Niter = 1):
         #print(model.TLCovariance.length)
         print(f"i: {iter+1}, Loss: {loss.item()}")
         print(f"std-noise {model.lik_std_noise}")
-        print(f"length1 {model.CoregCovariance.kernels[0].lengthscale}")
-        print(f"length2 {model.CoregCovariance.kernels[1].lengthscale}")
-        print(f"length3 {model.CoregCovariance.kernels[2].lengthscale}")
+        print(f"length1 {model.CoregCovariance[0].lengthscale}")
+        print(f"length2 {model.CoregCovariance[1].lengthscale}")
+        print(f"length3 {model.CoregCovariance[2].lengthscale}")
 
 "Train the model with all yT training data"
 myTrain(model,xST_train,yST_train,myLr = 3e-2,Niter = int(config.N_iter))
 def bypass_params(model_trained,model_cv):
     model_cv.lik_std_noise = model_trained.lik_std_noise
-    model_cv.CoregCovariance.kernels[0].lengthscale = model_trained.CoregCovariance.kernels[0].lengthscale.clone()
-    model_cv.CoregCovariance.kernels[1].lengthscale = model_trained.CoregCovariance.kernels[1].lengthscale.clone()
-    model_cv.CoregCovariance.kernels[2].lengthscale = model_trained.CoregCovariance.kernels[2].lengthscale.clone()
+    model_cv.CoregCovariance[0].lengthscale = model_trained.CoregCovariance[0].lengthscale.clone()
+    model_cv.CoregCovariance[1].lengthscale = model_trained.CoregCovariance[1].lengthscale.clone()
+    model_cv.CoregCovariance[2].lengthscale = model_trained.CoregCovariance[2].lengthscale.clone()
 
     for i_kern in range(model_trained.TLCovariance.kernels.__len__()):
         model_cv.TLCovariance.kernels[i_kern].length = model_trained.TLCovariance.kernels[i_kern].length.clone()
