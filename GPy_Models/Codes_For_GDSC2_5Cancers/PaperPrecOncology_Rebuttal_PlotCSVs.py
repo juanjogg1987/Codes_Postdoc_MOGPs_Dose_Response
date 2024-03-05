@@ -15,6 +15,12 @@ DictTitleName = {0:'SKCM',1:'SCLC',2:'PAAD',3:'OV',4:'LUAD',5:'HNSC',6:'ESCA',7:
 file_name = DictFileName[sel_can]
 df = pd.read_csv(_FOLDER+file_name)
 
+DrugID_To_DrugName = {1012:'Vorinostat',1021:'Axitiniv',1036:'PLX-4720',1053:'MK-2206',1058:'Pictilisib',1059:'AZD8055',1061:'SB590885',1149:'TW 37',1372:'Trametinib',1373:'Dabrafenib'}
+
+DrugNames = [DrugID_To_DrugName[MyDrugID] for MyDrugID in df['DRUG_ID']]
+df['DrugName'] = DrugNames
+
+
 import matplotlib.ticker as ticker
 import seaborn as sns
 from scipy.stats import pearsonr
@@ -26,7 +32,7 @@ import matplotlib.colors as mcolors
 # Function to create the scatter plot with regression line and text label
 def create_scatter_plot(df, title, ax, xlim_scatter, ylim_scatter, xlim_regression, ylim_regression,metric_name='IC50',show_legends=True):
     # Define the amount of jitter
-    jitter_amount = 0.03  # Adjust the amount of jitter as needed
+    jitter_amount = 0.02 # Adjust the amount of jitter as needed
 
     # Add jitter to the x and y coordinates to allow visualising the data that overlaps!!
     df[metric_name + '_MOGP_jittered'] = df[metric_name + '_MOGP'] + np.random.uniform(-jitter_amount, jitter_amount,len(df))
@@ -37,9 +43,9 @@ def create_scatter_plot(df, title, ax, xlim_scatter, ylim_scatter, xlim_regressi
     ax.set_ylim(ylim_scatter)
 
     if show_legends:
-        sns.scatterplot(data=df, x=metric_name + '_MOGP_jittered', y=metric_name + '_s4_jittered', hue='DRUG_ID',
+        sns.scatterplot(data=df, x=metric_name + '_MOGP_jittered', y=metric_name + '_s4_jittered', hue='DrugName',
                         palette=['#009E73','#CC79A7','#F0E442','#0072B2','#B22222','#8C8C8C','#1A1A1A','#56B4E9','#E69F00','#800080'],
-                        hue_order=[1012,1021,1036,1053,1058,1059,1061,1149,1372,1373], alpha=0.65, ax=ax,legend = "full")
+                        hue_order=['Vorinostat','Axitiniv','PLX-4720','MK-2206','Pictilisib','AZD8055','SB590885','TW 37','Trametinib','Dabrafenib'], alpha=0.65, ax=ax,legend = "full")
     else:
         sns.scatterplot(data=df, x=metric_name + '_MOGP_jittered', y=metric_name + '_s4_jittered',palette=['#009E73', '#CC79A7'], alpha=0.55, ax=ax)
 
@@ -59,7 +65,8 @@ def create_scatter_plot(df, title, ax, xlim_scatter, ylim_scatter, xlim_regressi
     #ax.get_legend().remove()
     #ax.legend(loc='upper center',ncol=10)
     if show_legends:
-        ax.legend(title='DrugID',bbox_to_anchor=(0.0, 0.56),loc='center left',prop = {'size': 8.5})
+        mylegend =ax.legend(title='Drugs',bbox_to_anchor=(-0.01, 0.63),loc='center left',prop = {'size': 7.5})
+        mylegend.get_frame().set_alpha(0.5)
 
     # Calculate Pearson correlation coefficient and p-value
     r, p_value = pearsonr(df[metric_name + '_MOGP'], df[metric_name + '_s4'])
