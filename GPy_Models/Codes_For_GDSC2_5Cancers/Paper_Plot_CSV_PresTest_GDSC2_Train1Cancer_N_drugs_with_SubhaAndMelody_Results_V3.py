@@ -12,6 +12,8 @@ plt.close('all')
 "This new version does not split any cancer into responsive and non-responsive"
 "The cancers are simply plotted together without any differentiation of responsiveness"
 
+global mylinewidth
+mylinewidth = 1.0
 
 _FOLDER = '/home/juanjo/Work_Postdoc/my_codes_postdoc/FilesCSV_Predict_Train1Cancer_IncreasingCellLines/'
 _FOLDER_subha = _FOLDER + 'Subhashini_QSAR/'
@@ -222,12 +224,9 @@ for sel_cancer in cancers:
         global line_averMAE, line_Seeds
 
         if Responsive is True:
-            #axs[sel_cancer, Nth_dose].boxplot(AE_per_Nthdose_Ncells,medianprops = dict(color = "orangered", linewidth = 1.8),positions=Total_Ncell,widths=4.0,notch=True,flierprops={'marker': 'o', 'markersize': 1, 'markerfacecolor': 'black'})
-            #plt.fill_between(New_X, f_MAE_per_Nthdose_Ncells - f_stdAE_per_Nthdose_Ncells, f_MAE_per_Nthdose_Ncells + f_stdAE_per_Nthdose_Ncells,alpha=0.2)
-            #AE_per_Nthdose_Ncells
-            axs[indx_plot, Nth_dose].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells, f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,color=mycolor[0],alpha=0.05)
-            line3 = axs[indx_plot, Nth_dose].plot(New_X_per_seed, MAE_per_seed, '.', color=mycolor[0], alpha=0.2,label='Mean-Error per seed')
-            line2, = axs[indx_plot, Nth_dose].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells,'-',color=mycolor[1],linewidth=0.7,label = 'Avg. Mean-Error ± Std')
+            #axs[indx_plot, Nth_dose].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells, f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,color=mycolor[0],alpha=0.05)
+            line3 = axs[indx_plot, Nth_dose].plot(New_X_per_seed, MAE_per_seed, '.', color=mycolor[0], alpha=0.1,label='Mean-Error per seed')
+            line2, = axs[indx_plot, Nth_dose].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells,'-',color=mycolor[1],linewidth=mylinewidth,label = 'Avg. Mean-Error ± Std')
             if my_ylim is None:
                 axs[indx_plot, Nth_dose].set_ylim([-0.01,0.27])
             else:
@@ -247,11 +246,10 @@ for sel_cancer in cancers:
                 else:
                     axs[indx_plot, Nth_dose].set_title(my_title)
         else:
-            #axs[sel_cancer].boxplot(AE_per_Nthdose_Ncells, medianprops=dict(color="orangered", linewidth=1.8),positions=Total_Ncell, widths=4.0, notch=True,flierprops={'marker': 'o', 'markersize': 1, 'markerfacecolor': 'black'})
-            # plt.fill_between(New_X, f_MAE_per_Nthdose_Ncells - f_stdAE_per_Nthdose_Ncells, f_MAE_per_Nthdose_Ncells + f_stdAE_per_Nthdose_Ncells,alpha=0.2)
-            axs[indx_plot].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells,f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,color=mycolor[0],alpha=0.05)
-            line3 = axs[indx_plot].plot(New_X_per_seed, MAE_per_seed, '.', color=mycolor[0], alpha=0.2,label='Mean-Error per seed')
-            line2, = axs[indx_plot].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells, '-', color=mycolor[1], linewidth=0.7, label='Avg. Mean-Error ± Std')
+
+            #axs[indx_plot].fill_between(New_X, f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells,f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,color=mycolor[0],alpha=0.05)
+            line3 = axs[indx_plot].plot(New_X_per_seed, MAE_per_seed, '.', color=mycolor[0], alpha=0.1,label='Mean-Error per seed')
+            line2, = axs[indx_plot].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells, '-', color=mycolor[1], linewidth=mylinewidth, label='Avg. Mean-Error ± Std')
             if my_ylim is None:
                 axs[indx_plot].set_ylim([-0.01, 0.27])
             else:
@@ -301,31 +299,38 @@ for sel_cancer in cancers:
 
     if AE_AUC_Res_Ncells[0].shape[0] != 0:
         plot_Nth_dose(0, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_AUC_Res_Ncells, MAE_AUC_Res_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.44],my_title="AUC Responsive (MAE)")
+        mylinewidth = 1.0
         plot_Nth_dose(0, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_AUC_Res_Ncells_Melody, MAE_AUC_Res_Ncells_Melody,mycolor=['green','green'], Responsive=IsRes, my_ylim=[-0.01, 0.44], my_title="AUC Responsive (MAE)",force_title=True)
         if data_AUC_Res[sel_cancer].shape[0] != 0:
             plot_benchmark(axs_all[sel_fig[sel_cancer]], [0, sel_col[sel_cancer]], N_Cells_lin, data_AUC_Res[sel_cancer],alpha=0.5,Responsive = IsRes)
+    mylinewidth = 1.9
     plot_Nth_dose(0, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_AUC_NoRes_Ncells, MAE_AUC_NoRes_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.44],my_title="AUC Non-Responsive (MAE)")
+    mylinewidth = 1.0
     plot_Nth_dose(0, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_AUC_NoRes_Ncells_Melody, MAE_AUC_NoRes_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 0.44], my_title="AUC Non-Responsive (MAE)",force_title=True)
     plot_benchmark(axs_all[sel_fig[sel_cancer]], [0, sel_col[sel_cancer]-1], N_Cells_lin, data_AUC_NoRes[sel_cancer], alpha=0.5,Responsive = IsRes)
 
     print(f"Emax Cancer {sel_cancer}:", AE_Emax_Res_Ncells)
     if AE_Emax_Res_Ncells[0].shape[0] != 0:
         plot_Nth_dose(1, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_Emax_Res_Ncells, MAE_Emax_Res_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.6],my_title="Emax Responsive (MAE)",force_title=True)
+        mylinewidth = 1.0
         plot_Nth_dose(1, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_Emax_Res_Ncells_Melody, MAE_Emax_Res_Ncells_Melody,mycolor=['green','green'], Responsive=IsRes, my_ylim=[-0.01, 0.6],my_title="Emax Responsive (MAE)", force_title=True)
         if data_Emax_Res[sel_cancer].shape[0] != 0:
             plot_benchmark(axs_all[sel_fig[sel_cancer]], [1, sel_col[sel_cancer]], N_Cells_lin, data_Emax_Res[sel_cancer],alpha=0.5,Responsive = IsRes)
+    mylinewidth = 1.9
     plot_Nth_dose(1, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_Emax_NoRes_Ncells, MAE_Emax_NoRes_Ncells,Responsive = IsRes,my_ylim=[-0.01,0.6],my_title="Emax Non-Responsive (MAE)",force_title=True)
+    mylinewidth = 1.0
     plot_Nth_dose(1, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_Emax_NoRes_Ncells_Melody, MAE_Emax_NoRes_Ncells_Melody,mycolor=['green','green'], Responsive=IsRes, my_ylim=[-0.01, 0.6], my_title="Emax Non-Responsive (MAE)",force_title=True)
     plot_benchmark(axs_all[sel_fig[sel_cancer]], [1, sel_col[sel_cancer]-1], N_Cells_lin, data_Emax_NoRes[sel_cancer], alpha=0.5,Responsive = IsRes)
 
     print(f"IC50 Cancer {sel_cancer}:", AE_IC50_Res_Ncells)
     if AE_IC50_Res_Ncells[0].shape[0] != 0:
         plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_IC50_Res_Ncells, MAE_IC50_Res_Ncells,Responsive = IsRes, my_ylim=[-0.01, 1.0],my_title="IC50 Responsive (MSE)",force_title=True)
-        #plot_Nth_dose(2, axs_all[sel_cancer], 2, Num_cells, AE_IC50_Res_Ncells_Subha, MAE_IC50_Res_Ncells_Subha,mycolor=['red','red'], Responsive=IsRes,my_ylim=[-0.01, 1.2], my_title="IC50 Responsive (MSE)", force_title=True)
+        mylinewidth = 1.0
         plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_IC50_Res_Ncells_Melody, MAE_IC50_Res_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 1.0], my_title="IC50 Responsive (MSE)",force_title=True)
         plot_benchmark(axs_all[sel_fig[sel_cancer]], [2, sel_col[sel_cancer]], N_Cells_lin, data_IC50_Res[sel_cancer],alpha=0.5,Responsive = IsRes)
+    mylinewidth = 1.9
     plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_IC50_NoRes_Ncells, MAE_IC50_NoRes_Ncells,Responsive = IsRes, my_ylim=[-0.01, 1.0],my_title="IC50 Non-Responsive (MSE)",force_title=True)
-    #plot_Nth_dose(2, axs_all[sel_cancer], 1, Num_cells, AE_IC50_NoRes_Ncells_Subha, MAE_IC50_NoRes_Ncells_Subha,mycolor=['red','red'], Responsive=IsRes,  my_ylim=[-0.01, 1.2], my_title="IC50 Non-Responsive (MSE)", force_title=True)
+    mylinewidth = 1.0
     plot_Nth_dose(2, axs_all[sel_fig[sel_cancer]], sel_col[sel_cancer], Num_cells, AE_IC50_NoRes_Ncells_Melody, MAE_IC50_NoRes_Ncells_Melody,mycolor=['green', 'green'], Responsive=IsRes, my_ylim=[-0.01, 1.0], my_title="IC50 Non-Responsive (MSE)", force_title=True)
     plot_benchmark(axs_all[sel_fig[sel_cancer]], [2, sel_col[sel_cancer]-1], N_Cells_lin, data_IC50_NoRes[sel_cancer],alpha=0.5,Responsive = IsRes)
 
@@ -383,24 +388,40 @@ def plot_ChenYurui_BenchMark(All_Metrics_ordered,sel_c,which_metric = 'AUC',colo
     f_Mean_MAE_per_Nthdose_Ncells = pchip_interpolate(Total_Ncell, Mean_,New_X)
     f_std_MAE_per_Nthdose_Ncells = pchip_interpolate(Total_Ncell, std_,New_X)
 
-    axs_all[0][d_loc[which_metric], sel_c].fill_between(New_X,
-                                                        f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells,
-                                                        f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,
-                                                        color=color, alpha=0.02)
-    axs_all[0][d_loc[which_metric], sel_c].plot(New_X_per_seed, dict_metric[which_metric], '.', color=color, alpha=0.15,label='Mean-Error per seed')  #
-    axs_all[0][d_loc[which_metric], sel_c].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells, '-', color=color, linewidth=0.6,
+    # axs_all[0][d_loc[which_metric], sel_c].fill_between(New_X,
+    #                                                     f_Mean_MAE_per_Nthdose_Ncells - f_std_MAE_per_Nthdose_Ncells,
+    #                                                     f_Mean_MAE_per_Nthdose_Ncells + f_std_MAE_per_Nthdose_Ncells,
+    #                                                     color=color, alpha=0.02)
+    axs_all[0][d_loc[which_metric], sel_c].plot(New_X_per_seed, dict_metric[which_metric], '.', color=color, alpha=0.09,label='Mean-Error per seed')  #
+    axs_all[0][d_loc[which_metric], sel_c].plot(New_X, f_Mean_MAE_per_Nthdose_Ncells, '-', color=color, linewidth=1.3,
                                                 label='Avg. Mean-Error ± Std')
 
+    # Orange
+    # Red
+    # Purple
+    # Yellow
+    # Teal
+    # Pink
+    # Brown
+    # Cyan
+    # Lavender
+    # Olive
+
 dict_name = {0:'breast',1:'COAD',2:'LUAD',3:'melanoma',4:'SCLC'}
-selcolor = {'DeepCDR':'orange','GraphDRP':'red','NeRD':'purple'}
-Names_BK_model = ['DeepCDR','GraphDRP','NeRD']
+selcolor = {'DeepCDR':'purple','GraphDRP':'pink','NeRD':'magenta','LR_results/cna/LR_result':'red',
+            'LR_results/mut/LR_result':'orange','LR_results/meth/LR_result':'cyan'}
+Names_BK_model = ['DeepCDR','GraphDRP','NeRD','LR_results/cna/LR_result','LR_results/mut/LR_result',
+                  'LR_results/meth/LR_result']
 for Name_BK in Names_BK_model:
-    BK_model = '/'+Name_BK+'/'
+    BK_model = Name_BK
 
     _FOLDER_CHEN = './Results_Benchmark_ChenYurui/'+BK_model
+    df_Bench = pd.read_csv(_FOLDER_CHEN  + '.csv')
+
     for sel_c in range(5):
+        df_BenchM1 = df_Bench[df_Bench['cancer_metric_num_seed'].str.contains(dict_name[sel_c], case=False)].reset_index().drop('index',axis=1)
         #sel_c = 0
-        df_BenchM1 = pd.read_csv(_FOLDER_CHEN+dict_name[sel_c]+'.csv')
+        #df_BenchM1 = pd.read_csv(_FOLDER_CHEN+dict_name[sel_c]+'.csv')
 
         Nres = df_BenchM1.shape[0]
         Nper_metric = Nres/3
@@ -421,4 +442,7 @@ for Name_BK in Names_BK_model:
         plot_ChenYurui_BenchMark(All_Metrics_ordered,sel_c,which_metric='IC50',color=selcolor[Name_BK])
 
 #axs_all[0][0,2].legend(["Avg.±std (MOGP)","ME-seed (MOGP)"]+["_nolegend_"]*6+["Avg.±std (SRMF)","ME-seed (SRMF)"]+["_nolegend_"]*6+["Median (BERK)","Mean (BERK)"]+["_nolegend_"]*6+["Avg.±std (DeepCDR)","ME-seed (DeepCDR)"]+["_nolegend_"]*6+["Avg.±std (GraphDRP)","ME-seed (GraphDRP)"]+["_nolegend_"]*5+["Avg.±std (NeRD)","ME-seed (NeRD)"],loc='upper right',bbox_to_anchor=(3.1, 1.35), ncol=6, fancybox=True, shadow=True)
-axs_all[0][0,2].legend(["Avg.±std (MOGP)","ME-seed (MOGP)"]+["_nolegend_"]*6+["Avg.±std (SRMF)","ME-seed (SRMF)"]+["_nolegend_"]*6+["Median (BERK)","Mean (BERK)"]+["Avg.±std (DeepCDR)","ME-seed (DeepCDR)"]+["_nolegend_"]*6+["Avg.±std (GraphDRP)","ME-seed (GraphDRP)"]+["_nolegend_"]*6+["Avg.±std (NeRD)","ME-seed (NeRD)"],loc='upper right',bbox_to_anchor=(3.1, 1.35), ncol=6, fancybox=True, shadow=True)
+#axs_all[0][0,2].legend(["Avg.±std (MOGP)","ME-seed (MOGP)"]+["_nolegend_"]*6+["Avg.±std (SRMF)","ME-seed (SRMF)"]+["_nolegend_"]*6+["Median (BERK)","Mean (BERK)"]+["Avg.±std (DeepCDR)","ME-seed (DeepCDR)"]+["_nolegend_"]*6+["Avg.±std (GraphDRP)","ME-seed (GraphDRP)"]+["_nolegend_"]*6+["Avg.±std (NeRD)","ME-seed (NeRD)"],loc='upper right',bbox_to_anchor=(3.1, 1.35), ncol=6, fancybox=True, shadow=True)
+axs_all[0][0,2].legend(["_nolegend_"]*5+["ME-seed (MOGP)","Avg.±std (MOGP)"]+["_nolegend_"]*5+["ME-seed (SRMF)","Avg.±std (SRMF)"]+["Median (BERK)","Mean (BERK)"]+["_nolegend_"]*5+\
+                       ["ME-seed (DeepCDR)","Avg.±std (DeepCDR)"]+["_nolegend_"]*5+["ME-seed (GraphDRP)","Avg.±std (GraphDRP)"]+["_nolegend_"]*5+["ME-seed (NeRD)","Avg.±std (NeRD)"]+\
+                       ["_nolegend_"]*5+["ME-seed (LR-cna)","Avg.±std (LR-cna)"]+["_nolegend_"]*5+["ME-seed (LR-mut)","Avg.±std (LR-mut)"]+["_nolegend_"]*5+["ME-seed (LR-meth)","Avg.±std (LR-meth)"],loc='upper right',bbox_to_anchor=(3.7, 1.35), ncol=9, fancybox=True, shadow=True)
