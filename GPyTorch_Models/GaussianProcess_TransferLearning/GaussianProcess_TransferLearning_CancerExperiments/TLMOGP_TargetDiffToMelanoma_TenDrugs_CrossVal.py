@@ -134,8 +134,8 @@ class TLMOGaussianProcess(nn.Module):
         #     self.CoregCovariance += gpytorch.kernels.MaternKernel(2.5) #gpytorch.kernels.RBFKernel()
 
         self.LMCkern1 = gpytorch.kernels.MaternKernel(1.5)
-        self.LMCkern2 = gpytorch.kernels.MaternKernel(2.5)
-        self.LMCkern3 = gpytorch.kernels.MaternKernel(2.5)
+        self.LMCkern2 = gpytorch.kernels.MaternKernel(1.5)
+        self.LMCkern3 = gpytorch.kernels.MaternKernel(1.5)
         self.CoregCovariance = [self.LMCkern1,self.LMCkern2,self.LMCkern3]
 
         self.Train_mode = True
@@ -289,13 +289,13 @@ class commandLine:
         # opts = dict(opts)
         # print(opts)
         self.N_iter = 3    #number of iterations
-        self.which_seed = 10 #35   #change seed to initialise the hyper-parameters
+        self.which_seed = 15 #35   #change seed to initialise the hyper-parameters
         self.weight = 0.5  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = "None"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 0
-        self.idx_CID_Target = 17  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
-        self.which_drug = 2096   #This is the drug we will select as test for the target domain.
+        self.idx_CID_Target = 19  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.which_drug = 1057   #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
             # print(op,arg)
