@@ -128,11 +128,6 @@ class TLMOGaussianProcess(nn.Module):
         self.TLCovariance = [self.TLKern1,self.TLKern2,self.TLKern3] #gpytorch.kernels.RBFKernel()
         self.LambdaDiDj = TLRelatedness(NDomains=NDomains)
 
-        # rank = 3  # This is the rank used to allow additional flexibility along the dose response curve
-        # self.CoregCovariance = gpytorch.kernels.MaternKernel(1.5) #gpytorch.kernels.RBFKernel()
-        # for i in range(rank - 1):
-        #     self.CoregCovariance += gpytorch.kernels.MaternKernel(2.5) #gpytorch.kernels.RBFKernel()
-
         self.LMCkern1 = gpytorch.kernels.MaternKernel(1.5)
         self.LMCkern2 = gpytorch.kernels.MaternKernel(1.5)
         self.LMCkern3 = gpytorch.kernels.MaternKernel(1.5)
@@ -567,10 +562,9 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
         #print(model.TLCovariance.length)
         print(f"i: {iter+1}, Loss: {loss.item()}")#
         #print(f"TLlength1 {model.TLCovariance[2].length}")
-        #print(f"CoregCov1 {model.CoregCovariance.kernels[0].lengthscale}")
         #print(f"CoregCov1 {model.CoregCovariance[0].lengthscale}")
-        #print(f"CoregCov1 {model.CoregCovariance[1].lengthscale}")
-        #print(f"CoregCov1 {model.CoregCovariance[2].lengthscale}")
+        #print(f"CoregCov2 {model.CoregCovariance[1].lengthscale}")
+        #print(f"CoregCov3 {model.CoregCovariance[2].lengthscale}")
         #print(f"Lambda_muDi {model.LambdaDiDj.muDi}")
         #print(f"Lambda_bDi {model.LambdaDiDj.bDi}")
 

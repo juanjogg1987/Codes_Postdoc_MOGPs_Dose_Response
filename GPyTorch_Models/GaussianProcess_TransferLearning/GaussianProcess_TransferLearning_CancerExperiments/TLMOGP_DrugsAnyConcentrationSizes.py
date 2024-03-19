@@ -104,11 +104,12 @@ class TLMOGaussianProcess(nn.Module):
         super().__init__()
         self.Douts_T = yT.shape[1]
         self.Douts_S = yS.shape[1]
-        self.DrugC_T = torch.Tensor(DrugC_T)[:,None] #We treat the Drug Concentrations as a float tensor vector [N,1]
-        self.DrugC_S = torch.Tensor(DrugC_S)[:, None]  # We treat the Drug Concentrations as a float tensor vector [N,1]
+        #self.DrugC_T = torch.Tensor(DrugC_T)[:,None] #We treat the Drug Concentrations as a float tensor vector [N,1]
+        #self.DrugC_S = torch.Tensor(DrugC_S)[:, None]  # We treat the Drug Concentrations as a float tensor vector [N,1]
         self.NDomains = NDomains
-        #self.Q = 2    #Number of Kernel_CrossDomains to linearly combine
-        assert self.DrugC_T.shape[0] == yT.shape[1]  #DrugC length should be equal to D number of outputs
+
+        assert DrugC_T.shape == yT.shape  # DrugC_T should same shape as yT
+        assert DrugC_S.shape == yS.shape  # DrugC_S should same shape as yS
         self.Pfeat = xT.shape[1]
         #torch.kron(mat1, mat2.reshape(-1)).reshape(-1, 429)
         #self.xT = torch.kron(torch.ones(self.Douts, 1),xT)  #This is to replicate xT as per the D number of outputs
@@ -117,8 +118,13 @@ class TLMOGaussianProcess(nn.Module):
         self.xS = torch.kron(torch.ones(self.Douts_S, 1),xS.reshape(-1)).reshape(-1, self.Pfeat)  #This is to replicate xS as per the D number of outputs
         self.yT = yT.T.reshape(-1, 1)  # This is to vectorise by staking the columns (vect(yT))
         self.yS = yS.T.reshape(-1,1) #This is to vectorise by staking the columns (vect(yS))
-        self.DrugC_xT = torch.kron(self.DrugC_T,torch.ones(xT.shape[0], 1)) #Rep. Concentr. similar to coreginalisation
-        self.DrugC_xS = torch.kron(self.DrugC_S,torch.ones(xS.shape[0], 1)) #Rep. Concentr. similar to coreginalisation
+
+        #self.DrugC_xT = torch.kron(self.DrugC_T,torch.ones(xT.shape[0], 1)) #Rep. Concentr. similar to coreginalisation
+        #self.DrugC_xS = torch.kron(self.DrugC_S,torch.ones(xS.shape[0], 1)) #Rep. Concentr. similar to coreginalisation
+
+        self.DrugC_xT = DrugC_T.T.reshape(-1, 1)
+        self.DrugC_xS = DrugC_S.T.reshape(-1, 1)
+
         self.idxS = idxS * self.Douts_S #Replicate the Source domain index as per the number of outputs
         self.idxT = [NDomains - 1] * xT.shape[0] * self.Douts_T #Replicate the target domain index as per the number of outputs
         self.all_y = torch.cat([self.yS, self.yT])
@@ -212,13 +218,20 @@ class TLMOGaussianProcess(nn.Module):
 
             # Here we receive a list of possible drug concentrations to predict
             if DrugC_new is None:
-                DrugC_new = self.DrugC_T
+                #TODO
+                DrugC_new = self.DrugC_xT
+                assert 1==0
+                #DrugC_new = torch.Tensor(DrugC_new)[:, None]
+                #DrugC_xT = torch.kron(DrugC_new, torch.ones(xT.shape[0], 1))
+
             else:
-                DrugC_new = torch.Tensor(DrugC_new)[:, None]
+                assert DrugC_new.shape[0] == xT.shape[0]
+                DrugC_xT = DrugC_new.T.reshape(-1, 1)
             #Below we replicate the target domain index as per the number of drug concentration we want to test
-            NewDouts = DrugC_new.shape[0]
+            NewDouts = DrugC_new.shape[1]
+
             idxT = [self.NDomains - 1] * xT.shape[0] * NewDouts
-            DrugC_xT = torch.kron(DrugC_new, torch.ones(xT.shape[0], 1))
+
             "Be careful with operation using xT.shape, from here it changes the original shape"
             #xT = torch.kron(torch.ones(NewDouts, 1), xT)
             xT = torch.kron(torch.ones(NewDouts, 1), xT.reshape(-1)).reshape(-1, self.Pfeat)
@@ -288,7 +301,7 @@ class commandLine:
         opts, args = getopt.getopt(sys.argv[1:], 'n:r:p:w:s:t:i:d:')
         # opts = dict(opts)
         # print(opts)
-        self.N_iter = 40    #number of iterations
+        self.N_iter = 2    #number of iterations
         self.which_seed = 35    #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = "None"
@@ -507,15 +520,15 @@ print("yS size: ", yS_train.shape)
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Make all variable passed to the model tensor to operate in pytorch"
+NTarget_concentr = 4
 xT_all_train = xT_train.copy()
-yT_all_train = yT_train.copy()
+yT_all_train = yT_train[:,-NTarget_concentr:].copy()
 xT_train = torch.from_numpy(xT_train)
-yT_train = torch.from_numpy(yT_train)
+#yT_train = torch.from_numpy(yT_train)
 xS_train = torch.from_numpy(xS_train)
 #yS_train = torch.from_numpy(yS_train)
-NSource_concentr = 7
-yS_train = torch.from_numpy(yS_train[:,0:NSource_concentr])
-#yS_train = torch.from_numpy(yS_train[:,NSource_concentr:])
+yT_train = torch.from_numpy(yT_train[:,-NTarget_concentr:])
+yS_train = torch.from_numpy(yS_train)
 xT_test = torch.from_numpy(xT_test)
 yT_test = torch.from_numpy(yT_test)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -525,10 +538,18 @@ yT_test = torch.from_numpy(yT_test)
 "Then the total NDomains = CosmicID_labels.__len__() + 1"
 NDomains = CosmicID_labels.__len__() + 1 #CosmicID_labels.__len__() contains the CosmicIDs of Source Domains
 print(f"Number Nsource Domains: {CosmicID_labels.__len__()}, so total NDomains Source + Target: {NDomains}")
-DrugC_T = list(np.linspace(0.142857,1.0,7))
-DrugC_S = DrugC_T[0:NSource_concentr]
-#DrugC_S = DrugC_T[NSource_concentr:]
-assert DrugC_S.__len__() == yS_train.shape[1] and DrugC_T.__len__() == yT_train.shape[1]
+
+Drug_T_range = list(np.linspace(0.5,1.0,NTarget_concentr))
+DrugC_T = torch.Tensor(Drug_T_range) #0:NSource_concentr
+DrugC_T = DrugC_T.repeat(yT_train.shape[0],1)
+
+Drug_S_range = list(np.linspace(0.142857,1.0,7))
+DrugC_S = torch.Tensor(Drug_S_range) #0:NSource_concentr
+DrugC_S = DrugC_S.repeat(yS_train.shape[0],1)
+
+#DrugC_S = DrugC_T[0:NSource_concentr]
+#assert DrugC_S.__len__() == yS_train.shape[1] and DrugC_T.__len__() == yT_train.shape[1]
+
 model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC_T=DrugC_T,DrugC_S=DrugC_S,NDomains=NDomains)
 # model.covariance.length=0.05
 myseed = int(config.which_seed)
@@ -589,6 +610,8 @@ TestLogLoss_All = []
 for i in range(yT_all_train.shape[0]):
     model_cv = []
     yT_train_cv = np.delete(yT_all_train,i,axis=0)
+    DrugC_T_train_cv = np.delete(DrugC_T.numpy(),i,axis=0)
+    DrugC_T_val_cv = DrugC_T.numpy()[i:i+1,:]
     yT_val_cv = yT_all_train[i:i+1,:]
     xT_train_cv = np.delete(xT_all_train, i, axis=0)
     xT_val_cv = xT_all_train[i:i + 1, :]
@@ -600,21 +623,23 @@ for i in range(yT_all_train.shape[0]):
     yT_train_cv = torch.from_numpy(yT_train_cv)
     xT_val_cv = torch.from_numpy(xT_val_cv)
     yT_val_cv = torch.from_numpy(yT_val_cv)
+    DrugC_T_train_cv = torch.from_numpy(DrugC_T_train_cv)
+    DrugC_T_val_cv = torch.from_numpy(DrugC_T_val_cv)
 
     "model fit with Cross-val"
-    model_cv = TLMOGaussianProcess(xT_train_cv, yT_train_cv, xS_train, yS_train, idxS=idx_S, DrugC_T=DrugC_T,DrugC_S=DrugC_S, NDomains=NDomains)
+    model_cv = TLMOGaussianProcess(xT_train_cv, yT_train_cv, xS_train, yS_train, idxS=idx_S, DrugC_T=DrugC_T_train_cv,DrugC_S=DrugC_S, NDomains=NDomains)
     bypass_params(model, model_cv)  #Here we bypass the fitted parameters from the MOGP trained over all data
     myTrain(model_cv, xT_train_cv, yT_train_cv, myLr=1e-5, Niter=1) #Here we could refine hyper-params a bit if wished
     "Here we put the model in prediciton mode"
     model_cv.eval()
     model_cv.Train_mode = False
-    DrugCtoPred_cv = list(np.linspace(0.142857, 1, 7))
+    #DrugCtoPred_cv = list(np.linspace(0.142857, 1, 7))
     with torch.no_grad():
         "NOTE: It is important to validate the model with the noisy prediction"
         "I noticed it is necessary to include the outputs' uncertainty when validating"
         "that is the why noiseless=False, this guarantees including the noise uncertainty of the outputs in preditions"
         "validating with noiseless=True can lead to selecting an underfitted model"
-        mpred_cv, Cpred_cv = model_cv(xT_val_cv, DrugC_new=DrugCtoPred_cv, noiseless=False)
+        mpred_cv, Cpred_cv = model_cv(xT_val_cv, DrugC_new=DrugC_T_val_cv, noiseless=False)
         Lpred_cv = torch.linalg.cholesky(Cpred_cv)  #Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
         Val_loss = -Val_LML(mpred_cv, Lpred_cv, yT_val_cv)
         print(f"Val Loss: {Val_loss.item()}")
