@@ -530,7 +530,7 @@ xS_train = torch.from_numpy(xS_train)
 yT_train = torch.from_numpy(yT_train[:,-NTarget_concentr:])
 yS_train = torch.from_numpy(yS_train)
 xT_test = torch.from_numpy(xT_test)
-yT_test = torch.from_numpy(yT_test)
+yT_test = torch.from_numpy(yT_test[:,-NTarget_concentr:])
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "This is the number of source domains plus target domain."
 "In this cancer application we are refering to each domain as each cell-line with the Cosmic_ID"
@@ -539,13 +539,30 @@ yT_test = torch.from_numpy(yT_test)
 NDomains = CosmicID_labels.__len__() + 1 #CosmicID_labels.__len__() contains the CosmicIDs of Source Domains
 print(f"Number Nsource Domains: {CosmicID_labels.__len__()}, so total NDomains Source + Target: {NDomains}")
 
-Drug_T_range = list(np.linspace(0.5,1.0,NTarget_concentr))
-DrugC_T = torch.Tensor(Drug_T_range) #0:NSource_concentr
-DrugC_T = DrugC_T.repeat(yT_train.shape[0],1)
-
+"Drug_S concentrations for training"
 Drug_S_range = list(np.linspace(0.142857,1.0,7))
 DrugC_S = torch.Tensor(Drug_S_range) #0:NSource_concentr
 DrugC_S = DrugC_S.repeat(yS_train.shape[0],1)
+
+# "Drug_T concentrations for training"
+# Drug_T_range = list(np.linspace(0.5,1.0,NTarget_concentr))
+# DrugC_T = torch.Tensor(Drug_T_range) #0:NSource_concentr
+# DrugC_T = DrugC_T.repeat(yT_train.shape[0],1)
+#
+# "Drug_T concentrations for testing"
+# Drug_T_test_range = list(np.linspace(0.5,1.0,NTarget_concentr))
+# DrugC_T_test = torch.Tensor(Drug_T_test_range) #0:NSource_concentr
+# DrugC_T_test = DrugC_T_test.repeat(yT_test.shape[0],1)
+
+"Drug_T concentrations for training"
+Drug_T_range = list(np.linspace(0.142857,1.0,7))[-NTarget_concentr:]
+DrugC_T = torch.Tensor(Drug_T_range) #0:NSource_concentr
+DrugC_T = DrugC_T.repeat(yT_train.shape[0],1)  # Here shape of yT_train
+
+"Drug_T concentrations for testing"
+Drug_T_test_range = list(np.linspace(0.142857,1.0,7))[-NTarget_concentr:]
+DrugC_T_test = torch.Tensor(Drug_T_test_range) #0:NSource_concentr
+DrugC_T_test = DrugC_T_test.repeat(yT_test.shape[0],1) # Here shape of yT_test
 
 #DrugC_S = DrugC_T[0:NSource_concentr]
 #assert DrugC_S.__len__() == yS_train.shape[1] and DrugC_T.__len__() == yT_train.shape[1]
@@ -680,11 +697,17 @@ else:
 "The Oversample_N below is to generate equaly spaced drug concentrations between the original 7 drug concentrations"
 "i.e., if Oversample_N = 2: means that each 2 positions we'd have the original drug concentration tested in cell-line"
 "we'd have DrugCtoPred = [0.1428, 0.2142, 0.2857, 0.3571,0.4285,0.4999,0.5714,0.6428,0.7142,0.7857,0.8571,0.9285,1.0]"
+
 Oversample_N = 15
-DrugCtoPred = list(np.linspace(0.142857,1,7+6*(Oversample_N-1)))
+#DrugCtoPred_range = list(np.linspace(0.5,1,NTarget_concentr+(NTarget_concentr-1)*(Oversample_N-1)))
+DrugCtoPred_range = list(np.linspace(0.142857,1,7+6*(Oversample_N-1)))
+#DrugCtoPred_range = list(np.linspace(0.142857,1,7+6*(Oversample_N-1)))
+DrugCtoPred = torch.Tensor(DrugCtoPred_range)
+DrugCtoPred = DrugCtoPred.repeat(x_test.shape[0],1)
 "Below we refer as exact in the sense that those are the exact location of drug concent. for which we have exact data"
-DrugCtoPred_exact = list(np.linspace(0.142857, 1, 7))
-#DrugCtoPred = list(np.linspace(0.142857,1,28))
+DrugCtoPred_exact_range = list(np.linspace(0.142857, 1, 7))[-NTarget_concentr:]
+DrugCtoPred_exact = torch.Tensor(DrugCtoPred_exact_range)
+DrugCtoPred_exact = DrugCtoPred_exact.repeat(x_test.shape[0],1)
 sel_concentr = 0
 with torch.no_grad():
     mpred, Cpred = model(x_test,DrugC_new = DrugCtoPred,noiseless=False)
@@ -694,77 +717,77 @@ with torch.no_grad():
     Test_loss = -Val_LML(mpred_exact, Lpred_exact, y_test)
     print(f"Test Loss: {Test_loss.item()}")
 
-yT_pred = mpred.reshape(DrugCtoPred.__len__(),x_test.shape[0]).T
+yT_pred = mpred.reshape(DrugCtoPred.shape[1],x_test.shape[0]).T
 
-"Compute AUC of prediction"
-AUC_pred = []
-Ncurves = yT_pred.shape[0]
-for i in range(Ncurves):
-    AUC_pred.append(metrics.auc(DrugCtoPred, yT_pred[i,:]))
-AUC_pred = np.array(AUC_pred)[:,None]
-
-"Compute IC50 of prediction"
-x_dose_new = np.array(DrugCtoPred)
-Ydose50_pred = []
-IC50_pred = []
-Emax_pred = []
-for i in range(Ncurves):
-    y_resp_interp = yT_pred[i,:].clone() #pchip_interpolate(x_dose, y_resp, x_dose_new)
-
-    Emax_pred.append(y_resp_interp[-1])
-
-    res1 = y_resp_interp < 0.507
-    res2 = y_resp_interp > 0.493
-    res_aux = np.where(res1 & res2)[0]
-    if (res1 & res2).sum() > 0:
-        res_IC50 = np.arange(res_aux[0], res_aux[0] + res_aux.shape[0]) == res_aux
-        res_aux = res_aux[res_IC50].copy()
-    else:
-        res_aux = res1 & res2
-
-    if (res1 & res2).sum() > 0:
-        Ydose50_pred.append(y_resp_interp[res_aux].mean())
-        IC50_pred.append(x_dose_new[res_aux].mean())
-    elif y_resp_interp[-1] < 0.5:
-        for dose_j in range(x_dose_new.shape[0]):
-            if (y_resp_interp[dose_j] < 0.5):
-                break
-        Ydose50_pred.append(y_resp_interp[dose_j])
-        aux_IC50 = x_dose_new[dose_j]  # it has to be a float not an array to avoid bug
-        IC50_pred.append(aux_IC50)
-    else:
-        Ydose50_pred.append(0.5)
-        IC50_pred.append(1.5)
-
-IC50_pred = np.array(IC50_pred)[:,None]
-Emax_pred = np.array(Emax_pred)[:,None]
-
-"Below we use ::Oversample_N in order to obtain the exact locations of drug concentration for which we have data"
-"in order to compute the error between the yT_test (true observed values) and the yT_pred (predicted)"
-if plot_test:
-    Test_MSE = torch.mean((yT_test-yT_pred[:,::Oversample_N])**2)
-    print(f"Test_MSE: {Test_MSE}")
-    AUC_test = AUC[idx_test]
-    print(f"Test AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
-    IC50_test = IC50[idx_test]
-    print(f"Test IC50_MSE:{np.mean((IC50_pred - IC50_test)**2)}")
-    Emax_test = Emax[idx_test]
-    print(f"Test Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
-else:
-    "Here we just allow the errors of training when we wish to explore their specific values"
-    Train_MSE = torch.mean((yT_train - yT_pred[:, ::Oversample_N]) ** 2)
-    print(f"Train_MSE: {Train_MSE}")
-    AUC_test = AUC[idx_train]
-    print(f"Train AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
-    IC50_test = IC50[idx_train]
-    print(f"Train IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}")
-    Emax_test = Emax[idx_train]
-    print(f"Train Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
-
-"Here we save the Test Log Loss metric in the same folder path_val where we had also saved the Validation Log Loss"
-f = open(path_val + 'Test.txt', "a")
-f.write(f"\nbash{str(config.bash)}, TestLogLoss:{Test_loss.item()}, IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}, AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}, Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}, CrossVal_N:{yT_train.shape[0]}")
-f.close()
+# "Compute AUC of prediction"
+# AUC_pred = []
+# Ncurves = yT_pred.shape[0]
+# for i in range(Ncurves):
+#     AUC_pred.append(metrics.auc(DrugCtoPred, yT_pred[i,:]))
+# AUC_pred = np.array(AUC_pred)[:,None]
+#
+# "Compute IC50 of prediction"
+# x_dose_new = np.array(DrugCtoPred)
+# Ydose50_pred = []
+# IC50_pred = []
+# Emax_pred = []
+# for i in range(Ncurves):
+#     y_resp_interp = yT_pred[i,:].clone() #pchip_interpolate(x_dose, y_resp, x_dose_new)
+#
+#     Emax_pred.append(y_resp_interp[-1])
+#
+#     res1 = y_resp_interp < 0.507
+#     res2 = y_resp_interp > 0.493
+#     res_aux = np.where(res1 & res2)[0]
+#     if (res1 & res2).sum() > 0:
+#         res_IC50 = np.arange(res_aux[0], res_aux[0] + res_aux.shape[0]) == res_aux
+#         res_aux = res_aux[res_IC50].copy()
+#     else:
+#         res_aux = res1 & res2
+#
+#     if (res1 & res2).sum() > 0:
+#         Ydose50_pred.append(y_resp_interp[res_aux].mean())
+#         IC50_pred.append(x_dose_new[res_aux].mean())
+#     elif y_resp_interp[-1] < 0.5:
+#         for dose_j in range(x_dose_new.shape[0]):
+#             if (y_resp_interp[dose_j] < 0.5):
+#                 break
+#         Ydose50_pred.append(y_resp_interp[dose_j])
+#         aux_IC50 = x_dose_new[dose_j]  # it has to be a float not an array to avoid bug
+#         IC50_pred.append(aux_IC50)
+#     else:
+#         Ydose50_pred.append(0.5)
+#         IC50_pred.append(1.5)
+#
+# IC50_pred = np.array(IC50_pred)[:,None]
+# Emax_pred = np.array(Emax_pred)[:,None]
+#
+# "Below we use ::Oversample_N in order to obtain the exact locations of drug concentration for which we have data"
+# "in order to compute the error between the yT_test (true observed values) and the yT_pred (predicted)"
+# if plot_test:
+#     Test_MSE = torch.mean((yT_test-yT_pred[:,::Oversample_N])**2)
+#     print(f"Test_MSE: {Test_MSE}")
+#     AUC_test = AUC[idx_test]
+#     print(f"Test AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
+#     IC50_test = IC50[idx_test]
+#     print(f"Test IC50_MSE:{np.mean((IC50_pred - IC50_test)**2)}")
+#     Emax_test = Emax[idx_test]
+#     print(f"Test Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
+# else:
+#     "Here we just allow the errors of training when we wish to explore their specific values"
+#     Train_MSE = torch.mean((yT_train - yT_pred[:, ::Oversample_N]) ** 2)
+#     print(f"Train_MSE: {Train_MSE}")
+#     AUC_test = AUC[idx_train]
+#     print(f"Train AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
+#     IC50_test = IC50[idx_train]
+#     print(f"Train IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}")
+#     Emax_test = Emax[idx_train]
+#     print(f"Train Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
+#
+# "Here we save the Test Log Loss metric in the same folder path_val where we had also saved the Validation Log Loss"
+# f = open(path_val + 'Test.txt', "a")
+# f.write(f"\nbash{str(config.bash)}, TestLogLoss:{Test_loss.item()}, IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}, AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}, Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}, CrossVal_N:{yT_train.shape[0]}")
+# f.close()
 
 "Plot the prediction for the test yT"
 from torch.distributions.multivariate_normal import MultivariateNormal
@@ -774,13 +797,13 @@ for i in range(x_test.shape[0]):
     plt.figure(i+1)
     plt.ylim([-0.02,1.1])
     #plt.plot(x,mpred1,'.')
-    plt.plot(DrugCtoPred,yT_pred[i,:],'blue')
+    plt.plot(DrugCtoPred[i,:],yT_pred[i,:],'blue')
     #plt.plot(IC50_pred[i],0.5,'x')   # Plot an x in predicted IC50 location
     #plt.plot(x_lin, np.ones_like(x_lin) * Emax_pred[i], 'r')  # Plot a horizontal line as Emax
     if plot_test:
-        plt.plot(DrugC_T, yT_test[i,:], 'ro')
+        plt.plot(DrugC_T_test[i,:], yT_test[i,:], 'ro')
     else:
-        plt.plot(DrugC_T, yT_train[i, :], 'ro')
+        plt.plot(DrugC_T[i,:], yT_train[i, :], 'ro')
 
     plt.title(f"CosmicID: {CosmicID_target}, {plotname} DrugID: {Name_DrugID_plot[i]}",fontsize=14)
     plt.xlabel('Dose concentration',fontsize=14)
@@ -792,14 +815,14 @@ for i in range(x_test.shape[0]):
     #     yT_pred_sample = i_sample.sample().reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
     #     plt.plot(DrugCtoPred, yT_pred_sample[i, :], alpha=0.1)
 
-    std_pred = torch.sqrt(torch.diag(Cpred)).reshape(DrugCtoPred.__len__(), x_test.shape[0]).T
-    plt.plot(DrugCtoPred, yT_pred[i, :]+2.0*std_pred[i,:], '--b')
-    plt.plot(DrugCtoPred, yT_pred[i, :] - 2.0 * std_pred[i, :], '--b')
+    std_pred = torch.sqrt(torch.diag(Cpred)).reshape(DrugCtoPred.shape[1], x_test.shape[0]).T
+    plt.plot(DrugCtoPred[i,:], yT_pred[i, :]+2.0*std_pred[i,:], '--b')
+    plt.plot(DrugCtoPred[i,:], yT_pred[i, :] - 2.0 * std_pred[i, :], '--b')
 
-    # check whether directory already exists
-    path_plot = path_val + 'Test_plot/'
-    if not os.path.exists(path_plot):
-        # os.mkdir(path_val)   #Use this for a single dir
-        os.makedirs(path_plot)  # Use this for a multiple sub dirs
-    plt.savefig(path_plot+'plotbash'+str(config.bash)+'.pdf')
+    # # check whether directory already exists
+    # path_plot = path_val + 'Test_plot/'
+    # if not os.path.exists(path_plot):
+    #     # os.mkdir(path_val)   #Use this for a single dir
+    #     os.makedirs(path_plot)  # Use this for a multiple sub dirs
+    # plt.savefig(path_plot+'plotbash'+str(config.bash)+'.pdf')
 
