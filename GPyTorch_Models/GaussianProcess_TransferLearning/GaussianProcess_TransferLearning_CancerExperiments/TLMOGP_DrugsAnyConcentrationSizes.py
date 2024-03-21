@@ -119,6 +119,10 @@ class TLMOGaussianProcess(nn.Module):
         self.yT = yT.T.reshape(-1, 1)  # This is to vectorise by staking the columns (vect(yT))
         self.yS = yS.T.reshape(-1,1) #This is to vectorise by staking the columns (vect(yS))
 
+        self.mS = torch.ones_like(self.yS)
+        self.mT = torch.ones_like(self.yT)
+        self.all_m = torch.cat([self.mS, self.mT])
+
         #self.DrugC_xT = torch.kron(self.DrugC_T,torch.ones(xT.shape[0], 1)) #Rep. Concentr. similar to coreginalisation
         #self.DrugC_xS = torch.kron(self.DrugC_S,torch.ones(xS.shape[0], 1)) #Rep. Concentr. similar to coreginalisation
 
@@ -140,7 +144,7 @@ class TLMOGaussianProcess(nn.Module):
 
         self.LMCkern1 = gpytorch.kernels.MaternKernel(1.5)
         self.LMCkern2 = gpytorch.kernels.MaternKernel(1.5)
-        self.LMCkern3 = gpytorch.kernels.MaternKernel(1.5)
+        self.LMCkern3 = gpytorch.kernels.MaternKernel(2.5)
         self.CoregCovariance = [self.LMCkern1, self.LMCkern2, self.LMCkern3]
         #self.CoregCovariance = [gpytorch.kernels.MaternKernel(1.5),gpytorch.kernels.MaternKernel(2.5),gpytorch.kernels.MaternKernel(2.5)]
 
@@ -183,11 +187,12 @@ class TLMOGaussianProcess(nn.Module):
                 CSS = 0.0*CSS + CSS_aux  #This operation aims to keep the gradients working over lik_std_noise
 
             self.LSS = torch.linalg.cholesky(CSS)
-            alphaSS1 = torch.linalg.solve(self.LSS, self.yS)
+            # alphaSS1 = torch.linalg.solve(self.LSS, self.yS)
+            alphaSS1 = torch.linalg.solve(self.LSS, self.yS-self.mS)
             alphaSS = torch.linalg.solve(self.LSS.t(), alphaSS1)
 
             # Compute the mean of the conditional distribution p(yT|XT,XS,yS)
-            self.mu_star = torch.matmul(KTS,alphaSS)
+            self.mu_star = torch.matmul(KTS,alphaSS) + self.mT
             # Compute the Covariance of the conditional distribution p(yT|XT,XS,yS)
             vTT = torch.linalg.solve(self.LSS, KTS.t())
             C_star = CTT - torch.matmul(vTT.t(),vTT) #+ 1e-4*torch.eye(xT.shape[0])  #jitter?
@@ -235,7 +240,7 @@ class TLMOGaussianProcess(nn.Module):
             "Be careful with operation using xT.shape, from here it changes the original shape"
             #xT = torch.kron(torch.ones(NewDouts, 1), xT)
             xT = torch.kron(torch.ones(NewDouts, 1), xT.reshape(-1)).reshape(-1, self.Pfeat)
-            alpha1 = torch.linalg.solve(self.all_L, self.all_y)
+            alpha1 = torch.linalg.solve(self.all_L, self.all_y-self.all_m)
             alpha = torch.linalg.solve(self.all_L.t(), alpha1)
             KTT_xnew_xnew = self.LambdaDiDj(xT, idx1=idxT).evaluate()*(self.CoregCovariance[0](DrugC_xT).evaluate() * self.TLCovariance[0](xT, idx1=idxT).evaluate()+ \
                                                                        self.CoregCovariance[1](DrugC_xT).evaluate() * self.TLCovariance[1](xT,idx1=idxT).evaluate()+\
@@ -249,6 +254,8 @@ class TLMOGaussianProcess(nn.Module):
                                                                                    self.CoregCovariance[2](DrugC_xT,self.DrugC_xSxT).evaluate() * self.TLCovariance[2](xT, xST, idx1=idxT, idx2=idxST).evaluate())
 
             f_mu = torch.matmul(K_xnew_xST, alpha)
+            mT_pred = torch.ones_like(f_mu)
+            f_mu = torch.matmul(K_xnew_xST, alpha) + mT_pred
             v = torch.linalg.solve(self.all_L, K_xnew_xST.t())
 
             if noiseless:
@@ -302,13 +309,13 @@ class commandLine:
         # opts = dict(opts)
         # print(opts)
         self.N_iter = 2    #number of iterations
-        self.which_seed = 35    #change seed to initialise the hyper-parameters
+        self.which_seed = 75 #35   #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = "None"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 0
-        self.idx_CID_Target = 19  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
-        self.which_drug = 1057   #This is the drug we will select as test for the target domain.
+        self.idx_CID_Target = 35  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.which_drug = 1560   #1062(22) 1057(19) 2096(17) #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
             # print(op,arg)
@@ -527,9 +534,11 @@ xT_train = torch.from_numpy(xT_train)
 #yT_train = torch.from_numpy(yT_train)
 xS_train = torch.from_numpy(xS_train)
 #yS_train = torch.from_numpy(yS_train)
+yT_train_AllConc = torch.from_numpy(yT_train)
 yT_train = torch.from_numpy(yT_train[:,-NTarget_concentr:])
 yS_train = torch.from_numpy(yS_train)
 xT_test = torch.from_numpy(xT_test)
+yT_test_AllConc = torch.from_numpy(yT_test)
 yT_test = torch.from_numpy(yT_test[:,-NTarget_concentr:])
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "This is the number of source domains plus target domain."
@@ -700,10 +709,11 @@ else:
 
 Oversample_N = 15
 #DrugCtoPred_range = list(np.linspace(0.5,1,NTarget_concentr+(NTarget_concentr-1)*(Oversample_N-1)))
-DrugCtoPred_range = list(np.linspace(0.142857,1,7+6*(Oversample_N-1)))
+DrugCtoPred_range = list(np.linspace(-0.5,1,7+6*(Oversample_N-1)))
 #DrugCtoPred_range = list(np.linspace(0.142857,1,7+6*(Oversample_N-1)))
 DrugCtoPred = torch.Tensor(DrugCtoPred_range)
 DrugCtoPred = DrugCtoPred.repeat(x_test.shape[0],1)
+
 "Below we refer as exact in the sense that those are the exact location of drug concent. for which we have exact data"
 DrugCtoPred_exact_range = list(np.linspace(0.142857, 1, 7))[-NTarget_concentr:]
 DrugCtoPred_exact = torch.Tensor(DrugCtoPred_exact_range)
@@ -801,9 +811,11 @@ for i in range(x_test.shape[0]):
     #plt.plot(IC50_pred[i],0.5,'x')   # Plot an x in predicted IC50 location
     #plt.plot(x_lin, np.ones_like(x_lin) * Emax_pred[i], 'r')  # Plot a horizontal line as Emax
     if plot_test:
-        plt.plot(DrugC_T_test[i,:], yT_test[i,:], 'ro')
+        #plt.plot(DrugC_T_test[i,:], yT_test[i,:], 'ro')
+        plt.plot(DrugC_S[0, :], yT_test_AllConc[i, :], 'ro')
     else:
-        plt.plot(DrugC_T[i,:], yT_train[i, :], 'ro')
+        #plt.plot(DrugC_T[i, :], yT_train[i, :], 'ro')
+        plt.plot(DrugC_S[0,:], yT_train_AllConc[i, :], 'ro')
 
     plt.title(f"CosmicID: {CosmicID_target}, {plotname} DrugID: {Name_DrugID_plot[i]}",fontsize=14)
     plt.xlabel('Dose concentration',fontsize=14)
