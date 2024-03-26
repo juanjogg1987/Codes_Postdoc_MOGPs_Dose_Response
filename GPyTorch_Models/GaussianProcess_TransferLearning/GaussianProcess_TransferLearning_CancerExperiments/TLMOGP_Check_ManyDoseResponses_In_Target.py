@@ -400,10 +400,11 @@ CosmicIDs_All_Target.sort()
 CellLine_pos = int(config.idx_CID_Target) #37
 print(f"The CosmicID of the selected Target Cell-line: {CosmicIDs_All_Target[CellLine_pos]}")
 CosmicID_target = CosmicIDs_All_Target[CellLine_pos] #906826 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
-df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
+#df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
+df_target = df_all_target.iloc[0:200]
 
-#idx_train = np.array([0,1,3,4,5,6,7])  #Exp1:3,4,8 ,Exp2 (906826):0,2,6  Exp3 (749709):1,6,8
-#idx_test = np.delete(np.arange(0,df_target.shape[0]),idx_train)
+##idx_train = np.array([0,1,3,4,5,6,7])  #Exp1:3,4,8 ,Exp2 (906826):0,2,6  Exp3 (749709):1,6,8
+##idx_test = np.delete(np.arange(0,df_target.shape[0]),idx_train)
 
 
 "Here we select the drug we will use as testing"
@@ -527,7 +528,7 @@ print("yS size: ", yS_train.shape)
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Make all variable passed to the model tensor to operate in pytorch"
-NTarget_concentr = 4
+NTarget_concentr = 3
 xT_all_train = xT_train.copy()
 yT_all_train = yT_train[:,-NTarget_concentr:].copy()
 xT_train = torch.from_numpy(xT_train)
@@ -633,7 +634,8 @@ def bypass_params(model_trained,model_cv):
 "Leave one out cross-validation"
 Val_LML = LogMarginalLikelihood()
 TestLogLoss_All = []
-for i in range(yT_all_train.shape[0]):
+for i in range(5):
+#for i in range(yT_all_train.shape[0]):
     model_cv = []
     yT_train_cv = np.delete(yT_all_train,i,axis=0)
     DrugC_T_train_cv = np.delete(DrugC_T.numpy(),i,axis=0)
