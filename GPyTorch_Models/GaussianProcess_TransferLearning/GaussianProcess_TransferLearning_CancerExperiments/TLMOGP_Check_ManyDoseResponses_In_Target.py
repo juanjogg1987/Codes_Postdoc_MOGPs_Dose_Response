@@ -528,19 +528,26 @@ print("yS size: ", yS_train.shape)
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Make all variable passed to the model tensor to operate in pytorch"
-NTarget_concentr = 3
+NTarget_concentr = 4
 xT_all_train = xT_train.copy()
-yT_all_train = yT_train[:,-NTarget_concentr:].copy()
+#yT_all_train = yT_train[:,-NTarget_concentr:].copy()
+yT_all_train = np.concatenate((np.ones(yT_train.shape[0])[:,None],yT_train[:,-NTarget_concentr:]),1)
 xT_train = torch.from_numpy(xT_train)
-#yT_train = torch.from_numpy(yT_train)
 xS_train = torch.from_numpy(xS_train)
+#yT_train_AllConc = torch.from_numpy(yT_train)
+yT_train_AllConc = torch.from_numpy( np.concatenate((np.ones(yT_train.shape[0])[:,None],yT_train),1) )
+#yT_train = torch.from_numpy(yT_train[:,-NTarget_concentr:])
+yT_train = torch.from_numpy( np.concatenate((np.ones(yT_train.shape[0])[:,None],yT_train[:,-NTarget_concentr:]),1))
 #yS_train = torch.from_numpy(yS_train)
-yT_train_AllConc = torch.from_numpy(yT_train)
-yT_train = torch.from_numpy(yT_train[:,-NTarget_concentr:])
-yS_train = torch.from_numpy(yS_train)
+yS_train = torch.from_numpy( np.concatenate((np.ones(yS_train.shape[0])[:,None],yS_train),1) )
 xT_test = torch.from_numpy(xT_test)
-yT_test_AllConc = torch.from_numpy(yT_test)
-yT_test = torch.from_numpy(yT_test[:,-NTarget_concentr:])
+#yT_test_AllConc = torch.from_numpy(yT_test)
+yT_test_AllConc = torch.from_numpy( np.concatenate((np.ones(yT_test.shape[0])[:,None],yT_test),1) )
+#yT_test = torch.from_numpy(yT_test[:,-NTarget_concentr:])
+yT_test = torch.from_numpy( np.concatenate((np.ones(yT_test.shape[0])[:,None],yT_test[:,-NTarget_concentr:]),1) )
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+print(f"new shape for yS_train: {yS_train.shape}")
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "This is the number of source domains plus target domain."
 "In this cancer application we are refering to each domain as each cell-line with the Cosmic_ID"
@@ -550,32 +557,21 @@ NDomains = CosmicID_labels.__len__() + 1 #CosmicID_labels.__len__() contains the
 print(f"Number Nsource Domains: {CosmicID_labels.__len__()}, so total NDomains Source + Target: {NDomains}")
 
 "Drug_S concentrations for training"
-Drug_S_range = list(np.linspace(0.142857,1.0,7))
+#Drug_S_range = list(np.linspace(0.142857,1.0,7))
+Drug_S_range = list(np.linspace(0.0,1.0,8))
 DrugC_S = torch.Tensor(Drug_S_range) #0:NSource_concentr
 DrugC_S = DrugC_S.repeat(yS_train.shape[0],1)
 
-# "Drug_T concentrations for training"
-# Drug_T_range = list(np.linspace(0.5,1.0,NTarget_concentr))
-# DrugC_T = torch.Tensor(Drug_T_range) #0:NSource_concentr
-# DrugC_T = DrugC_T.repeat(yT_train.shape[0],1)
-#
-# "Drug_T concentrations for testing"
-# Drug_T_test_range = list(np.linspace(0.5,1.0,NTarget_concentr))
-# DrugC_T_test = torch.Tensor(Drug_T_test_range) #0:NSource_concentr
-# DrugC_T_test = DrugC_T_test.repeat(yT_test.shape[0],1)
-
 "Drug_T concentrations for training"
-Drug_T_range = list(np.linspace(0.142857,1.0,7))[-NTarget_concentr:]
+ind_NTarget_concentr = np.array([0,4,5,6,7])
+Drug_T_range = np.array(np.linspace(0.0,1.0,8))[ind_NTarget_concentr]
 DrugC_T = torch.Tensor(Drug_T_range) #0:NSource_concentr
 DrugC_T = DrugC_T.repeat(yT_train.shape[0],1)  # Here shape of yT_train
 
 "Drug_T concentrations for testing"
-Drug_T_test_range = list(np.linspace(0.142857,1.0,7))[-NTarget_concentr:]
+Drug_T_test_range = np.array(np.linspace(0.0,1.0,8))[ind_NTarget_concentr]
 DrugC_T_test = torch.Tensor(Drug_T_test_range) #0:NSource_concentr
 DrugC_T_test = DrugC_T_test.repeat(yT_test.shape[0],1) # Here shape of yT_test
-
-#DrugC_S = DrugC_T[0:NSource_concentr]
-#assert DrugC_S.__len__() == yS_train.shape[1] and DrugC_T.__len__() == yT_train.shape[1]
 
 model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC_T=DrugC_T,DrugC_S=DrugC_S,NDomains=NDomains)
 # model.covariance.length=0.05
@@ -717,7 +713,9 @@ DrugCtoPred = torch.Tensor(DrugCtoPred_range)
 DrugCtoPred = DrugCtoPred.repeat(x_test.shape[0],1)
 
 "Below we refer as exact in the sense that those are the exact location of drug concent. for which we have exact data"
-DrugCtoPred_exact_range = list(np.linspace(0.142857, 1, 7))[-NTarget_concentr:]
+
+ind_NTarget_concentr = np.array([0,4,5,6,7])
+DrugCtoPred_exact_range = np.array(np.linspace(0.0,1.0,8))[ind_NTarget_concentr]
 DrugCtoPred_exact = torch.Tensor(DrugCtoPred_exact_range)
 DrugCtoPred_exact = DrugCtoPred_exact.repeat(x_test.shape[0],1)
 sel_concentr = 0
@@ -830,8 +828,8 @@ for i in range(x_test.shape[0]):
     #     plt.plot(DrugCtoPred, yT_pred_sample[i, :], alpha=0.1)
 
     std_pred = torch.sqrt(torch.diag(Cpred)).reshape(DrugCtoPred.shape[1], x_test.shape[0]).T
-    plt.plot(DrugCtoPred[i,:], yT_pred[i, :]+2.0*std_pred[i,:], '--b')
-    plt.plot(DrugCtoPred[i,:], yT_pred[i, :] - 2.0 * std_pred[i, :], '--b')
+    plt.plot(DrugCtoPred[i,:], yT_pred[i, :] + 2.0 * std_pred[i,:], '--b')
+    plt.plot(DrugCtoPred[i,:], yT_pred[i, :] - 2.0 * std_pred[i,:], '--b')
 
     # # check whether directory already exists
     # path_plot = path_val + 'Test_plot/'
