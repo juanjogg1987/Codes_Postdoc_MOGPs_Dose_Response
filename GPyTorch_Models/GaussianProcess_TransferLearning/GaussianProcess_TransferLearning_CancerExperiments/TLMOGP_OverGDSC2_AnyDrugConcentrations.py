@@ -119,8 +119,8 @@ class TLMOGaussianProcess(nn.Module):
         self.yT = yT.T.reshape(-1, 1)  # This is to vectorise by staking the columns (vect(yT))
         self.yS = yS.T.reshape(-1,1) #This is to vectorise by staking the columns (vect(yS))
 
-        self.mS = torch.ones_like(self.yS)
-        self.mT = torch.ones_like(self.yT)
+        self.mS = torch.zeros_like(self.yS)
+        self.mT = torch.zeros_like(self.yT)
         self.all_m = torch.cat([self.mS, self.mT])
 
         #self.DrugC_xT = torch.kron(self.DrugC_T,torch.ones(xT.shape[0], 1)) #Rep. Concentr. similar to coreginalisation
@@ -254,7 +254,7 @@ class TLMOGaussianProcess(nn.Module):
                                                                                    self.CoregCovariance[2](DrugC_xT,self.DrugC_xSxT).evaluate() * self.TLCovariance[2](xT, xST, idx1=idxT, idx2=idxST).evaluate())
 
             f_mu = torch.matmul(K_xnew_xST, alpha)
-            mT_pred = torch.ones_like(f_mu)
+            mT_pred = torch.zeros_like(f_mu)
             f_mu = torch.matmul(K_xnew_xST, alpha) + mT_pred
             v = torch.linalg.solve(self.all_L, K_xnew_xST.t())
 
@@ -279,7 +279,7 @@ random.seed(Nseed)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Here we preprocess and prepare our data"
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/"
+_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_dataset_ForSarcoma/"
 #_FOLDER = "/rds/general/user/jgiraldo/home/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/" #HPC path
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -313,9 +313,9 @@ class commandLine:
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = "None"
         self.sel_cancer_Source = 3
-        self.sel_cancer_Target = 0
-        self.idx_CID_Target = 19  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
-        self.which_drug = 1057   #1062(22) 1057(19) 2096(17) #This is the drug we will select as test for the target domain.
+        self.sel_cancer_Target = 5
+        self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.which_drug = 1051   #1062(22) 1057(19) 2096(17) #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
             # print(op,arg)
@@ -340,8 +340,9 @@ class commandLine:
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 config = commandLine()
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-dict_cancers={0:'GDSC2_EGFR_PI3K_MAPK_Breast_1000FR.csv',1:'GDSC2_EGFR_PI3K_MAPK_COAD_1000FR.csv',
-              2:'GDSC2_EGFR_PI3K_MAPK_LUAD.csv',3:'GDSC2_EGFR_PI3K_MAPK_melanoma.csv',4:'GDSC2_EGFR_PI3K_MAPK_SCLC.csv'}
+dict_cancers={0:'BRCA_GDSC2_drugresponse_source_uM.csv',1:'COREAD_GDSC2_drugresponse_source_uM.csv',
+              2:'LUAD_GDSC2_drugresponse_source_uM.csv',3:'SKCM_GDSC2_drugresponse_source_uM.csv',
+              4:'SCLC_GDSC2_drugresponse_source_uM.csv',5:'MB_GDSC2_drugresponse_fullcurve_uM.csv'}
 
 #indx_cancer = np.array([0,1,2,3,4])
 indx_cancer_train = np.array([int(config.sel_cancer_Source)])
@@ -357,41 +358,27 @@ df_to_read = pd.read_csv(_FOLDER + name_file_cancer)#.sample(n=N_CellLines,rando
 df_to_read_target = pd.read_csv(_FOLDER + name_file_cancer_target)#.sample(n=N_CellLines,random_state = rand_state_N)
 
 "Split of data into Training and Testing for the Source and Target domains"
-Index_sel = (df_to_read["DRUG_ID"] == 1036) | (df_to_read["DRUG_ID"] == 1061)| (df_to_read["DRUG_ID"] == 1373) \
-            | (df_to_read["DRUG_ID"] == 1039) | (df_to_read["DRUG_ID"] == 1560) | (df_to_read["DRUG_ID"] == 1057) \
-            | (df_to_read["DRUG_ID"] == 1059)| (df_to_read["DRUG_ID"] == 1062) | (df_to_read["DRUG_ID"] == 2096) \
-            | (df_to_read["DRUG_ID"] == 2045)
+# Index_sel = (df_to_read["DRUG_ID"] == 1036) | (df_to_read["DRUG_ID"] == 1061)| (df_to_read["DRUG_ID"] == 1373) \
+#             | (df_to_read["DRUG_ID"] == 1039) | (df_to_read["DRUG_ID"] == 1560) | (df_to_read["DRUG_ID"] == 1057) \
+#             | (df_to_read["DRUG_ID"] == 1059)| (df_to_read["DRUG_ID"] == 1062) | (df_to_read["DRUG_ID"] == 2096) \
+#             | (df_to_read["DRUG_ID"] == 2045)
 
-df_SourceCancer_all = df_to_read[Index_sel]
+# df_SourceCancer_all = df_to_read[Index_sel]
+df_SourceCancer_all = df_to_read
 df_all = df_SourceCancer_all.reset_index().drop(columns=['index'])
-df_source = df_all.dropna()#.sample(n=3,random_state = 3)
+df_source = df_all.dropna().sample(n=200,random_state = 3)
 #df_source = df_all.iloc[0:].dropna()
 
-Index_sel_target = (df_to_read_target["DRUG_ID"] == 1036) | (df_to_read_target["DRUG_ID"] == 1061)| (df_to_read_target["DRUG_ID"] == 1373) \
-            | (df_to_read_target["DRUG_ID"] == 1039) | (df_to_read_target["DRUG_ID"] == 1560) | (df_to_read_target["DRUG_ID"] == 1057) \
-            | (df_to_read_target["DRUG_ID"] == 1059)| (df_to_read_target["DRUG_ID"] == 1062) | (df_to_read_target["DRUG_ID"] == 2096) \
-            | (df_to_read_target["DRUG_ID"] == 2045)
 
-df_TargetCancer_all = df_to_read_target[Index_sel_target]
+# Index_sel_target = (df_to_read_target["DRUG_ID"] == 1036) | (df_to_read_target["DRUG_ID"] == 1061)| (df_to_read_target["DRUG_ID"] == 1373) \
+#             | (df_to_read_target["DRUG_ID"] == 1039) | (df_to_read_target["DRUG_ID"] == 1560) | (df_to_read_target["DRUG_ID"] == 1057) \
+#             | (df_to_read_target["DRUG_ID"] == 1059)| (df_to_read_target["DRUG_ID"] == 1062) | (df_to_read_target["DRUG_ID"] == 2096) \
+#             | (df_to_read_target["DRUG_ID"] == 2045)
+
+#df_TargetCancer_all = df_to_read_target[Index_sel_target]
+df_TargetCancer_all = df_to_read_target
 df_all_target = df_TargetCancer_all.reset_index().drop(columns=['index'])
 df_all_target = df_all_target.dropna()
-
-"COSMIC_IDs for Breast:"
-"The ones below have 9 drugs tested"
-"The cell line 946359 (all nores); 749709 (1 resp 1 parcial)  has been tested in 9 of the 10 drugs"
-"907046 (2 resp 1 parcial); 1290798 (3 parcial); 905946 (1 resp 1 parcial)"
-"908121 (2 resp 1 parcial); 1240172 (non resp); 906826 (2 resp should try this one)"
-
-"The ones below have 8 drugs tested"
-"1298157 (1 resp 1 parcial); 910927 (2 resp 1 parcial)"
-"910948 (Exp:0,2,6 seed 35)"
-
-
-"COSMIC_IDs for COAD: 909748, 905961, 905937, 1240123, 1659928 and 909755 with (Exp:1,3,5 seed 35), "
-
-"COSMIC_IDs for LUAD: 906805, 1298537, 724878, 687777, 908475 (Exp:0,3,6 seed 35), "
-
-"COSMIC_IDs for SCLC: 713885, 687985, 906808, 1299062, 910692, 687997, 688015, 1240189, 1322212, 688027  (Exp:2,4,5 seed 35), "
 
 myset_target = set(df_all_target['COSMIC_ID'].values)
 myLabels = np.arange(0,myset_target.__len__())
@@ -400,13 +387,9 @@ CosmicIDs_All_Target = list(myset_target)
 CosmicIDs_All_Target.sort()
 CellLine_pos = int(config.idx_CID_Target) #37
 print(f"The CosmicID of the selected Target Cell-line: {CosmicIDs_All_Target[CellLine_pos]}")
-CosmicID_target = CosmicIDs_All_Target[CellLine_pos] #906826 #910927 #1298157 #906826 #1240172 #908121 #905946 #1290798 #907046 #749709 #946359
+CosmicID_target = CosmicIDs_All_Target[CellLine_pos]
 df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
 #df_target = df_all_target.iloc[0:200]
-
-##idx_train = np.array([0,1,3,4,5,6,7])  #Exp1:3,4,8 ,Exp2 (906826):0,2,6  Exp3 (749709):1,6,8
-##idx_test = np.delete(np.arange(0,df_target.shape[0]),idx_train)
-
 
 "Here we select the drug we will use as testing"
 which_drug = int(config.which_drug) #1057
@@ -422,14 +405,16 @@ Name_DrugID_test = df_target_test['DRUG_ID'].values
 
 df_source_and_target = pd.concat([df_source,df_target_train])
 
-# Here we just check that from the column index 25 the input features start
+## "Here we just check that from the column index 25 the input features start"
+
 start_pos_features = 25
 print("first feat Source:",df_all.columns[start_pos_features])
 print("first feat Target:",df_all_target.columns[start_pos_features])
 assert df_all.columns[start_pos_features] == df_all_target.columns[start_pos_features]
 
-df_feat = df_source_and_target[df_source_and_target.columns[start_pos_features:]]
-Names_All_features = df_source_and_target.columns[start_pos_features:]
+"Below we do until -2 'cause the last two columns of the dataframe are just informative names"
+df_feat = df_source_and_target[df_source_and_target.columns[start_pos_features:-2]]
+Names_All_features = df_source_and_target.columns[start_pos_features:-2]
 Idx_Non_ZeroStd = np.where(df_feat.std()!=0.0)
 Names_features_NonZeroStd = Names_All_features[Idx_Non_ZeroStd]
 
@@ -443,14 +428,15 @@ xT_test = scaler.transform(df_target_test[Names_features_NonZeroStd])
 "Here we extract from the dataframe the D outputs related to each dose concentration"
 "Below we select 7 concentration since GDSC2 has that number for the Drugs"
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-Dnorm_cell = 7  #For GDSC2 this is the number of dose concentrations
+Dnorm_cell = 8  #For GDSC2 this is the number of dose concentrations, we include zero concentration
 
 "Here we extract the target domain outputs yT"
-
-yT = np.clip(df_target["norm_cells_" + str(1)].values[:, None], 1.0e-9, np.inf)
+x_dose_T = df_target["fd_num_" + str(0)].values[:, None]
+yT = np.clip(df_target["norm_cells_" + str(0)].values[:, None], -1.0e-1, 1.2)
 print(yT.shape)
-for i in range(2, Dnorm_cell+1):
-    yT = np.concatenate((yT, np.clip(df_target["norm_cells_" + str(i)].values[:, None], 1.0e-9, np.inf)), 1)
+for i in range(1, Dnorm_cell):
+    yT = np.concatenate((yT, np.clip(df_target["norm_cells_" + str(i)].values[:, None], -1.0e-1, 1.2)), 1)
+    x_dose_T = np.concatenate((x_dose_T, df_target["fd_num_" + str(i)].values[:, None]), 1)
 
 print("yT size: ", yT.shape)
 
@@ -473,30 +459,38 @@ import Utils_TransferLearning
 import Utils_TransferLearning as MyUtils
 reload(MyUtils)
 
-"Be careful that x starts from 0.111111 for 9 or 5 drug concentrations in GDSC1 dataset"
-"but x starts from 0.142857143 for the case of 7 drug concentrations in GDSC2 dataset"
-"The function Get_IC50_AUC_Emax is implemented in Utils_SummaryMetrics_KLRelevance.py to extract the summary metrics"
-x_lin = np.linspace(0.142857, 1, 1000)
-x_real_dose = np.linspace(0.142857, 1, Dnorm_cell)  #Here is Dnorm_cell due to using GDSC2 that has 7 doses
-Ydose50,Ydose_res,IC50,AUC,Emax = MyUtils.Get_IC50_AUC_Emax(params_4_sig_target,x_lin,x_real_dose)
-AUC = np.array(AUC)[:, None]
-IC50 = np.array(IC50)[:, None]
-Emax = np.array(Emax)[:, None]
+"The function Extract_IC50_AUC_Emax is implemented in Utils_TransferLearning.py to extract the summary metrics"
+#print(f"No Log: {x_dose_T}")
 
-def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_train_drug):
-    plt.figure(fig_num)
-    plt.plot(x_lin, Ydose_res[posy])
-    plt.plot(x_real_dose, y_train_drug[posy, :], '.')
-    plt.plot(IC50[posy], Ydose50[posy], 'rx')
-    plt.plot(x_lin, np.ones_like(x_lin)*Emax[posy], 'r') #Plot a horizontal line as Emax
-    plt.title(f"AUC = {AUC[posy]}")
-    plt.legend(['Sigmoid4','Observations','IC50','Emax'])
+add_to_log = 0.1
+x_dose_T = np.log2(x_dose_T + add_to_log)
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"Here we can visualise the values of the GDSC2 dataset with the fitting of Sigmoid4_parameters function"
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-posy = 0   #select the location you want to plot, do not exceed the Ytrain length
-my_plot(posy,0,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,yT)
+#print(f"With Log: {x_dose_T}")
+x_lin = np.log2( np.array([np.linspace(xrange[0],xrange[-1],1000) for xrange in x_dose_T]) + add_to_log)
+#x_real_dose = np.linspace(0.142857, 1, Dnorm_cell)  #Here is Dnorm_cell due to using GDSC2 that has 7 doses
+
+#TODO the params_4_sig are not working with the current dose concentrations so we cannot extract summary metrics
+#TODO I have to ask Evelyn how are the params_4_sig computed
+
+# Ydose50,Ydose_res,IC50,AUC,Emax = MyUtils.Extract_IC50_AUC_Emax(params_4_sig_target,x_lin)
+# AUC = np.array(AUC)[:, None]
+# IC50 = np.array(IC50)[:, None]
+# Emax = np.array(Emax)[:, None]
+
+# def my_plot(posy,fig_num,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin,x_real_dose,y_train_drug):
+#     plt.figure(fig_num)
+#     #plt.plot(x_lin, Ydose_res[posy])
+#     plt.plot(x_real_dose, y_train_drug[posy, :], '.')
+#     #plt.plot(IC50[posy], Ydose50[posy], 'rx')
+#     #plt.plot(x_lin, np.ones_like(x_lin)*Emax[posy], 'r') #Plot a horizontal line as Emax
+#     #plt.title(f"AUC = {AUC[posy]}")
+#     #plt.legend(['Sigmoid4','Observations','IC50','Emax'])
+#
+# """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+# "Here we can visualise the values of the GDSC2 dataset with the fitting of Sigmoid4_parameters function"
+# """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+# posy = 0   #select the location you want to plot, do not exceed the Ytrain length
+# my_plot(posy,1,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin[posy,:],x_dose_T[posy,:],yT)
 
 yT_train = yT[idx_train]
 yT_test = yT[idx_test]
@@ -520,32 +514,30 @@ xS_train = scaler.transform(df_source_sort[Names_features_NonZeroStd])
 
 "Here we extract the source domain outputs yS"
 
-yS_train = np.clip(df_source_sort["norm_cells_" + str(1)].values[:, None], 1.0e-9, np.inf)
+x_dose_S = df_source_sort["fd_num_" + str(0)].values[:, None]
+yS_train = np.clip(df_source_sort["norm_cells_" + str(0)].values[:, None], -1.0e-1, 1.2)
 print(yS_train.shape)
-for i in range(2, Dnorm_cell+1):
-    yS_train = np.concatenate((yS_train, np.clip(df_source_sort["norm_cells_" + str(i)].values[:, None], 1.0e-9, np.inf)), 1)
+for i in range(1, Dnorm_cell):
+    yS_train = np.concatenate((yS_train, np.clip(df_source_sort["norm_cells_" + str(i)].values[:, None], -1.0e-1, 1.2)), 1)
+    x_dose_S = np.concatenate((x_dose_S, df_source_sort["fd_num_" + str(i)].values[:, None]),1)
 
 print("yS size: ", yS_train.shape)
 
+x_dose_S = np.log2(x_dose_S + add_to_log)
+
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Make all variable passed to the model tensor to operate in pytorch"
-NTarget_concentr = 4
+indT_concentr = np.array([0,4,5,6,7])
 xT_all_train = xT_train.copy()
-#yT_all_train = yT_train[:,-NTarget_concentr:].copy()
-yT_all_train = np.concatenate((np.ones(yT_train.shape[0])[:,None],yT_train[:,-NTarget_concentr:]),1)
+yT_all_train = yT_train[:,indT_concentr].copy()
 xT_train = torch.from_numpy(xT_train)
 xS_train = torch.from_numpy(xS_train)
-#yT_train_AllConc = torch.from_numpy(yT_train)
-yT_train_AllConc = torch.from_numpy( np.concatenate((np.ones(yT_train.shape[0])[:,None],yT_train),1) )
-#yT_train = torch.from_numpy(yT_train[:,-NTarget_concentr:])
-yT_train = torch.from_numpy( np.concatenate((np.ones(yT_train.shape[0])[:,None],yT_train[:,-NTarget_concentr:]),1))
-#yS_train = torch.from_numpy(yS_train)
-yS_train = torch.from_numpy( np.concatenate((np.ones(yS_train.shape[0])[:,None],yS_train),1) )
+yT_train_AllConc = torch.from_numpy(yT_train)
+yT_train = torch.from_numpy(yT_train[:,indT_concentr])
+yS_train = torch.from_numpy(yS_train)
 xT_test = torch.from_numpy(xT_test)
-#yT_test_AllConc = torch.from_numpy(yT_test)
-yT_test_AllConc = torch.from_numpy( np.concatenate((np.ones(yT_test.shape[0])[:,None],yT_test),1) )
-#yT_test = torch.from_numpy(yT_test[:,-NTarget_concentr:])
-yT_test = torch.from_numpy( np.concatenate((np.ones(yT_test.shape[0])[:,None],yT_test[:,-NTarget_concentr:]),1) )
+yT_test_AllConc = torch.from_numpy(yT_test)
+yT_test = torch.from_numpy(yT_test[:,indT_concentr])
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 print(f"new shape for yS_train: {yS_train.shape}")
@@ -558,24 +550,20 @@ NDomains = CosmicID_labels.__len__() + 1 #CosmicID_labels.__len__() contains the
 print(f"Number Nsource Domains: {CosmicID_labels.__len__()}, so total NDomains Source + Target: {NDomains}")
 
 "Drug_S concentrations for training"
-#Drug_S_range = list(np.linspace(0.142857,1.0,7))
-Drug_S_range = list(np.linspace(0.0,1.0,8))
-DrugC_S = torch.Tensor(Drug_S_range) #0:NSource_concentr
-DrugC_S = DrugC_S.repeat(yS_train.shape[0],1)
+# Drug_S_range = list(np.linspace(0.0,1.0,8))
+# DrugC_S = torch.Tensor(Drug_S_range) #0:NSource_concentr
+# DrugC_S = DrugC_S.repeat(yS_train.shape[0],1)
 
-"Drug_T concentrations for training"
-ind_NTarget_concentr = np.array([0,4,5,6,7])
-Drug_T_range = np.array(np.linspace(0.0,1.0,8))[ind_NTarget_concentr]
-DrugC_T = torch.Tensor(Drug_T_range) #0:NSource_concentr
-DrugC_T = DrugC_T.repeat(yT_train.shape[0],1)  # Here shape of yT_train
+DrugC_S = torch.from_numpy(x_dose_S)
 
-"Drug_T concentrations for testing"
-Drug_T_test_range = np.array(np.linspace(0.0,1.0,8))[ind_NTarget_concentr]
-DrugC_T_test = torch.Tensor(Drug_T_test_range) #0:NSource_concentr
-DrugC_T_test = DrugC_T_test.repeat(yT_test.shape[0],1) # Here shape of yT_test
+"Drug_T concentrations for training and testing"
+DrugC_T_AllConc = torch.from_numpy(x_dose_T[idx_train])
+DrugC_T = DrugC_T_AllConc[:,indT_concentr]
+DrugC_T_test_AllConc = torch.from_numpy(x_dose_T[idx_test])
+DrugC_T_test = DrugC_T_test_AllConc[:,indT_concentr]
 
 model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC_T=DrugC_T,DrugC_S=DrugC_S,NDomains=NDomains)
-# model.covariance.length=0.05
+## model.covariance.length=0.05
 myseed = int(config.which_seed)
 torch.manual_seed(myseed)   #Ex1: 15 (run 100 iter)  #Exp2 (906826): 35  (run 100 iter)
 with torch.no_grad():
@@ -584,9 +572,9 @@ with torch.no_grad():
     model.TLCovariance[0].length = float(config.weight)*2.*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None]
     model.TLCovariance[1].length = float(config.weight)*6.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
     model.TLCovariance[2].length = float(config.weight)*10.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
-    model.CoregCovariance[0].lengthscale = torch.rand(1) #1*
-    model.CoregCovariance[1].lengthscale = torch.rand(1)  #1*
-    model.CoregCovariance[2].lengthscale = torch.rand(1)  #1*
+    model.CoregCovariance[0].lengthscale = 10*torch.rand(1) #1*
+    model.CoregCovariance[1].lengthscale = 10*torch.rand(1)  #1*
+    model.CoregCovariance[2].lengthscale = 10*torch.rand(1)  #1*
     model.LambdaDiDj.muDi = torch.rand(NDomains)[:, None]
     model.LambdaDiDj.bDi = torch.rand(NDomains)[:, None]
     #print(model.LambdaDiDj.muDi)
@@ -631,7 +619,7 @@ def bypass_params(model_trained,model_cv):
 "Leave one out cross-validation"
 Val_LML = LogMarginalLikelihood()
 TestLogLoss_All = []
-for i in range(5):
+for i in range(2):
 #for i in range(yT_all_train.shape[0]):
     model_cv = []
     yT_train_cv = np.delete(yT_all_train,i,axis=0)
@@ -694,11 +682,13 @@ plot_test = False
 if plot_test:
     x_test = xT_test.clone()
     y_test = yT_test.clone()
+    DrugCtoPred_exact = DrugC_T_test.clone()
     Name_DrugID_plot = Name_DrugID_test
     plotname = 'Test'
 else:
     x_test = xT_train.clone()
     y_test = yT_train.clone()
+    DrugCtoPred_exact = DrugC_T.clone()
     Name_DrugID_plot = Name_DrugID_train
     plotname = 'Train'
 
@@ -706,20 +696,20 @@ else:
 "i.e., if Oversample_N = 2: means that each 2 positions we'd have the original drug concentration tested in cell-line"
 "we'd have DrugCtoPred = [0.1428, 0.2142, 0.2857, 0.3571,0.4285,0.4999,0.5714,0.6428,0.7142,0.7857,0.8571,0.9285,1.0]"
 
-Oversample_N = 15
+Oversample_N = 35
 #DrugCtoPred_range = list(np.linspace(0.5,1,NTarget_concentr+(NTarget_concentr-1)*(Oversample_N-1)))
-DrugCtoPred_range = list(np.linspace(-0.5,1,7+6*(Oversample_N-1)))
+DrugCtoPred_range = np.array(np.linspace(-3.5,4.0,7+6*(Oversample_N-1)))
 #DrugCtoPred_range = list(np.linspace(0.142857,1,7+6*(Oversample_N-1)))
-DrugCtoPred = torch.Tensor(DrugCtoPred_range)
+DrugCtoPred = torch.from_numpy(DrugCtoPred_range)
 DrugCtoPred = DrugCtoPred.repeat(x_test.shape[0],1)
 
 "Below we refer as exact in the sense that those are the exact location of drug concent. for which we have exact data"
 
-ind_NTarget_concentr = np.array([0,4,5,6,7])
-DrugCtoPred_exact_range = np.array(np.linspace(0.0,1.0,8))[ind_NTarget_concentr]
-DrugCtoPred_exact = torch.Tensor(DrugCtoPred_exact_range)
-DrugCtoPred_exact = DrugCtoPred_exact.repeat(x_test.shape[0],1)
-sel_concentr = 0
+#ind_NTarget_concentr = np.array([0,4,5,6,7])
+#DrugCtoPred_exact_range = np.array(np.linspace(0.0,1.0,8))[ind_NTarget_concentr]
+#DrugCtoPred_exact = torch.Tensor(DrugCtoPred_exact_range)
+#DrugCtoPred_exact = DrugCtoPred_exact.repeat(x_test.shape[0],1)
+
 with torch.no_grad():
     mpred, Cpred = model(x_test,DrugC_new = DrugCtoPred,noiseless=False)
     "To assess the TestLogLoss we have to also include the noise uncertainty, so we use noiseless=False"
@@ -729,76 +719,6 @@ with torch.no_grad():
     print(f"Test Loss: {Test_loss.item()}")
 
 yT_pred = mpred.reshape(DrugCtoPred.shape[1],x_test.shape[0]).T
-
-# "Compute AUC of prediction"
-# AUC_pred = []
-# Ncurves = yT_pred.shape[0]
-# for i in range(Ncurves):
-#     AUC_pred.append(metrics.auc(DrugCtoPred, yT_pred[i,:]))
-# AUC_pred = np.array(AUC_pred)[:,None]
-#
-# "Compute IC50 of prediction"
-# x_dose_new = np.array(DrugCtoPred)
-# Ydose50_pred = []
-# IC50_pred = []
-# Emax_pred = []
-# for i in range(Ncurves):
-#     y_resp_interp = yT_pred[i,:].clone() #pchip_interpolate(x_dose, y_resp, x_dose_new)
-#
-#     Emax_pred.append(y_resp_interp[-1])
-#
-#     res1 = y_resp_interp < 0.507
-#     res2 = y_resp_interp > 0.493
-#     res_aux = np.where(res1 & res2)[0]
-#     if (res1 & res2).sum() > 0:
-#         res_IC50 = np.arange(res_aux[0], res_aux[0] + res_aux.shape[0]) == res_aux
-#         res_aux = res_aux[res_IC50].copy()
-#     else:
-#         res_aux = res1 & res2
-#
-#     if (res1 & res2).sum() > 0:
-#         Ydose50_pred.append(y_resp_interp[res_aux].mean())
-#         IC50_pred.append(x_dose_new[res_aux].mean())
-#     elif y_resp_interp[-1] < 0.5:
-#         for dose_j in range(x_dose_new.shape[0]):
-#             if (y_resp_interp[dose_j] < 0.5):
-#                 break
-#         Ydose50_pred.append(y_resp_interp[dose_j])
-#         aux_IC50 = x_dose_new[dose_j]  # it has to be a float not an array to avoid bug
-#         IC50_pred.append(aux_IC50)
-#     else:
-#         Ydose50_pred.append(0.5)
-#         IC50_pred.append(1.5)
-#
-# IC50_pred = np.array(IC50_pred)[:,None]
-# Emax_pred = np.array(Emax_pred)[:,None]
-#
-# "Below we use ::Oversample_N in order to obtain the exact locations of drug concentration for which we have data"
-# "in order to compute the error between the yT_test (true observed values) and the yT_pred (predicted)"
-# if plot_test:
-#     Test_MSE = torch.mean((yT_test-yT_pred[:,::Oversample_N])**2)
-#     print(f"Test_MSE: {Test_MSE}")
-#     AUC_test = AUC[idx_test]
-#     print(f"Test AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
-#     IC50_test = IC50[idx_test]
-#     print(f"Test IC50_MSE:{np.mean((IC50_pred - IC50_test)**2)}")
-#     Emax_test = Emax[idx_test]
-#     print(f"Test Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
-# else:
-#     "Here we just allow the errors of training when we wish to explore their specific values"
-#     Train_MSE = torch.mean((yT_train - yT_pred[:, ::Oversample_N]) ** 2)
-#     print(f"Train_MSE: {Train_MSE}")
-#     AUC_test = AUC[idx_train]
-#     print(f"Train AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}")
-#     IC50_test = IC50[idx_train]
-#     print(f"Train IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}")
-#     Emax_test = Emax[idx_train]
-#     print(f"Train Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}")
-#
-# "Here we save the Test Log Loss metric in the same folder path_val where we had also saved the Validation Log Loss"
-# f = open(path_val + 'Test.txt', "a")
-# f.write(f"\nbash{str(config.bash)}, TestLogLoss:{Test_loss.item()}, IC50_MSE:{np.mean((IC50_pred - IC50_test) ** 2)}, AUC_MAE:{np.mean(np.abs(AUC_pred - AUC_test))}, Emax_MAE:{np.mean(np.abs(Emax_pred - Emax_test))}, CrossVal_N:{yT_train.shape[0]}")
-# f.close()
 
 "Plot the prediction for the test yT"
 from torch.distributions.multivariate_normal import MultivariateNormal
@@ -813,10 +733,10 @@ for i in range(x_test.shape[0]):
     #plt.plot(x_lin, np.ones_like(x_lin) * Emax_pred[i], 'r')  # Plot a horizontal line as Emax
     if plot_test:
         #plt.plot(DrugC_T_test[i,:], yT_test[i,:], 'ro')
-        plt.plot(DrugC_S[0, :], yT_test_AllConc[i, :], 'ro')
+        plt.plot(DrugC_T_test_AllConc[i,:], yT_test_AllConc[i, :], 'ro')
     else:
         #plt.plot(DrugC_T[i, :], yT_train[i, :], 'ro')
-        plt.plot(DrugC_S[0,:], yT_train_AllConc[i, :], 'ro')
+        plt.plot(DrugC_T_AllConc[i,:], yT_train_AllConc[i, :], 'ro')
 
     plt.title(f"CosmicID: {CosmicID_target}, {plotname} DrugID: {Name_DrugID_plot[i]}",fontsize=14)
     plt.xlabel('Dose concentration',fontsize=14)
