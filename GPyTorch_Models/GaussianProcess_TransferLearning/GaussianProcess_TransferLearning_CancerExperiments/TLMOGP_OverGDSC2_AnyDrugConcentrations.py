@@ -309,7 +309,7 @@ class commandLine:
         # opts = dict(opts)
         # print(opts)
         self.N_iter = 2    #number of iterations
-        self.which_seed = 29 #35   #change seed to initialise the hyper-parameters
+        self.which_seed = 123 #108 #103 #29 #35   #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = "None"
         self.sel_cancer_Source = 3
@@ -366,7 +366,7 @@ df_to_read_target = pd.read_csv(_FOLDER + name_file_cancer_target)#.sample(n=N_C
 # df_SourceCancer_all = df_to_read[Index_sel]
 df_SourceCancer_all = df_to_read
 df_all = df_SourceCancer_all.reset_index().drop(columns=['index'])
-df_source = df_all.dropna().sample(n=200,random_state = 3)
+df_source = df_all.dropna().sample(n=150,random_state = 8)
 #df_source = df_all.iloc[0:].dropna()
 
 
@@ -465,6 +465,9 @@ reload(MyUtils)
 add_to_log = 0.1
 x_dose_T = np.log2(x_dose_T + add_to_log)
 
+# "THIS IS JUST A CHECK BELOW"
+# x_dose_T = np.repeat(np.array(np.linspace(0.0,1.0,8))[None,:], x_dose_T.shape[0], axis=0)
+
 #print(f"With Log: {x_dose_T}")
 x_lin = np.log2( np.array([np.linspace(xrange[0],xrange[-1],1000) for xrange in x_dose_T]) + add_to_log)
 #x_real_dose = np.linspace(0.142857, 1, Dnorm_cell)  #Here is Dnorm_cell due to using GDSC2 that has 7 doses
@@ -525,6 +528,9 @@ print("yS size: ", yS_train.shape)
 
 x_dose_S = np.log2(x_dose_S + add_to_log)
 
+# "THIS IS JUST A CHECK BELOW"
+# x_dose_S = np.repeat(np.array(np.linspace(0.0,1.0,8))[None,:], x_dose_S.shape[0], axis=0)
+
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Make all variable passed to the model tensor to operate in pytorch"
 indT_concentr = np.array([0,4,5,6,7])
@@ -569,14 +575,14 @@ torch.manual_seed(myseed)   #Ex1: 15 (run 100 iter)  #Exp2 (906826): 35  (run 10
 with torch.no_grad():
     #model.lik_std_noise= torch.nn.Parameter(0.5*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
     model.lik_std_noise = torch.nn.Parameter(1.5*torch.randn(NDomains))
-    model.TLCovariance[0].length = float(config.weight)*2.*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None]
-    model.TLCovariance[1].length = float(config.weight)*6.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
-    model.TLCovariance[2].length = float(config.weight)*10.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
-    model.CoregCovariance[0].lengthscale = 10*torch.rand(1) #1*
-    model.CoregCovariance[1].lengthscale = 10*torch.rand(1)  #1*
-    model.CoregCovariance[2].lengthscale = 10*torch.rand(1)  #1*
-    model.LambdaDiDj.muDi = torch.rand(NDomains)[:, None]
-    model.LambdaDiDj.bDi = torch.rand(NDomains)[:, None]
+    model.TLCovariance[0].length = float(config.weight)*1.*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None] #2
+    model.TLCovariance[1].length = float(config.weight)*2.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None] #6
+    model.TLCovariance[2].length = float(config.weight)*5.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#10
+    model.CoregCovariance[0].lengthscale = 8*torch.rand(1) #8*
+    model.CoregCovariance[1].lengthscale = 10*torch.rand(1)  #10*
+    model.CoregCovariance[2].lengthscale = 20*torch.rand(1)  #20*
+    model.LambdaDiDj.muDi = 0.1*torch.rand(NDomains)[:, None]
+    model.LambdaDiDj.bDi = 0.1*torch.rand(NDomains)[:, None]
     #print(model.LambdaDiDj.muDi)
 #print(f"Noises std: {model.lik_std_noise}")
 
@@ -584,7 +590,7 @@ with torch.no_grad():
 def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
     optimizer = optim.Adam(model.parameters(),lr=myLr)
     loss_fn = LogMarginalLikelihood()
-
+    flag = 1
     for iter in range(Niter):
         # Forward pass
         mu, L = model(xT_train)
@@ -594,17 +600,20 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        if iter==100:  #70
-            optimizer.param_groups[0]['lr']=3e-3
-        #print(model.TLCovariance.length)
+        if loss.item() < 0 and flag ==1:
+        #if iter==100:  #70
+            flag = 0
+            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr'] * 0.1
+
         print(f"i: {iter+1}, Loss: {loss.item()}")
         # print(f"TLlength1 {model.TLCovariance[2].length}")
         # print(f"CoregCov1 {model.CoregCovariance[0].lengthscale}")
         # print(f"CoregCov2 {model.CoregCovariance[1].lengthscale}")
         # print(f"CoregCov3 {model.CoregCovariance[2].lengthscale}")
+        # print(f"muDi: {model.LambdaDiDj.bDi}")
 
 "Train the model with all yT training data"
-myTrain(model,xT_train,yT_train,myLr = 5e-3,Niter = int(config.N_iter))
+myTrain(model,xT_train,yT_train,myLr = 5e-2,Niter = int(config.N_iter))
 def bypass_params(model_trained,model_cv):
     model_cv.lik_std_noise = model_trained.lik_std_noise
     model_cv.TLCovariance[0].length = model_trained.TLCovariance[0].length.clone()
