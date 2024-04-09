@@ -309,12 +309,12 @@ class commandLine:
         # opts = dict(opts)
         # print(opts)
         self.N_iter = 2    #number of iterations
-        self.which_seed = 123 #108 #103 #29 #35   #change seed to initialise the hyper-parameters
+        self.which_seed = 20 #108 #103 #29 #35 #123  #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = "None"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 5
-        self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.idx_CID_Target = 1  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
         self.which_drug = 1051   #1062(22) 1057(19) 2096(17) #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
@@ -344,30 +344,41 @@ dict_cancers={0:'BRCA_GDSC2_drugresponse_source_uM.csv',1:'COREAD_GDSC2_drugresp
               2:'LUAD_GDSC2_drugresponse_source_uM.csv',3:'SKCM_GDSC2_drugresponse_source_uM.csv',
               4:'SCLC_GDSC2_drugresponse_source_uM.csv',5:'MB_GDSC2_drugresponse_fullcurve_uM.csv'}
 
-#indx_cancer = np.array([0,1,2,3,4])
-indx_cancer_train = np.array([int(config.sel_cancer_Source)])
+indx_cancer_train = np.array([0,1,2,3,4])
+#indx_cancer_train = np.array([int(config.sel_cancer_Source)])
 
-name_file_cancer = dict_cancers[indx_cancer_train[0]]
+#name_file_cancer = dict_cancers[indx_cancer_train[0]]
 name_file_cancer_target = dict_cancers[int(config.sel_cancer_Target)]
-print("Source Cancer:",name_file_cancer)
+#print("Source Cancer:",name_file_cancer)
 print("Target Cancer:",name_file_cancer_target)
 
-df_to_read = pd.read_csv(_FOLDER + name_file_cancer)#.sample(n=N_CellLines,random_state = rand_state_N)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 df_to_read_target = pd.read_csv(_FOLDER + name_file_cancer_target)#.sample(n=N_CellLines,random_state = rand_state_N)
 
 "Split of data into Training and Testing for the Source and Target domains"
-# Index_sel = (df_to_read["DRUG_ID"] == 1036) | (df_to_read["DRUG_ID"] == 1061)| (df_to_read["DRUG_ID"] == 1373) \
-#             | (df_to_read["DRUG_ID"] == 1039) | (df_to_read["DRUG_ID"] == 1560) | (df_to_read["DRUG_ID"] == 1057) \
-#             | (df_to_read["DRUG_ID"] == 1059)| (df_to_read["DRUG_ID"] == 1062) | (df_to_read["DRUG_ID"] == 2096) \
-#             | (df_to_read["DRUG_ID"] == 2045)
+for k,idx_cancer in enumerate(indx_cancer_train):
+    name_file_cancer = dict_cancers[idx_cancer]
+    print("Source Cancer:", name_file_cancer)
+    df_to_read = pd.read_csv(_FOLDER + name_file_cancer)#.sample(n=N_CellLines,random_state = rand_state_N)
+    """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-# df_SourceCancer_all = df_to_read[Index_sel]
-df_SourceCancer_all = df_to_read
+    # "Split of data into Training and Testing for the Source and Target domains"
+    # Index_sel = (df_to_read["DRUG_ID"] == 1036) | (df_to_read["DRUG_ID"] == 1061)| (df_to_read["DRUG_ID"] == 1373) \
+    #             | (df_to_read["DRUG_ID"] == 1039) | (df_to_read["DRUG_ID"] == 1560) | (df_to_read["DRUG_ID"] == 1057) \
+    #             | (df_to_read["DRUG_ID"] == 1059)| (df_to_read["DRUG_ID"] == 1062) | (df_to_read["DRUG_ID"] == 2096) \
+    #             | (df_to_read["DRUG_ID"] == 2045)
+
+    if k ==0:
+        #df_SourceCancer_all = df_to_read[Index_sel]
+        df_SourceCancer_all = df_to_read  # df_to_read[Index_sel]
+    else:
+        #df_SourceCancer_all = pd.concat([df_SourceCancer_all, df_to_read[Index_sel]])  #df_to_read[Index_sel]
+        df_SourceCancer_all = pd.concat([df_SourceCancer_all, df_to_read])
+
 df_all = df_SourceCancer_all.reset_index().drop(columns=['index'])
-df_source = df_all.dropna().sample(n=150,random_state = 8)
-#df_source = df_all.iloc[0:].dropna()
+df_source = df_all.dropna().sample(n=200,random_state = 2)
 
 
 # Index_sel_target = (df_to_read_target["DRUG_ID"] == 1036) | (df_to_read_target["DRUG_ID"] == 1061)| (df_to_read_target["DRUG_ID"] == 1373) \
@@ -469,7 +480,7 @@ x_dose_T = np.log2(x_dose_T + add_to_log)
 # x_dose_T = np.repeat(np.array(np.linspace(0.0,1.0,8))[None,:], x_dose_T.shape[0], axis=0)
 
 #print(f"With Log: {x_dose_T}")
-x_lin = np.log2( np.array([np.linspace(xrange[0],xrange[-1],1000) for xrange in x_dose_T]) + add_to_log)
+#x_lin = np.log2( np.array([np.linspace(xrange[0],xrange[-1],1000) for xrange in x_dose_T]) + add_to_log)
 #x_real_dose = np.linspace(0.142857, 1, Dnorm_cell)  #Here is Dnorm_cell due to using GDSC2 that has 7 doses
 
 #TODO the params_4_sig are not working with the current dose concentrations so we cannot extract summary metrics
@@ -533,7 +544,7 @@ x_dose_S = np.log2(x_dose_S + add_to_log)
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Make all variable passed to the model tensor to operate in pytorch"
-indT_concentr = np.array([0,4,5,6,7])
+indT_concentr = np.array([0,5,6,7])
 xT_all_train = xT_train.copy()
 yT_all_train = yT_train[:,indT_concentr].copy()
 xT_train = torch.from_numpy(xT_train)
@@ -574,13 +585,13 @@ myseed = int(config.which_seed)
 torch.manual_seed(myseed)   #Ex1: 15 (run 100 iter)  #Exp2 (906826): 35  (run 100 iter)
 with torch.no_grad():
     #model.lik_std_noise= torch.nn.Parameter(0.5*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
-    model.lik_std_noise = torch.nn.Parameter(1.5*torch.randn(NDomains))
-    model.TLCovariance[0].length = float(config.weight)*1.*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None] #2
-    model.TLCovariance[1].length = float(config.weight)*2.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None] #6
-    model.TLCovariance[2].length = float(config.weight)*5.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#10
-    model.CoregCovariance[0].lengthscale = 8*torch.rand(1) #8*
-    model.CoregCovariance[1].lengthscale = 10*torch.rand(1)  #10*
-    model.CoregCovariance[2].lengthscale = 20*torch.rand(1)  #20*
+    model.lik_std_noise = torch.nn.Parameter(3.5*torch.randn(NDomains))
+    model.TLCovariance[0].length = float(config.weight)*10.*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None] #2
+    model.TLCovariance[1].length = float(config.weight)*20.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None] #6
+    model.TLCovariance[2].length = float(config.weight)*50.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#10
+    model.CoregCovariance[0].lengthscale = 500*8*torch.rand(1) #8*
+    model.CoregCovariance[1].lengthscale = 500*10*torch.rand(1)  #10*
+    model.CoregCovariance[2].lengthscale = 500*20*torch.rand(1)  #20*
     model.LambdaDiDj.muDi = 0.1*torch.rand(NDomains)[:, None]
     model.LambdaDiDj.bDi = 0.1*torch.rand(NDomains)[:, None]
     #print(model.LambdaDiDj.muDi)
@@ -603,7 +614,7 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
         if loss.item() < 0 and flag ==1:
         #if iter==100:  #70
             flag = 0
-            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr'] * 0.1
+            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr'] * 0.05
 
         print(f"i: {iter+1}, Loss: {loss.item()}")
         # print(f"TLlength1 {model.TLCovariance[2].length}")
@@ -628,8 +639,8 @@ def bypass_params(model_trained,model_cv):
 "Leave one out cross-validation"
 Val_LML = LogMarginalLikelihood()
 TestLogLoss_All = []
-for i in range(2):
-#for i in range(yT_all_train.shape[0]):
+#for i in range(2):
+for i in range(yT_all_train.shape[0]):
     model_cv = []
     yT_train_cv = np.delete(yT_all_train,i,axis=0)
     DrugC_T_train_cv = np.delete(DrugC_T.numpy(),i,axis=0)
@@ -651,7 +662,7 @@ for i in range(2):
     "model fit with Cross-val"
     model_cv = TLMOGaussianProcess(xT_train_cv, yT_train_cv, xS_train, yS_train, idxS=idx_S, DrugC_T=DrugC_T_train_cv,DrugC_S=DrugC_S, NDomains=NDomains)
     bypass_params(model, model_cv)  #Here we bypass the fitted parameters from the MOGP trained over all data
-    myTrain(model_cv, xT_train_cv, yT_train_cv, myLr=1e-5, Niter=1) #Here we could refine hyper-params a bit if wished
+    myTrain(model_cv, xT_train_cv, yT_train_cv, myLr=1e-15, Niter=1) #Here we could refine hyper-params a bit if wished
     "Here we put the model in prediciton mode"
     model_cv.eval()
     model_cv.Train_mode = False
@@ -742,11 +753,16 @@ for i in range(x_test.shape[0]):
     #plt.plot(x_lin, np.ones_like(x_lin) * Emax_pred[i], 'r')  # Plot a horizontal line as Emax
     if plot_test:
         #plt.plot(DrugC_T_test[i,:], yT_test[i,:], 'ro')
-        plt.plot(DrugC_T_test_AllConc[i,:], yT_test_AllConc[i, :], 'ro')
+        plt.plot(DrugC_T_test_AllConc[i,:], yT_test_AllConc[i, :], 'b*')
+        plt.plot(DrugC_T_test_AllConc[i, indT_concentr], yT_test_AllConc[i, indT_concentr], 'ro')
+        xlim1 = DrugC_T_test_AllConc[i,0]; xlim2 = DrugC_T_test_AllConc[i,-1]
+        plt.xlim([xlim1-.1*np.abs(xlim1),xlim2+.1*np.abs(xlim2)])
     else:
         #plt.plot(DrugC_T[i, :], yT_train[i, :], 'ro')
-        plt.plot(DrugC_T_AllConc[i,:], yT_train_AllConc[i, :], 'ro')
-
+        plt.plot(DrugC_T_AllConc[i,:], yT_train_AllConc[i, :], 'b*')
+        plt.plot(DrugC_T_AllConc[i, indT_concentr], yT_train_AllConc[i, indT_concentr], 'ro')
+        xlim1 = DrugC_T_AllConc[i,0]; xlim2 = DrugC_T_AllConc[i,-1]
+        plt.xlim([xlim1-.1*np.abs(xlim1),xlim2+.1*np.abs(xlim2)])
     plt.title(f"CosmicID: {CosmicID_target}, {plotname} DrugID: {Name_DrugID_plot[i]}",fontsize=14)
     plt.xlabel('Dose concentration',fontsize=14)
     plt.ylabel('Cell viability',fontsize=14)
