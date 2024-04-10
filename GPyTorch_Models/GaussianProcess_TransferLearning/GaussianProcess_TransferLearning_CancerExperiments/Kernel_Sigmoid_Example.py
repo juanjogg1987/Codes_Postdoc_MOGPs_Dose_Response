@@ -1,53 +1,58 @@
 import numpy as np
-from sklearn.gaussian_process.kernels import Kernel
 import matplotlib.pyplot as plt
 
-class ConstrainedSigmoidKernel(Kernel):
-    def __init__(self, length_scale=1.0, constant_value=1.0):
-        self.length_scale = length_scale
-        self.constant_value = constant_value
 
-    def __call__(self, X, Y=None, eval_gradient=False):
-        if Y is None:
-            Y = X
-        if eval_gradient:
-            raise ValueError("Gradient evaluation is not supported.")
-        Z = np.tanh(np.dot(X / self.length_scale, (Y / self.length_scale).T))
-        #K = 0.5 * self.constant_value * (Z + 1)
-        return Z#K
+def preprocess_data_1d(x, Sigma):
+    # Preprocess 1-D input data
+    return np.array([1, x]) * np.linalg.cholesky(Sigma).flatten()
 
-    def diag(self, X):
-        #return 0.5 * self.constant_value * np.ones(X.shape[0])
-        return np.ones(X.shape[0])
 
-    def is_stationary(self):
-        return True
+def neumann_kernel_1d(x1, x2, Sigma):
+    # Preprocess 1-D data
+    x1_tilde = preprocess_data_1d(x1, Sigma)
+    x2_tilde = preprocess_data_1d(x2, Sigma)
 
-# Example usage:
-# Generate some example input data
-X = np.sort(10*np.random.rand(100, 1), axis=0)
-length_scale = 0.5
-constant_value = 1.0
+    # Compute inner product
+    inner_product = np.dot(x1_tilde, x2_tilde)
 
-# Create the custom kernel
-custom_kernel = ConstrainedSigmoidKernel(length_scale, constant_value)
+    # Compute norms
+    norm_x1_tilde_sq = np.dot(x1_tilde, x1_tilde)
+    norm_x2_tilde_sq = np.dot(x2_tilde, x2_tilde)
 
-# Compute the covariance matrix (kernel matrix)
-K = custom_kernel(X)
+    # Compute kernel value
+    numerator = 2 * inner_product
+    denominator = np.sqrt((1 + 2 * norm_x1_tilde_sq) * (1 + 2 * norm_x2_tilde_sq))
+    kernel_value = np.arcsin(numerator / denominator) * (2 / np.pi)
 
-# K now enforces the [0, 1] constraint
+    return kernel_value
 
-# Generate samples from the GP
-y_samples = np.random.multivariate_normal(np.zeros(X.shape[0]), K, size=15).T
 
-# Plot the samples
-plt.figure(figsize=(8, 6))
-for i in range(y_samples.shape[1]):
-    plt.plot(X, y_samples[:, i], lw=2, label=f'Sample {i + 1}')
+# Define input space in 1-D
+X = np.linspace(-5, 5, 100)[:, None]
 
-plt.xlabel('X')
-plt.ylabel('Y')
-plt.title('Samples from GP with Modified Sigmoid Kernel (Constrained to [0, 1])')
-plt.ylim(-1.5, 2.5)
+# Compute covariance matrix using Neumann kernel
+Sigma = np.array([[0.5]])  # Covariance matrix (1-D case)
+K = np.zeros((len(X), len(X)))
+for i, x1 in enumerate(X):
+    for j, x2 in enumerate(X):
+        K[i, j] = neumann_kernel_1d(x1, x2, Sigma)
+
+# Perform Cholesky decomposition
+L = np.linalg.cholesky(K + 1e-8 * np.eye(len(X)))  # Adding jitter for numerical stability
+
+# Generate samples from standard normal distribution
+num_samples = 5
+standard_normal_samples = np.random.randn(len(X), num_samples)
+
+# Transform samples to obtain samples from Gaussian process
+gp_samples = np.dot(L, standard_normal_samples)
+
+# Plot samples
+plt.figure(figsize=(10, 6))
+for i in range(num_samples):
+    plt.plot(X, gp_samples[:, i], label=f'Sample {i + 1}')
+plt.title('Samples from Gaussian Process with Neumann Kernel')
+plt.xlabel('Input')
+plt.ylabel('Output')
 plt.legend()
 plt.show()

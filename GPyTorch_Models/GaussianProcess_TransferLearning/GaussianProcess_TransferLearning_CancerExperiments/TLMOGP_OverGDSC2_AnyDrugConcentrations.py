@@ -142,9 +142,9 @@ class TLMOGaussianProcess(nn.Module):
 
         self.LambdaDiDj = TLRelatedness(NDomains=NDomains)
 
-        self.LMCkern1 = gpytorch.kernels.MaternKernel(1.5)
-        self.LMCkern2 = gpytorch.kernels.MaternKernel(1.5)
-        self.LMCkern3 = gpytorch.kernels.MaternKernel(2.5)
+        self.LMCkern1 = gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(1.5)
+        self.LMCkern2 = gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(1.5)
+        self.LMCkern3 = gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(2.5)
         self.CoregCovariance = [self.LMCkern1, self.LMCkern2, self.LMCkern3]
         #self.CoregCovariance = [gpytorch.kernels.MaternKernel(1.5),gpytorch.kernels.MaternKernel(2.5),gpytorch.kernels.MaternKernel(2.5)]
 
@@ -168,12 +168,24 @@ class TLMOGaussianProcess(nn.Module):
             KTS = self.LambdaDiDj(xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate()*(self.CoregCovariance[0](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[0](xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate() + \
                                                                                         self.CoregCovariance[1](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[1](xT, self.xS, idx1=self.idxT, idx2=self.idxS).evaluate()+\
                                                                                         self.CoregCovariance[2](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[2](xT, self.xS, idx1=self.idxT, idx2=self.idxS).evaluate())
+
             KSS = self.LambdaDiDj(self.xS,idx1=self.idxS).evaluate()*(self.CoregCovariance[0](self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance[0](self.xS,idx1=self.idxS).evaluate()+ \
                                                                       self.CoregCovariance[1](self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance[1](self.xS, idx1=self.idxS).evaluate()+\
                                                                       self.CoregCovariance[2](self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance[2](self.xS, idx1=self.idxS).evaluate())
             KTT = self.LambdaDiDj(self.xT,idx1=self.idxT).evaluate()*(self.CoregCovariance[0](self.DrugC_xT,self.DrugC_xT).evaluate()*self.TLCovariance[0](self.xT,idx1=self.idxT).evaluate()+ \
                                                                       self.CoregCovariance[1](self.DrugC_xT,self.DrugC_xT).evaluate() * self.TLCovariance[1](self.xT, idx1=self.idxT).evaluate()+\
                                                                       self.CoregCovariance[2](self.DrugC_xT,self.DrugC_xT).evaluate() * self.TLCovariance[2](self.xT, idx1=self.idxT).evaluate())
+
+            #print(f"LambdaDiDj xT xS: {self.LambdaDiDj(xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate()}")
+            #print(f"LambdaDiDj xS xS: {self.LambdaDiDj(self.xS,idx1=self.idxS).evaluate()}")
+            #print(f"LambdaDiDj xT xT: {self.LambdaDiDj(self.xT,idx1=self.idxT).evaluate()}")
+            #print(f"KTS: {KTS}")
+            #print(f"KSS: {KSS}")
+            #print(f"KTT: {KTT}")
+
+            #print(f"KTS CoregCov[0]: {self.CoregCovariance[0](self.DrugC_xT, self.DrugC_xS).evaluate()}")
+            #print(f"KTS TLCov: {self.TLCovariance[0](xT, self.xS, idx1=self.idxT, idx2=self.idxS).evaluate()}")
+            #print(f"KTS CoregCov[0]*TLCov: {self.CoregCovariance[0](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[0](xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate()}")
 
             # Here we include the respective noise terms associated to each domain
             CSS = KSS + torch.diag(self.lik_std_noise[self.idxS].pow(2))
@@ -314,7 +326,7 @@ class commandLine:
         self.bash = "None"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 5
-        self.idx_CID_Target = 1  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
         self.which_drug = 1051   #1062(22) 1057(19) 2096(17) #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
@@ -587,8 +599,8 @@ with torch.no_grad():
     #model.lik_std_noise= torch.nn.Parameter(0.5*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
     model.lik_std_noise = torch.nn.Parameter(3.5*torch.randn(NDomains))
     model.TLCovariance[0].length = float(config.weight)*10.*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None] #2
-    model.TLCovariance[1].length = float(config.weight)*20.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None] #6
-    model.TLCovariance[2].length = float(config.weight)*50.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#10
+    model.TLCovariance[1].length = float(config.weight)*40.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None] #6
+    model.TLCovariance[2].length = float(config.weight)*500.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#10
     model.CoregCovariance[0].lengthscale = 500*8*torch.rand(1) #8*
     model.CoregCovariance[1].lengthscale = 500*10*torch.rand(1)  #10*
     model.CoregCovariance[2].lengthscale = 500*20*torch.rand(1)  #20*
@@ -627,14 +639,31 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
 myTrain(model,xT_train,yT_train,myLr = 5e-2,Niter = int(config.N_iter))
 def bypass_params(model_trained,model_cv):
     model_cv.lik_std_noise = model_trained.lik_std_noise
+    "Bypass lengthscales"
     model_cv.TLCovariance[0].length = model_trained.TLCovariance[0].length.clone()
     model_cv.TLCovariance[1].length = model_trained.TLCovariance[1].length.clone()
     model_cv.TLCovariance[2].length = model_trained.TLCovariance[2].length.clone()
+    "Bypass variances"
+    model_cv.TLCovariance[0].variance = model_trained.TLCovariance[0].variance.clone()
+    model_cv.TLCovariance[1].variance = model_trained.TLCovariance[1].variance.clone()
+    model_cv.TLCovariance[2].variance = model_trained.TLCovariance[2].variance.clone()
+
     model_cv.CoregCovariance[0].lengthscale = model_trained.CoregCovariance[0].lengthscale.clone()
     model_cv.CoregCovariance[1].lengthscale = model_trained.CoregCovariance[1].lengthscale.clone()
     model_cv.CoregCovariance[2].lengthscale = model_trained.CoregCovariance[2].lengthscale.clone()
     model_cv.LambdaDiDj.muDi = model_trained.LambdaDiDj.muDi.clone()
     model_cv.LambdaDiDj.bDi = model_trained.LambdaDiDj.bDi.clone()
+
+# model_check = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC_T=DrugC_T,DrugC_S=DrugC_S,NDomains=NDomains)
+# print(f"Model check train BEFORE bypass:")
+# myTrain(model_check, xT_train, yT_train, myLr=1e-20, Niter=1)
+# bypass_params(model,model_check)
+#
+# print(f"Model check train AFTER bypass:")
+# myTrain(model_check, xT_train, yT_train, myLr=1e-20, Niter=1)
+#
+# print(f"Model ORIGINAL train check small stepsize:")
+# myTrain(model, xT_train, yT_train, myLr=1e-20, Niter=1)
 
 "Leave one out cross-validation"
 Val_LML = LogMarginalLikelihood()
