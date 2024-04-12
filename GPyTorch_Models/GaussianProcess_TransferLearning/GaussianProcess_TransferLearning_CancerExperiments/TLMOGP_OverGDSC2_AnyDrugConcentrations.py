@@ -12,7 +12,7 @@ sys.path.append('..')
 from importlib import reload
 import TransferLearning_Kernels
 reload(TransferLearning_Kernels)
-from TransferLearning_Kernels import TL_Kernel_var, Kernel_CrossDomains, TLRelatedness
+from TransferLearning_Kernels import TL_Kernel_var, Kernel_CrossDomains, TLRelatedness,NNetwork_kern
 
 from numpy import linalg as la
 import numpy as np
@@ -142,15 +142,15 @@ class TLMOGaussianProcess(nn.Module):
 
         self.LambdaDiDj = TLRelatedness(NDomains=NDomains)
 
-        self.LMCkern1 = gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(1.5)
-        self.LMCkern2 = gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(1.5)
-        self.LMCkern3 = gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(2.5)
+        self.LMCkern1 = NNetwork_kern() #gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(1.5)
+        self.LMCkern2 = NNetwork_kern() #gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(1.5)
+        self.LMCkern3 = NNetwork_kern() #gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(2.5)
         self.CoregCovariance = [self.LMCkern1, self.LMCkern2, self.LMCkern3]
         #self.CoregCovariance = [gpytorch.kernels.MaternKernel(1.5),gpytorch.kernels.MaternKernel(2.5),gpytorch.kernels.MaternKernel(2.5)]
 
         self.Train_mode = True
         self.lik_std_noise = torch.nn.Parameter(1.0*torch.ones(NDomains)) #0.3*torch.rand(NDomains)+0.01
-        #self.lik_std_noise = 0.05 * torch.ones(NDomains)
+        #self.lik_std_noise = 0.1 * torch.ones(NDomains)
         self.mu_star = torch.zeros(self.yT.shape) #mu has the shape of the new replicated along the outputs yT
         self.L = torch.eye(self.yT.shape[0])
         self.all_L = torch.eye(self.all_y.shape[0])
@@ -326,7 +326,7 @@ class commandLine:
         self.bash = "None"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 5
-        self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.idx_CID_Target = 1  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
         self.which_drug = 1051   #1062(22) 1057(19) 2096(17) #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
@@ -390,7 +390,7 @@ for k,idx_cancer in enumerate(indx_cancer_train):
         df_SourceCancer_all = pd.concat([df_SourceCancer_all, df_to_read])
 
 df_all = df_SourceCancer_all.reset_index().drop(columns=['index'])
-df_source = df_all.dropna().sample(n=200,random_state = 2)
+df_source = df_all.dropna().sample(n=100,random_state = 2)
 
 
 # Index_sel_target = (df_to_read_target["DRUG_ID"] == 1036) | (df_to_read_target["DRUG_ID"] == 1061)| (df_to_read_target["DRUG_ID"] == 1373) \
@@ -556,7 +556,7 @@ x_dose_S = np.log2(x_dose_S + add_to_log)
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Make all variable passed to the model tensor to operate in pytorch"
-indT_concentr = np.array([0,5,6,7])
+indT_concentr = np.array([0,4,5,6,7])
 xT_all_train = xT_train.copy()
 yT_all_train = yT_train[:,indT_concentr].copy()
 xT_train = torch.from_numpy(xT_train)
@@ -596,16 +596,25 @@ model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC
 myseed = int(config.which_seed)
 torch.manual_seed(myseed)   #Ex1: 15 (run 100 iter)  #Exp2 (906826): 35  (run 100 iter)
 with torch.no_grad():
-    #model.lik_std_noise= torch.nn.Parameter(0.5*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
-    model.lik_std_noise = torch.nn.Parameter(3.5*torch.randn(NDomains))
-    model.TLCovariance[0].length = float(config.weight)*10.*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None] #2
-    model.TLCovariance[1].length = float(config.weight)*40.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None] #6
-    model.TLCovariance[2].length = float(config.weight)*500.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#10
-    model.CoregCovariance[0].lengthscale = 500*8*torch.rand(1) #8*
-    model.CoregCovariance[1].lengthscale = 500*10*torch.rand(1)  #10*
-    model.CoregCovariance[2].lengthscale = 500*20*torch.rand(1)  #20*
-    model.LambdaDiDj.muDi = 0.1*torch.rand(NDomains)[:, None]
-    model.LambdaDiDj.bDi = 0.1*torch.rand(NDomains)[:, None]
+    model.lik_std_noise= torch.nn.Parameter(0.5*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
+    #model.lik_std_noise = torch.nn.Parameter(2.0*torch.randn(NDomains))
+    model.TLCovariance[0].length = float(config.weight)*1.*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None] #2
+    model.TLCovariance[1].length = float(config.weight)*4.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None] #6
+    model.TLCovariance[2].length = float(config.weight)*30.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#10
+    #model.CoregCovariance[0].lengthscale = 500*8*torch.rand(1) #8*
+    #model.CoregCovariance[1].lengthscale = 500*10*torch.rand(1)  #10*
+    #model.CoregCovariance[2].lengthscale = 500*20*torch.rand(1)  #20*
+
+    model.CoregCovariance[0].sig = 1 * torch.rand(1)  # 8*
+    model.CoregCovariance[1].sig = 1 * torch.rand(1)  # 10*
+    model.CoregCovariance[2].sig = 1 * torch.rand(1)  # 20*
+
+    model.CoregCovariance[0].sig0 = 1 * torch.rand(1)  # 8*
+    model.CoregCovariance[1].sig0 = 1 * torch.rand(1)  # 10*
+    model.CoregCovariance[2].sig0 = 1 * torch.rand(1)  # 20*
+
+    model.LambdaDiDj.muDi = 3*torch.rand(NDomains)[:, None]
+    model.LambdaDiDj.bDi = 3*torch.rand(NDomains)[:, None]
     #print(model.LambdaDiDj.muDi)
 #print(f"Noises std: {model.lik_std_noise}")
 
@@ -626,7 +635,7 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
         if loss.item() < 0 and flag ==1:
         #if iter==100:  #70
             flag = 0
-            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr'] * 0.05
+            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr'] * 0.01
 
         print(f"i: {iter+1}, Loss: {loss.item()}")
         # print(f"TLlength1 {model.TLCovariance[2].length}")
@@ -648,9 +657,18 @@ def bypass_params(model_trained,model_cv):
     model_cv.TLCovariance[1].variance = model_trained.TLCovariance[1].variance.clone()
     model_cv.TLCovariance[2].variance = model_trained.TLCovariance[2].variance.clone()
 
-    model_cv.CoregCovariance[0].lengthscale = model_trained.CoregCovariance[0].lengthscale.clone()
-    model_cv.CoregCovariance[1].lengthscale = model_trained.CoregCovariance[1].lengthscale.clone()
-    model_cv.CoregCovariance[2].lengthscale = model_trained.CoregCovariance[2].lengthscale.clone()
+    # model_cv.CoregCovariance[0].lengthscale = model_trained.CoregCovariance[0].lengthscale.clone()
+    # model_cv.CoregCovariance[1].lengthscale = model_trained.CoregCovariance[1].lengthscale.clone()
+    # model_cv.CoregCovariance[2].lengthscale = model_trained.CoregCovariance[2].lengthscale.clone()
+
+    model_cv.CoregCovariance[0].sig = model_trained.CoregCovariance[0].sig.clone()
+    model_cv.CoregCovariance[1].sig = model_trained.CoregCovariance[1].sig.clone()
+    model_cv.CoregCovariance[2].sig = model_trained.CoregCovariance[2].sig.clone()
+
+    model_cv.CoregCovariance[0].sig0 = model_trained.CoregCovariance[0].sig0.clone()
+    model_cv.CoregCovariance[1].sig0 = model_trained.CoregCovariance[1].sig0.clone()
+    model_cv.CoregCovariance[2].sig0 = model_trained.CoregCovariance[2].sig0.clone()
+
     model_cv.LambdaDiDj.muDi = model_trained.LambdaDiDj.muDi.clone()
     model_cv.LambdaDiDj.bDi = model_trained.LambdaDiDj.bDi.clone()
 
