@@ -112,8 +112,8 @@ X2 = torch.linspace(-5, 5, 1000)[:, None]
 #Sigma = torch.array([[0.5]])  # Covariance matrix (1-D case)
 #K = torch.zeros((len(x1), len(x1)))
 mykern = NNetwork_kern()
-mykern.sig0 = 0.01
-mykern.sig = 1.5
+mykern.sig0 = 2
+mykern.sig = 2
 K = mykern(X1, X2).evaluate()
 
 # K = torch.zeros((len(X1), len(X2)))
@@ -124,7 +124,7 @@ K = mykern(X1, X2).evaluate()
 import numpy as np
 import matplotlib.pyplot as plt
 # Perform Cholesky decomposition
-L = np.linalg.cholesky(K.detach().numpy() + 1e-5 * np.eye(len(X1)))  # Adding jitter for numerical stability
+L = np.linalg.cholesky(K.detach().numpy() + 0.9e-4 * np.eye(len(X1)))  # Adding jitter for numerical stability
 
 # Generate samples from standard normal distribution
 num_samples = 10
