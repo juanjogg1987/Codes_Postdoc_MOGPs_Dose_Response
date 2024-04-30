@@ -586,10 +586,10 @@ class NNetwork_kern(gpytorch.kernels.Kernel):
 
         # set the parameter constraint to be positive, when nothing is specified
         if sig0_constraint is None:
-            sig0_constraint = Interval(0, 3) #Positive()
+            sig0_constraint = Interval(0, 10) #Positive()
 
         if sig_constraint is None:
-            sig_constraint = Interval(0, 3) #Positive()
+            sig_constraint = Interval(0, 10) #Positive()
 
         # register the raw parameter
         self.register_parameter(

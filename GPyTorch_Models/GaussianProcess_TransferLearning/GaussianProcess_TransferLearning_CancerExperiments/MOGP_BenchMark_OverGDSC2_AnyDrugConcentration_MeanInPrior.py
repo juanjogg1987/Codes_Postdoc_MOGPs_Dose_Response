@@ -119,26 +119,40 @@ class BKMOGaussianProcess(nn.Module):
 
         self.LambdaDiDj = TLRelatedness(NDomains=NDomains)
 
-        self.LMCkern1 = NNetwork_kern() #gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(1.5)
+        # self.LMCkern1 = gpytorch.kernels.RBFKernel() #NNetwork_kern()  #gpytorch.kernels.MaternKernel(1.5)
+        # self.LMCkern2 = gpytorch.kernels.RBFKernel() #NNetwork_kern() #gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(1.5)
+        # self.LMCkern3 = gpytorch.kernels.RBFKernel() #NNetwork_kern() #gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(2.5)
+
+        self.LMCkern1 = NNetwork_kern()  #gpytorch.kernels.MaternKernel(1.5)
         self.LMCkern2 = NNetwork_kern() #gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(1.5)
         self.LMCkern3 = NNetwork_kern() #gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(2.5)
+
         self.CoregCovariance = [self.LMCkern1, self.LMCkern2, self.LMCkern3]
 
         self.Train_mode = True
         self.lik_std_noise = torch.nn.Parameter(1.0*torch.ones(NDomains)) #0.3*torch.rand(NDomains)+0.01
         #self.lik_std_noise = 0.1 * torch.ones(NDomains)
         self.LSS = torch.eye(self.yS.shape[0])
+        self.beta = torch.nn.Parameter( 1 * torch.randn(self.Pfeat, dtype=torch.float64))[:,None]
+        self.alpha = torch.nn.Parameter(1 * torch.randn(self.Pfeat, dtype=torch.float64))[:, None]
+        self.gamma = torch.nn.Parameter(1 * torch.randn(self.Pfeat, dtype=torch.float64))[:, None]
         self.mu_star = torch.zeros_like(self.yS)
+
+    def mean_func(self,xS,DrugC_S):
+        x0 = torch.matmul(xS,self.alpha)
+        L = 1.0
+        d = torch.matmul(xS,self.gamma)
+        k = torch.matmul(xS,self.beta)
+        return ( 1/ (L + torch.exp(-k*(DrugC_S-x0))) + d)
 
     def forward(self, xS, DrugC_new=None, NDomain_sel=None, noiseless=True):
         if self.Train_mode:
             xS = torch.kron(torch.ones(self.Douts_S, 1), xS.reshape(-1)).reshape(-1, self.Pfeat)
             assert (xS == self.xS).sum() == (xS.shape[0] * xS.shape[1])  # This is just to check if the xT to init the model is the same
             assert xS.shape[1] == self.xS.shape[1]  #Thiis is to check if the xT to init the model has same Pfeatures# Here we compute the Covariance matrices between source-target, source-source and target domains
-            KSS = self.LambdaDiDj(self.xS, idx1=self.idxS).evaluate() * (
-                        self.CoregCovariance[0](self.DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[0](self.xS,idx1=self.idxS).evaluate() + \
-                        self.CoregCovariance[1](self.DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[1](self.xS,idx1=self.idxS).evaluate() + \
-                        self.CoregCovariance[2](self.DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[2](self.xS,idx1=self.idxS).evaluate())
+            KSS = self.LambdaDiDj(self.xS, idx1=self.idxS).evaluate() * (self.CoregCovariance[0](self.DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[0](self.xS,idx1=self.idxS).evaluate())# + \
+                        # self.CoregCovariance[1](self.DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[1](self.xS,idx1=self.idxS).evaluate() + \
+                        # self.CoregCovariance[2](self.DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[2](self.xS,idx1=self.idxS).evaluate())
 
             # Here we include the respective noise terms associated to each domain
             CSS = KSS + torch.diag(self.lik_std_noise[self.idxS].pow(2))
@@ -151,7 +165,7 @@ class BKMOGaussianProcess(nn.Module):
                 CSS = 0.0 * CSS + CSS_aux  # This operation aims to keep the gradients working over lik_std_noise
 
             self.LSS = torch.linalg.cholesky(CSS)
-            self.mu_star = torch.zeros_like(self.yS)
+            self.mu_star = self.mean_func(xS,self.DrugC_xS)
             return self.mu_star, self.LSS  # here we return the mean and covariance
         else:
             "We replicate the target domain index as per the number of drug concentration we want to test"
@@ -179,19 +193,17 @@ class BKMOGaussianProcess(nn.Module):
 
             "Be careful with operation using xS.shape, from here it changes the original shape"
             xS = torch.kron(torch.ones(NewDouts, 1), xS.reshape(-1)).reshape(-1, self.Pfeat)
-            alpha1 = torch.linalg.solve(self.LSS, self.yS)  # Here LSS contains info of all source domains (all outputs)
+            alpha1 = torch.linalg.solve(self.LSS, self.yS-self.mu_star)  # Here LSS contains info of all source domains (all outputs)
             alpha = torch.linalg.solve(self.LSS.t(), alpha1)
-            KSS_xnew_xnew = self.LambdaDiDj(xS, idx1=idxS_new).evaluate() * (
-                        self.CoregCovariance[0](DrugC_xS).evaluate() * self.TLCovariance[0](xS, idx1=idxS_new).evaluate() + \
-                        self.CoregCovariance[1](DrugC_xS).evaluate() * self.TLCovariance[1](xS, idx1=idxS_new).evaluate() + \
-                        self.CoregCovariance[2](DrugC_xS).evaluate() * self.TLCovariance[2](xS, idx1=idxS_new).evaluate())
+            KSS_xnew_xnew = self.LambdaDiDj(xS, idx1=idxS_new).evaluate() * (self.CoregCovariance[0](DrugC_xS).evaluate() * self.TLCovariance[0](xS, idx1=idxS_new).evaluate())# + \
+                        # self.CoregCovariance[1](DrugC_xS).evaluate() * self.TLCovariance[1](xS, idx1=idxS_new).evaluate() + \
+                        # self.CoregCovariance[2](DrugC_xS).evaluate() * self.TLCovariance[2](xS, idx1=idxS_new).evaluate())
 
-            K_xnew_xS = self.LambdaDiDj(xS, self.xS, idx1=idxS_new, idx2=self.idxS).evaluate() * (
-                        self.CoregCovariance[0](DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[0](xS, self.xS,idx1=idxS_new,idx2=self.idxS).evaluate() + \
-                        self.CoregCovariance[1](DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[1](xS, self.xS,idx1=idxS_new,idx2=self.idxS).evaluate() + \
-                        self.CoregCovariance[2](DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[2](xS, self.xS,idx1=idxS_new,idx2=self.idxS).evaluate())
+            K_xnew_xS = self.LambdaDiDj(xS, self.xS, idx1=idxS_new, idx2=self.idxS).evaluate() * (self.CoregCovariance[0](DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[0](xS, self.xS,idx1=idxS_new,idx2=self.idxS).evaluate())# + \
+                        # self.CoregCovariance[1](DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[1](xS, self.xS,idx1=idxS_new,idx2=self.idxS).evaluate() + \
+                        # self.CoregCovariance[2](DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[2](xS, self.xS,idx1=idxS_new,idx2=self.idxS).evaluate())
 
-            f_mu = torch.matmul(K_xnew_xS, alpha)
+            f_mu = torch.matmul(K_xnew_xS, alpha)+self.mean_func(xS,DrugC_xS)
             v = torch.linalg.solve(self.LSS, K_xnew_xS.t())
 
             if noiseless:
@@ -524,9 +536,9 @@ torch.manual_seed(myseed)   #Ex1: 15 (run 100 iter)  #Exp2 (906826): 35  (run 10
 with torch.no_grad():
     model.lik_std_noise= torch.nn.Parameter(2.0*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
     #model.lik_std_noise = torch.nn.Parameter(2.0*torch.randn(NDomains))
-    model.TLCovariance[0].length = float(config.weight)*8.*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None] #2
+    model.TLCovariance[0].length = float(config.weight)*10.*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None] #2
     model.TLCovariance[1].length = float(config.weight)*15.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None] #6
-    model.TLCovariance[2].length = float(config.weight)*30.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#10
+    model.TLCovariance[2].length = float(config.weight)*50.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#10
     #model.CoregCovariance[0].lengthscale = 500*8*torch.rand(1) #8*
     #model.CoregCovariance[1].lengthscale = 500*10*torch.rand(1)  #10*
     #model.CoregCovariance[2].lengthscale = 500*20*torch.rand(1)  #20*
