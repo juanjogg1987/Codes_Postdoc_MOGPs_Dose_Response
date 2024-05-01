@@ -88,28 +88,50 @@ class LogMarginalLikelihood(nn.Module):
         alpha = torch.linalg.solve(L.t(), torch.linalg.solve(L, y-mu))
         N = y.shape[0]
         return -0.5*torch.matmul(y.t()-mu.t(),alpha)-torch.diag(L).log().sum()-N*0.5*torch.log(torch.tensor([2*torch.pi]))
-class BKMOGaussianProcess(nn.Module):
+class TLMOGaussianProcess(nn.Module):
     'This model expects the data from source and target domains with:'
-    'idxS as a list of labels with integer values between 0 to NDomains-1'
-    'The input and output of the domains: xS, yS with a list idxS with their labels as per their domains'
+    'idxS as a list of labels with integer values between 0 to NDomains-2'
+    'by deafult the idxT for the target domain will be labeled as NDomains-1'
+    'i.e., if NDomains = 3, the idxS is a list with values between 0 and 1, by default idxT has all values equal to 2'
+    'The model expects the input and output of the target domain: xT (shape: [N,P]), yT (shape: [N,D])'
+    'with P as the number of input features and D as the number of outputs'
+    'The input and output of the source domains: xS, yS with a list idxS with their labels as per their domains'
     'NOTE: The model would expect the data to be sorted according to the idxS'
-    'For instance, idxS = [0,0,1,2,2,2] implies NDomains = 3 with N = 2 in first domain,'
-    'N = 1 in second domain, and N = 3 in third domain'
-    def __init__(self,xS,yS,idxS,DrugC_S,NDomains):
+    'For instance, idxS = [0,0,1,2,2,2] implies NDomains = 4 with N = 2 in first domain,'
+    'N = 1 in second domain, and N = 3 in third domain, if N = 2 in fourth (target) domain, then idxT = [3,3]'
+    'The model also would expect a list of the Drug Concentrations used, it should have the same size as D output'
+    def __init__(self,xT,yT,xS,yS,idxS,DrugC_T,DrugC_S,NDomains):
         super().__init__()
+        self.Douts_T = yT.shape[1]
         self.Douts_S = yS.shape[1]
-
-        assert NDomains == (max(idxS) + 1)
+        #self.DrugC_T = torch.Tensor(DrugC_T)[:,None] #We treat the Drug Concentrations as a float tensor vector [N,1]
+        #self.DrugC_S = torch.Tensor(DrugC_S)[:, None]  # We treat the Drug Concentrations as a float tensor vector [N,1]
         self.NDomains = NDomains
 
+        assert DrugC_T.shape == yT.shape  # DrugC_T should same shape as yT
         assert DrugC_S.shape == yS.shape  # DrugC_S should same shape as yS
-        self.Pfeat = xS.shape[1]
+        self.Pfeat = xT.shape[1]
+        #torch.kron(mat1, mat2.reshape(-1)).reshape(-1, 429)
+        #self.xT = torch.kron(torch.ones(self.Douts, 1),xT)  #This is to replicate xT as per the D number of outputs
+        self.xT = torch.kron(torch.ones(self.Douts_T, 1), xT.reshape(-1)).reshape(-1, self.Pfeat)  # This is to replicate xT as per the D number of outputs
+        #self.xS = torch.kron(torch.ones(self.Douts, 1), xS)  # This is to replicate xS as per the D number of outputs
         self.xS = torch.kron(torch.ones(self.Douts_S, 1),xS.reshape(-1)).reshape(-1, self.Pfeat)  #This is to replicate xS as per the D number of outputs
+        self.yT = yT.T.reshape(-1, 1)  # This is to vectorise by staking the columns (vect(yT))
         self.yS = yS.T.reshape(-1,1) #This is to vectorise by staking the columns (vect(yS))
 
+        self.mS = torch.zeros_like(self.yS)
+        self.mT = torch.zeros_like(self.yT)
+        self.all_m = torch.cat([self.mS, self.mT])
+
+        #self.DrugC_xT = torch.kron(self.DrugC_T,torch.ones(xT.shape[0], 1)) #Rep. Concentr. similar to coreginalisation
+        #self.DrugC_xS = torch.kron(self.DrugC_S,torch.ones(xS.shape[0], 1)) #Rep. Concentr. similar to coreginalisation
+
+        self.DrugC_xT = DrugC_T.T.reshape(-1, 1)
         self.DrugC_xS = DrugC_S.T.reshape(-1, 1)
 
         self.idxS = idxS * self.Douts_S #Replicate the Source domain index as per the number of outputs
+        self.idxT = [NDomains - 1] * xT.shape[0] * self.Douts_T #Replicate the target domain index as per the number of outputs
+        self.all_y = torch.cat([self.yS, self.yT])
 
         self.TLKern1 = Kernel_CrossDomains(NDomains=NDomains)
         self.TLKern2 = Kernel_CrossDomains(NDomains=NDomains)
@@ -117,6 +139,7 @@ class BKMOGaussianProcess(nn.Module):
         self.TLKern4 = Kernel_CrossDomains(NDomains=NDomains)
 
         self.TLCovariance = [self.TLKern1, self.TLKern2, self.TLKern3, self.TLKern4]
+        #self.TLCovariance = [Kernel_CrossDomains(NDomains=NDomains),Kernel_CrossDomains(NDomains=NDomains),Kernel_CrossDomains(NDomains=NDomains)] #gpytorch.kernels.RBFKernel()
 
         self.LambdaDiDj = TLRelatedness(NDomains=NDomains)
 
@@ -125,93 +148,158 @@ class BKMOGaussianProcess(nn.Module):
         self.LMCkern3 = NNetwork_kern() #gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(2.5)
         self.LMCkern4 = NNetwork_kern()
         self.CoregCovariance = [self.LMCkern1, self.LMCkern2, self.LMCkern3, self.LMCkern4]
+        #self.CoregCovariance = [gpytorch.kernels.MaternKernel(1.5),gpytorch.kernels.MaternKernel(2.5),gpytorch.kernels.MaternKernel(2.5)]
 
         self.Train_mode = True
-        #self.lik_std_noise = 1.0*torch.ones(NDomains) #torch.nn.Parameter(1.0*torch.ones(NDomains)) #0.3*torch.rand(NDomains)+0.01
+        #self.lik_std_noise = torch.nn.Parameter(1.0*torch.ones(NDomains)) #0.3*torch.rand(NDomains)+0.01
         self.coef1 = torch.nn.Parameter(1.0 * torch.randn(NDomains))
         self.coef2 = torch.nn.Parameter(1.0 * torch.randn(NDomains))
         #self.lik_std_noise = 0.1 * torch.ones(NDomains)
-        self.LSS = torch.eye(self.yS.shape[0])
-        self.mu_star = torch.zeros_like(self.yS)
+        self.mu_star = torch.zeros_like(self.yT) #mu has the shape of the new replicated along the outputs yT
+        self.L = torch.eye(self.yT.shape[0])
+        self.all_L = torch.eye(self.all_y.shape[0])
+        "TODO: I might need the self.LSS also here in order to be able to predict without optimising"
 
     def noise_func(self,DrugC_x,idx):
         std_lik = self.coef1[idx]*torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1)+self.coef2[idx]
         return std_lik
-    def forward(self, xS, DrugC_new=None, NDomain_sel=None, noiseless=True):
+
+    def forward(self,xT, DrugC_new = None,noiseless = True):
         if self.Train_mode:
-            xS = torch.kron(torch.ones(self.Douts_S, 1), xS.reshape(-1)).reshape(-1, self.Pfeat)
-            assert (xS == self.xS).sum() == (xS.shape[0] * xS.shape[1])  # This is just to check if the xT to init the model is the same
-            assert xS.shape[1] == self.xS.shape[1]  #Thiis is to check if the xT to init the model has same Pfeatures# Here we compute the Covariance matrices between source-target, source-source and target domains
-            KSS = self.LambdaDiDj(self.xS, idx1=self.idxS).evaluate()*(self.CoregCovariance[0](self.DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[0](self.xS,idx1=self.idxS).evaluate() + \
-                        self.CoregCovariance[1](self.DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[1](self.xS,idx1=self.idxS).evaluate() + \
-                        self.CoregCovariance[2](self.DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[2](self.xS,idx1=self.idxS).evaluate()+ \
-                        self.CoregCovariance[3](self.DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[3](self.xS,idx1=self.idxS).evaluate())
+            #xT = torch.kron(torch.ones(self.Douts, 1), xT)
+            xT = torch.kron(torch.ones(self.Douts_T, 1), xT.reshape(-1)).reshape(-1, self.Pfeat)
+            assert (xT == self.xT).sum() == (xT.shape[0]*xT.shape[1]) #This is just to check if the xT to init the model is the same
+            assert xT.shape[1] == self.xT.shape[1]  #Thiis is to check if the xT to init the model has same Pfeatures
+
+            "Below the TLCovariance and LambdaDiDj have to coincide in the same indexes idx1 and idx2"
+            # Here we compute the Covariance matrices between source-target, source-source and target domains
+            KTS = self.LambdaDiDj(xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate()*(self.CoregCovariance[0](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[0](xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate() + \
+                                                                                        self.CoregCovariance[1](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[1](xT, self.xS, idx1=self.idxT, idx2=self.idxS).evaluate()+\
+                                                                                        self.CoregCovariance[2](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[2](xT, self.xS, idx1=self.idxT, idx2=self.idxS).evaluate()+\
+                                                                                        self.CoregCovariance[3](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[3](xT, self.xS, idx1=self.idxT, idx2=self.idxS).evaluate())
+
+            KSS = self.LambdaDiDj(self.xS,idx1=self.idxS).evaluate()*(self.CoregCovariance[0](self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance[0](self.xS,idx1=self.idxS).evaluate()+ \
+                                                                      self.CoregCovariance[1](self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance[1](self.xS, idx1=self.idxS).evaluate()+\
+                                                                      self.CoregCovariance[2](self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance[2](self.xS, idx1=self.idxS).evaluate()+\
+                                                                      self.CoregCovariance[3](self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance[3](self.xS, idx1=self.idxS).evaluate())
+
+            KTT = self.LambdaDiDj(self.xT,idx1=self.idxT).evaluate()*(self.CoregCovariance[0](self.DrugC_xT,self.DrugC_xT).evaluate()*self.TLCovariance[0](self.xT,idx1=self.idxT).evaluate()+ \
+                                                                      self.CoregCovariance[1](self.DrugC_xT,self.DrugC_xT).evaluate() * self.TLCovariance[1](self.xT, idx1=self.idxT).evaluate()+\
+                                                                      self.CoregCovariance[2](self.DrugC_xT,self.DrugC_xT).evaluate() * self.TLCovariance[2](self.xT, idx1=self.idxT).evaluate()+\
+                                                                      self.CoregCovariance[3](self.DrugC_xT,self.DrugC_xT).evaluate() * self.TLCovariance[3](self.xT, idx1=self.idxT).evaluate())
+
+            #print(f"LambdaDiDj xT xS: {self.LambdaDiDj(xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate()}")
+            #print(f"LambdaDiDj xS xS: {self.LambdaDiDj(self.xS,idx1=self.idxS).evaluate()}")
+            #print(f"LambdaDiDj xT xT: {self.LambdaDiDj(self.xT,idx1=self.idxT).evaluate()}")
+            #print(f"KTS: {KTS}")
+            #print(f"KSS: {KSS}")
+            #print(f"KTT: {KTT}")
+
+            #print(f"KTS CoregCov[0]: {self.CoregCovariance[0](self.DrugC_xT, self.DrugC_xS).evaluate()}")
+            #print(f"KTS TLCov: {self.TLCovariance[0](xT, self.xS, idx1=self.idxT, idx2=self.idxS).evaluate()}")
+            #print(f"KTS CoregCov[0]*TLCov: {self.CoregCovariance[0](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[0](xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate()}")
 
             # Here we include the respective noise terms associated to each domain
-            #CSS = KSS + torch.diag(self.lik_std_noise[self.idxS].pow(2))
-            lik_std_noise = self.noise_func(self.DrugC_xS,self.idxS)
-            lik_std_noise = lik_std_noise + torch.sign(lik_std_noise)*1.0e-4
-            CSS = KSS + torch.diag(lik_std_noise.pow(2))
+            lik_std_noise_xS = self.noise_func(self.DrugC_xS, self.idxS)
+            lik_std_noise_xS = lik_std_noise_xS + torch.sign(lik_std_noise_xS)*1.0e-4
+            lik_std_noise_xT = self.noise_func(self.DrugC_xT, self.idxT)
+            lik_std_noise_xT = lik_std_noise_xT + torch.sign(lik_std_noise_xT)*1.0e-4
+            CSS = KSS + torch.diag(lik_std_noise_xS.pow(2))
+            CTT = KTT + torch.diag(lik_std_noise_xT.pow(2))
 
             # The code below aim to correct for numerical instabilities when CSS becomes Non-PSD
             if not isPD_torch(CSS):
                 CSS_aux = CSS.clone()
                 with torch.no_grad():
                     CSS_aux = torch.from_numpy(nearestPD(CSS_aux.numpy()))
-                CSS = 0.0 * CSS + CSS_aux  # This operation aims to keep the gradients working over lik_std_noise
+                CSS = 0.0*CSS + CSS_aux  #This operation aims to keep the gradients working over lik_std_noise
 
             self.LSS = torch.linalg.cholesky(CSS)
-            self.mu_star = torch.zeros_like(self.yS)
-            return self.mu_star, self.LSS  # here we return the mean and covariance
+            # alphaSS1 = torch.linalg.solve(self.LSS, self.yS)
+            alphaSS1 = torch.linalg.solve(self.LSS, self.yS-self.mS)
+            alphaSS = torch.linalg.solve(self.LSS.t(), alphaSS1)
+
+            # Compute the mean of the conditional distribution p(yT|XT,XS,yS)
+            self.mu_star = torch.matmul(KTS,alphaSS) + self.mT
+            # Compute the Covariance of the conditional distribution p(yT|XT,XS,yS)
+            vTT = torch.linalg.solve(self.LSS, KTS.t())
+            C_star = CTT - torch.matmul(vTT.t(),vTT) #+ 1e-4*torch.eye(xT.shape[0])  #jitter?
+            # The code below aim to correct for numerical instabilities when CSS becomes Non-PSD
+            if not isPD_torch(C_star):
+                C_star_aux = C_star.clone()
+                with torch.no_grad():
+                    C_star_aux = torch.from_numpy(nearestPD(C_star_aux.numpy()))
+                C_star = 0.0 * C_star + C_star_aux  # This operation aims to keep the gradients working over lik_std_noise
+            self.L = torch.linalg.cholesky(C_star)
+
+            return self.mu_star, self.L  # here we return the mean and covariance
         else:
             "We replicate the target domain index as per the number of drug concentration we want to test"
             "notice that it is not limited to D number of outputs, but actually the number of concentrations"
+            # Here we compute the full covariance of xS and xT together
+            xST = torch.cat([self.xS, self.xT])
+            idxST = self.idxS + self.idxT
+            self.DrugC_xSxT = torch.cat([self.DrugC_xS, self.DrugC_xT])
+            all_K_xST = self.LambdaDiDj(xST, idx1=idxST).evaluate()*(self.CoregCovariance[0](self.DrugC_xSxT).evaluate() * self.TLCovariance[0](xST, idx1=idxST).evaluate()+ \
+                                                                     self.CoregCovariance[1](self.DrugC_xSxT).evaluate() * self.TLCovariance[1](xST, idx1=idxST).evaluate()+\
+                                                                     self.CoregCovariance[2](self.DrugC_xSxT).evaluate() * self.TLCovariance[2](xST, idx1=idxST).evaluate()+\
+                                                                     self.CoregCovariance[3](self.DrugC_xSxT).evaluate() * self.TLCovariance[3](xST, idx1=idxST).evaluate())
+
+            lik_std_noise_xST = self.noise_func(self.DrugC_xSxT, idxST)
+            lik_std_noise_xST = lik_std_noise_xST + torch.sign(lik_std_noise_xST)*1.0e-4
+            all_K_xST_noise = all_K_xST + torch.diag(lik_std_noise_xST.pow(2))  # + 0.1*torch.eye(xST.shape[0]) #Jitter?
+
+            if not isPD_torch(all_K_xST_noise):
+                with torch.no_grad():
+                    all_K_xST_noise = torch.from_numpy(nearestPD(all_K_xST_noise.numpy()))
+            self.all_L = torch.linalg.cholesky(all_K_xST_noise)  # + 1e-4*torch.eye(xST.shape[0])
 
             # Here we receive a list of possible drug concentrations to predict
             if DrugC_new is None:
-                # TODO
-                DrugC_new = self.DrugC_xS
-                assert 1 == 0
-                # DrugC_new = torch.Tensor(DrugC_new)[:, None]
-                # DrugC_xT = torch.kron(DrugC_new, torch.ones(xT.shape[0], 1))
+                #TODO
+                DrugC_new = self.DrugC_xT
+                assert 1==0
+                #DrugC_new = torch.Tensor(DrugC_new)[:, None]
+                #DrugC_xT = torch.kron(DrugC_new, torch.ones(xT.shape[0], 1))
 
             else:
-                assert DrugC_new.shape[0] == xS.shape[0]
-                DrugC_xS = DrugC_new.T.reshape(-1, 1)
-
+                assert DrugC_new.shape[0] == xT.shape[0]
+                DrugC_xT = DrugC_new.T.reshape(-1, 1)
+            #Below we replicate the target domain index as per the number of drug concentration we want to test
             NewDouts = DrugC_new.shape[1]
-            "Below NDomain_sel has to be the domain (i.e., D-th output we want to predict)"
-            if NDomain_sel is None:
-                NDomain_sel = 0
-                print("NDomain_sel = 0 by default, this would predict for domain 0. Set NDomain_sel as per the domain to predict")
-            idxS_new = [NDomain_sel] * xS.shape[0] * NewDouts  # Here xS is the new input value for which we want to pred
-            #DrugC_xS = torch.kron(DrugC_new, torch.ones(xS.shape[0], 1))
 
-            "Be careful with operation using xS.shape, from here it changes the original shape"
-            xS = torch.kron(torch.ones(NewDouts, 1), xS.reshape(-1)).reshape(-1, self.Pfeat)
-            alpha1 = torch.linalg.solve(self.LSS, self.yS)  # Here LSS contains info of all source domains (all outputs)
-            alpha = torch.linalg.solve(self.LSS.t(), alpha1)
-            KSS_xnew_xnew = self.LambdaDiDj(xS, idx1=idxS_new).evaluate()*(self.CoregCovariance[0](DrugC_xS).evaluate() * self.TLCovariance[0](xS, idx1=idxS_new).evaluate() + \
-                        self.CoregCovariance[1](DrugC_xS).evaluate() * self.TLCovariance[1](xS, idx1=idxS_new).evaluate() + \
-                        self.CoregCovariance[2](DrugC_xS).evaluate() * self.TLCovariance[2](xS, idx1=idxS_new).evaluate()+ \
-                        self.CoregCovariance[3](DrugC_xS).evaluate() * self.TLCovariance[3](xS, idx1=idxS_new).evaluate())
+            idxT = [self.NDomains - 1] * xT.shape[0] * NewDouts
 
-            K_xnew_xS = self.LambdaDiDj(xS, self.xS, idx1=idxS_new, idx2=self.idxS).evaluate()*(self.CoregCovariance[0](DrugC_xS, self.DrugC_xS).evaluate()*self.TLCovariance[0](xS, self.xS,idx1=idxS_new,idx2=self.idxS).evaluate() + \
-                        self.CoregCovariance[1](DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[1](xS, self.xS,idx1=idxS_new,idx2=self.idxS).evaluate() + \
-                        self.CoregCovariance[2](DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[2](xS, self.xS,idx1=idxS_new,idx2=self.idxS).evaluate()+ \
-                        self.CoregCovariance[3](DrugC_xS, self.DrugC_xS).evaluate() * self.TLCovariance[3](xS, self.xS,idx1=idxS_new,idx2=self.idxS).evaluate())
+            "Be careful with operation using xT.shape, from here it changes the original shape"
+            #xT = torch.kron(torch.ones(NewDouts, 1), xT)
+            xT = torch.kron(torch.ones(NewDouts, 1), xT.reshape(-1)).reshape(-1, self.Pfeat)
+            alpha1 = torch.linalg.solve(self.all_L, self.all_y-self.all_m)
+            alpha = torch.linalg.solve(self.all_L.t(), alpha1)
+            KTT_xnew_xnew = self.LambdaDiDj(xT, idx1=idxT).evaluate()*(self.CoregCovariance[0](DrugC_xT).evaluate() * self.TLCovariance[0](xT, idx1=idxT).evaluate()+ \
+                                                                       self.CoregCovariance[1](DrugC_xT).evaluate() * self.TLCovariance[1](xT,idx1=idxT).evaluate()+\
+                                                                       self.CoregCovariance[2](DrugC_xT).evaluate() * self.TLCovariance[2](xT,idx1=idxT).evaluate()+\
+                                                                       self.CoregCovariance[3](DrugC_xT).evaluate() * self.TLCovariance[3](xT,idx1=idxT).evaluate())
+            xST = torch.cat([self.xS, self.xT])
+            idxST = self.idxS+self.idxT
 
-            f_mu = torch.matmul(K_xnew_xS, alpha)
-            v = torch.linalg.solve(self.LSS, K_xnew_xS.t())
+            # Rep. Concentr. similar to coreginalisation
+            K_xnew_xST = self.LambdaDiDj(xT,xST, idx1=idxT,idx2=idxST).evaluate()*(self.CoregCovariance[0](DrugC_xT,self.DrugC_xSxT).evaluate() * self.TLCovariance[0](xT,xST, idx1=idxT,idx2=idxST).evaluate()+ \
+                                                                                   self.CoregCovariance[1](DrugC_xT,self.DrugC_xSxT).evaluate() * self.TLCovariance[1](xT, xST, idx1=idxT, idx2=idxST).evaluate()+\
+                                                                                   self.CoregCovariance[2](DrugC_xT,self.DrugC_xSxT).evaluate() * self.TLCovariance[2](xT, xST, idx1=idxT, idx2=idxST).evaluate()+\
+                                                                                   self.CoregCovariance[3](DrugC_xT,self.DrugC_xSxT).evaluate() * self.TLCovariance[3](xT, xST, idx1=idxT, idx2=idxST).evaluate())
+
+            f_mu = torch.matmul(K_xnew_xST, alpha)
+            mT_pred = torch.zeros_like(f_mu)
+            f_mu = torch.matmul(K_xnew_xST, alpha) + mT_pred
+            v = torch.linalg.solve(self.all_L, K_xnew_xST.t())
 
             if noiseless:
-                f_Cov = KSS_xnew_xnew - torch.matmul(v.t(),v)  # + 1e-2*torch.eye(xT.shape[0])  #I had to add this Jitter
+                f_Cov = KTT_xnew_xnew - torch.matmul(v.t(),v) #+ 1e-2*torch.eye(xT.shape[0])  #I had to add this Jitter
                 f_Cov = torch.from_numpy(nearestPD(f_Cov.numpy()))
             else:
-                lik_std_noise = self.noise_func(DrugC_xS, idxS_new)
-                lik_std_noise = lik_std_noise + torch.sign(lik_std_noise) * 1.0e-4
-                f_Cov = KSS_xnew_xnew - torch.matmul(v.t(), v) + torch.diag(lik_std_noise.pow(2)) + 1e-5 * torch.eye(xS.shape[0])
-                #f_Cov = KSS_xnew_xnew - torch.matmul(v.t(), v) + torch.diag(self.lik_std_noise[idxS_new].pow(2)) + 1e-5 * torch.eye(xS.shape[0])
+                lik_std_noise_xT = self.noise_func(DrugC_xT, idxT)
+                lik_std_noise_xT = lik_std_noise_xT + torch.sign(lik_std_noise_xT)*1.0e-4
+                f_Cov = KTT_xnew_xnew - torch.matmul(v.t(),v) + torch.diag(lik_std_noise_xT.pow(2)) + 1e-5*torch.eye(xT.shape[0])
                 f_Cov = torch.from_numpy(nearestPD(f_Cov.numpy()))
             return f_mu, f_Cov
 
@@ -264,7 +352,7 @@ class commandLine:
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 5
         self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
-        self.which_drug = 1022 #1179   #1062(22) 1057(19) 2096(17) #This is the drug we will select as test for the target domain.
+        self.which_drug = 1022   #1062(22) 1057(19) 2096(17) #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
             # print(op,arg)
@@ -327,7 +415,7 @@ for k,idx_cancer in enumerate(indx_cancer_train):
         df_SourceCancer_all = pd.concat([df_SourceCancer_all, df_to_read])
 
 df_all = df_SourceCancer_all.reset_index().drop(columns=['index'])
-df_source = df_all.dropna().sample(n=500,random_state = 2)
+df_source = df_all.dropna().sample(n=200,random_state = 2)
 
 
 # Index_sel_target = (df_to_read_target["DRUG_ID"] == 1036) | (df_to_read_target["DRUG_ID"] == 1061)| (df_to_read_target["DRUG_ID"] == 1373) \
@@ -423,7 +511,7 @@ reload(MyUtils)
 #print(f"No Log: {x_dose_T}")
 
 add_to_log = 0.1
-assert add_to_log==0.1  #if it is not 0.1 then we should change the log2(0.1) in model.noise_func
+assert add_to_log==0.1  #if it is not 0.1 then we should change the log2(0.1) in model.noise_func or receive as value
 x_dose_T = np.log2(x_dose_T + add_to_log)
 
 # "THIS IS JUST A CHECK BELOW"
@@ -513,8 +601,7 @@ print(f"new shape for yS_train: {yS_train.shape}")
 "In this cancer application we are refering to each domain as each cell-line with the Cosmic_ID"
 "There are CosmicID_labels.__len__() cell-lines or CosmicIDs in the Source (Melanoma) + 1 cell-line of the Target"
 "Then the total NDomains = CosmicID_labels.__len__() + 1"
-#NDomains = CosmicID_labels.__len__() + 1 #CosmicID_labels.__len__() contains the CosmicIDs of Source Domains
-NDomains = 1
+NDomains = CosmicID_labels.__len__() + 1 #CosmicID_labels.__len__() contains the CosmicIDs of Source Domains
 print(f"Number Nsource Domains: {CosmicID_labels.__len__()}, so total NDomains Source + Target: {NDomains}")
 
 "Drug_S concentrations for training"
@@ -529,20 +616,18 @@ DrugC_T_AllConc = torch.from_numpy(x_dose_T[idx_train])
 DrugC_T = DrugC_T_AllConc[:,indT_concentr]
 DrugC_T_test_AllConc = torch.from_numpy(x_dose_T[idx_test])
 DrugC_T_test = DrugC_T_test_AllConc[:,indT_concentr]
-idx_T = [0] * xT_train.shape[0]
-model = BKMOGaussianProcess(xT_train,yT_train,idxS=idx_T,DrugC_S=DrugC_T,NDomains=NDomains)
-#model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC_T=DrugC_T,DrugC_S=DrugC_S,NDomains=NDomains)
 
+model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC_T=DrugC_T,DrugC_S=DrugC_S,NDomains=NDomains)
+## model.covariance.length=0.05
 myseed = int(config.which_seed)
 torch.manual_seed(myseed)   #Ex1: 15 (run 100 iter)  #Exp2 (906826): 35  (run 100 iter)
 with torch.no_grad():
     #model.lik_std_noise= torch.nn.Parameter(2.0*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
-    #model.lik_std_noise = torch.nn.Parameter(2.0*torch.randn(NDomains))
-    model.TLCovariance[0].length = float(config.weight)*1.*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None] #2
-    model.TLCovariance[1].length = float(config.weight)*15.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None] #6
-    model.TLCovariance[2].length = float(config.weight)*30.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#10
-    model.TLCovariance[3].length = float(config.weight)*40.*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]
 
+    model.TLCovariance[0].length = float(config.weight)*1.0*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None] #2
+    model.TLCovariance[1].length = float(config.weight)*15.0*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None] #6
+    model.TLCovariance[2].length = float(config.weight)*30.0*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#10
+    model.TLCovariance[3].length = float(config.weight)*40.0*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:,None]
     #model.CoregCovariance[0].lengthscale = 500*8*torch.rand(1) #8*
     #model.CoregCovariance[1].lengthscale = 500*10*torch.rand(1)  #10*
     #model.CoregCovariance[2].lengthscale = 500*20*torch.rand(1)  #20*
@@ -595,13 +680,15 @@ def bypass_params(model_trained,model_cv):
     model_cv.coef1 = model_trained.coef1
     model_cv.coef2 = model_trained.coef2
 
+    "Bypass lengthscales"
     for i in range(model_trained.TLCovariance.__len__()):
-        "Bypass lengthscales"
         model_cv.TLCovariance[i].length = model_trained.TLCovariance[i].length.clone()
         "Bypass variances"
         model_cv.TLCovariance[i].variance = model_trained.TLCovariance[i].variance.clone()
 
-        # model_cv.CoregCovariance[i].lengthscale = model_trained.CoregCovariance[i].lengthscale.clone()
+        # model_cv.CoregCovariance[0].lengthscale = model_trained.CoregCovariance[0].lengthscale.clone()
+        # model_cv.CoregCovariance[1].lengthscale = model_trained.CoregCovariance[1].lengthscale.clone()
+        # model_cv.CoregCovariance[2].lengthscale = model_trained.CoregCovariance[2].lengthscale.clone()
 
         model_cv.CoregCovariance[i].sig = model_trained.CoregCovariance[i].sig.clone()
 
@@ -609,6 +696,17 @@ def bypass_params(model_trained,model_cv):
 
     model_cv.LambdaDiDj.muDi = model_trained.LambdaDiDj.muDi.clone()
     model_cv.LambdaDiDj.bDi = model_trained.LambdaDiDj.bDi.clone()
+
+# model_check = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC_T=DrugC_T,DrugC_S=DrugC_S,NDomains=NDomains)
+# print(f"Model check train BEFORE bypass:")
+# myTrain(model_check, xT_train, yT_train, myLr=1e-20, Niter=1)
+# bypass_params(model,model_check)
+#
+# print(f"Model check train AFTER bypass:")
+# myTrain(model_check, xT_train, yT_train, myLr=1e-20, Niter=1)
+#
+# print(f"Model ORIGINAL train check small stepsize:")
+# myTrain(model, xT_train, yT_train, myLr=1e-20, Niter=1)
 
 "Leave one out cross-validation"
 Val_LML = LogMarginalLikelihood()
@@ -634,7 +732,7 @@ for i in range(yT_all_train.shape[0]):
     DrugC_T_val_cv = torch.from_numpy(DrugC_T_val_cv)
 
     "model fit with Cross-val"
-    model_cv = BKMOGaussianProcess(xT_train_cv, yT_train_cv, idxS=[0]*xT_train_cv.shape[0], DrugC_S=DrugC_T_train_cv, NDomains=NDomains)
+    model_cv = TLMOGaussianProcess(xT_train_cv, yT_train_cv, xS_train, yS_train, idxS=idx_S, DrugC_T=DrugC_T_train_cv,DrugC_S=DrugC_S, NDomains=NDomains)
     bypass_params(model, model_cv)  #Here we bypass the fitted parameters from the MOGP trained over all data
     myTrain(model_cv, xT_train_cv, yT_train_cv, myLr=1e-15, Niter=1) #Here we could refine hyper-params a bit if wished
     "Here we put the model in prediciton mode"
@@ -654,25 +752,25 @@ for i in range(yT_all_train.shape[0]):
 
 print(f"Mean cv ValLogLoss: {np.mean(TestLogLoss_All)}")
 
-# path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
-# #path_home = '/rds/general/user/jgiraldo/home/TransferLearning_Results/'
-# path_val = path_home+'Jobs_TLMOGP_OneCell_OneDrug_Testing/TargetCancer'+str(config.sel_cancer_Target)+'/Drug_'+str(config.which_drug)+'/CellLine'+str(config.idx_CID_Target)+'_CID'+str(CosmicID_target)+'/'
-#
-# # check whether directory already exists
-# if not os.path.exists(path_val):
-#   #os.mkdir(path_val)   #Use this for a single dir
-#   os.makedirs(path_val) #Use this for a multiple sub dirs
-#
-# "Here we save the Validation Log Loss in path_val in order to have a list of different bashes to select the best model"
-# f = open(path_val+'Validation.txt', "a")
-# f.write(f"\nbash{str(config.bash)}, ValLogLoss:{np.mean(TestLogLoss_All)}, CrossVal_N:{yT_train.shape[0]}")
-# f.close()
-#
+path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
+#path_home = '/rds/general/user/jgiraldo/home/TransferLearning_Results/'
+path_val = path_home+'Jobs_TLMOGP_OneCell_OneDrug_Testing/TargetCancer'+str(config.sel_cancer_Target)+'/Drug_'+str(config.which_drug)+'/CellLine'+str(config.idx_CID_Target)+'_CID'+str(CosmicID_target)+'/'
+
+# check whether directory already exists
+if not os.path.exists(path_val):
+  #os.mkdir(path_val)   #Use this for a single dir
+  os.makedirs(path_val) #Use this for a multiple sub dirs
+
+"Here we save the Validation Log Loss in path_val in order to have a list of different bashes to select the best model"
+f = open(path_val+'Validation.txt', "a")
+f.write(f"\nbash{str(config.bash)}, ValLogLoss:{np.mean(TestLogLoss_All)}, CrossVal_N:{yT_train.shape[0]}")
+f.close()
+
 "Here we have to assign the flag to change from self.Train_mode = True to False"
 print("check difference between model.eval and model.train")
 model.eval()
 model.Train_mode = False
-plot_test = True
+plot_test = False
 if plot_test:
     x_test = xT_test.clone()
     y_test = yT_test.clone()
