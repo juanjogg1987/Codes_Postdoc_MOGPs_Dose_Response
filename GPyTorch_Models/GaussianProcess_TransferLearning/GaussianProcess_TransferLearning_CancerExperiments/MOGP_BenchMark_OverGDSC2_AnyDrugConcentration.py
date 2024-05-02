@@ -136,6 +136,8 @@ class BKMOGaussianProcess(nn.Module):
 
     def noise_func(self,DrugC_x,idx):
         std_lik = self.coef1[idx]*torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1)+self.coef2[idx]
+        #std_lik = self.coef1[idx] * DrugC_x[:, 0].pow(2) + self.coef2[idx]*DrugC_x[:, 0]
+        #std_lik = self.coef1[idx] * torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1).pow(2) + self.coef2[idx] * DrugC_x[:, 0]
         return std_lik
     def forward(self, xS, DrugC_new=None, NDomain_sel=None, noiseless=True):
         if self.Train_mode:
@@ -150,7 +152,7 @@ class BKMOGaussianProcess(nn.Module):
             # Here we include the respective noise terms associated to each domain
             #CSS = KSS + torch.diag(self.lik_std_noise[self.idxS].pow(2))
             lik_std_noise = self.noise_func(self.DrugC_xS,self.idxS)
-            lik_std_noise = lik_std_noise + torch.sign(lik_std_noise)*1.0e-4
+            lik_std_noise = lik_std_noise + torch.sign(lik_std_noise)*1.0e-2
             CSS = KSS + torch.diag(lik_std_noise.pow(2))
 
             # The code below aim to correct for numerical instabilities when CSS becomes Non-PSD
@@ -209,7 +211,7 @@ class BKMOGaussianProcess(nn.Module):
                 f_Cov = torch.from_numpy(nearestPD(f_Cov.numpy()))
             else:
                 lik_std_noise = self.noise_func(DrugC_xS, idxS_new)
-                lik_std_noise = lik_std_noise + torch.sign(lik_std_noise) * 1.0e-4
+                lik_std_noise = lik_std_noise + torch.sign(lik_std_noise) * 1.0e-2
                 f_Cov = KSS_xnew_xnew - torch.matmul(v.t(), v) + torch.diag(lik_std_noise.pow(2)) + 1e-5 * torch.eye(xS.shape[0])
                 #f_Cov = KSS_xnew_xnew - torch.matmul(v.t(), v) + torch.diag(self.lik_std_noise[idxS_new].pow(2)) + 1e-5 * torch.eye(xS.shape[0])
                 f_Cov = torch.from_numpy(nearestPD(f_Cov.numpy()))
@@ -548,14 +550,14 @@ with torch.no_grad():
     #model.CoregCovariance[2].lengthscale = 500*20*torch.rand(1)  #20*
 
     model.CoregCovariance[0].sig = 0.1 * torch.rand(1)  # 8*
-    model.CoregCovariance[1].sig = 5 * torch.rand(1)  # 10*
-    model.CoregCovariance[2].sig = 10 * torch.rand(1)  # 20*
-    model.CoregCovariance[3].sig = 20 * torch.rand(1)
+    model.CoregCovariance[1].sig = 1 * torch.rand(1)  # 10*
+    model.CoregCovariance[2].sig = 1 * torch.rand(1)  # 20*
+    model.CoregCovariance[3].sig = 2 * torch.rand(1)
 
-    model.CoregCovariance[0].sig0 = 0.1 * torch.rand(1)  # 8*
-    model.CoregCovariance[1].sig0 = 5 * torch.rand(1)  # 10*
-    model.CoregCovariance[2].sig0 = 10 * torch.rand(1)  # 20*
-    model.CoregCovariance[3].sig0 = 20 * torch.rand(1)
+    model.CoregCovariance[0].sig0 = 0.1 * torch.rand(1)+1  # 8*
+    model.CoregCovariance[1].sig0 = 5 * torch.rand(1) +1 # 10*
+    model.CoregCovariance[2].sig0 = 10 * torch.rand(1)+1  # 20*
+    model.CoregCovariance[3].sig0 = 20 * torch.rand(1)+1
 
     model.LambdaDiDj.muDi = 3*torch.rand(NDomains)[:, None]
     model.LambdaDiDj.bDi = 3*torch.rand(NDomains)[:, None]

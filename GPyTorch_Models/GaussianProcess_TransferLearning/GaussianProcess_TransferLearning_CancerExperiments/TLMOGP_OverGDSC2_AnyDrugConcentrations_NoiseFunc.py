@@ -162,6 +162,7 @@ class TLMOGaussianProcess(nn.Module):
 
     def noise_func(self,DrugC_x,idx):
         std_lik = self.coef1[idx]*torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1)+self.coef2[idx]
+        #std_lik = self.coef1[idx] * (-np.log2(0.1) + DrugC_x[:, 0] + 1).pow(2) + self.coef2[idx] * DrugC_x[:, 0]
         return std_lik
 
     def forward(self,xT, DrugC_new = None,noiseless = True):
@@ -201,9 +202,9 @@ class TLMOGaussianProcess(nn.Module):
 
             # Here we include the respective noise terms associated to each domain
             lik_std_noise_xS = self.noise_func(self.DrugC_xS, self.idxS)
-            lik_std_noise_xS = lik_std_noise_xS + torch.sign(lik_std_noise_xS)*1.0e-4
+            lik_std_noise_xS = lik_std_noise_xS + torch.sign(lik_std_noise_xS)*1.0e-3
             lik_std_noise_xT = self.noise_func(self.DrugC_xT, self.idxT)
-            lik_std_noise_xT = lik_std_noise_xT + torch.sign(lik_std_noise_xT)*1.0e-4
+            lik_std_noise_xT = lik_std_noise_xT + torch.sign(lik_std_noise_xT)*1.0e-3
             CSS = KSS + torch.diag(lik_std_noise_xS.pow(2))
             CTT = KTT + torch.diag(lik_std_noise_xT.pow(2))
 
@@ -246,7 +247,7 @@ class TLMOGaussianProcess(nn.Module):
                                                                      self.CoregCovariance[3](self.DrugC_xSxT).evaluate() * self.TLCovariance[3](xST, idx1=idxST).evaluate())
 
             lik_std_noise_xST = self.noise_func(self.DrugC_xSxT, idxST)
-            lik_std_noise_xST = lik_std_noise_xST + torch.sign(lik_std_noise_xST)*1.0e-4
+            lik_std_noise_xST = lik_std_noise_xST + torch.sign(lik_std_noise_xST)*1.0e-3
             all_K_xST_noise = all_K_xST + torch.diag(lik_std_noise_xST.pow(2))  # + 0.1*torch.eye(xST.shape[0]) #Jitter?
 
             if not isPD_torch(all_K_xST_noise):
@@ -298,7 +299,7 @@ class TLMOGaussianProcess(nn.Module):
                 f_Cov = torch.from_numpy(nearestPD(f_Cov.numpy()))
             else:
                 lik_std_noise_xT = self.noise_func(DrugC_xT, idxT)
-                lik_std_noise_xT = lik_std_noise_xT + torch.sign(lik_std_noise_xT)*1.0e-4
+                lik_std_noise_xT = lik_std_noise_xT + torch.sign(lik_std_noise_xT)*1.0e-3
                 f_Cov = KTT_xnew_xnew - torch.matmul(v.t(),v) + torch.diag(lik_std_noise_xT.pow(2)) + 1e-5*torch.eye(xT.shape[0])
                 f_Cov = torch.from_numpy(nearestPD(f_Cov.numpy()))
             return f_mu, f_Cov
@@ -352,7 +353,7 @@ class commandLine:
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 5
         self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
-        self.which_drug = 1022   #1062(22) 1057(19) 2096(17) #This is the drug we will select as test for the target domain.
+        self.which_drug = 1022 #1179 #1062(22) 1057(19) 2096(17) #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
             # print(op,arg)
@@ -633,17 +634,17 @@ with torch.no_grad():
     #model.CoregCovariance[2].lengthscale = 500*20*torch.rand(1)  #20*
 
     model.CoregCovariance[0].sig = 0.1 * torch.rand(1)  # 8*
-    model.CoregCovariance[1].sig = 5 * torch.rand(1)  # 10*
-    model.CoregCovariance[2].sig = 10 * torch.rand(1)  # 20*
-    model.CoregCovariance[3].sig = 20 * torch.rand(1)
+    model.CoregCovariance[1].sig = 1 * torch.rand(1)  # 10*
+    model.CoregCovariance[2].sig = 2 * torch.rand(1)  # 20*
+    model.CoregCovariance[3].sig = 3 * torch.rand(1)
 
-    model.CoregCovariance[0].sig0 = 0.1 * torch.rand(1)  # 8*
-    model.CoregCovariance[1].sig0 = 5 * torch.rand(1)  # 10*
-    model.CoregCovariance[2].sig0 = 10 * torch.rand(1)  # 20*
-    model.CoregCovariance[3].sig0 = 20 * torch.rand(1)
+    model.CoregCovariance[0].sig0 = 0.1 * torch.rand(1) +2 # 8*
+    model.CoregCovariance[1].sig0 = 5 * torch.rand(1)  +2# 10*
+    model.CoregCovariance[2].sig0 = 10 * torch.rand(1) +2 # 20*
+    model.CoregCovariance[3].sig0 = 20 * torch.rand(1)+2
 
-    model.LambdaDiDj.muDi = 3*torch.rand(NDomains)[:, None]
-    model.LambdaDiDj.bDi = 3*torch.rand(NDomains)[:, None]
+    model.LambdaDiDj.muDi = 1*torch.rand(NDomains)[:, None]
+    model.LambdaDiDj.bDi = 1*torch.rand(NDomains)[:, None]
     #print(model.LambdaDiDj.muDi)
 #print(f"Noises std: {model.lik_std_noise}")
 
