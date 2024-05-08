@@ -135,7 +135,7 @@ class BKMOGaussianProcess(nn.Module):
         self.mu_star = torch.zeros_like(self.yS)
 
     def noise_func(self,DrugC_x,idx):
-        std_lik = self.coef1[idx]*torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1)+self.coef2[idx]
+        std_lik = self.coef1[idx]#*torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1)+self.coef2[idx]
         #std_lik = self.coef1[idx] * DrugC_x[:, 0].pow(2) + self.coef2[idx]*DrugC_x[:, 0]
         #std_lik = self.coef1[idx] * torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1).pow(2) + self.coef2[idx] * DrugC_x[:, 0]
         return std_lik
@@ -681,12 +681,20 @@ if plot_test:
     DrugCtoPred_exact = DrugC_T_test.clone()
     Name_DrugID_plot = Name_DrugID_test
     plotname = 'Test'
+
+    indT_missing = np.delete(np.arange(0, 8), indT_concentr)
+    y_missing = yT_test_AllConc[:, indT_missing]
+    DrugC_T_missing = DrugC_T_test_AllConc[:, indT_missing]
 else:
     x_test = xT_train.clone()
     y_test = yT_train.clone()
     DrugCtoPred_exact = DrugC_T.clone()
     Name_DrugID_plot = Name_DrugID_train
     plotname = 'Train'
+
+    indT_missing = np.delete(np.arange(0, 8), indT_concentr)
+    y_missing = yT_train_AllConc[:, indT_missing]
+    DrugC_T_missing = DrugC_T_AllConc[:, indT_missing]
 
 "The Oversample_N below is to generate equaly spaced drug concentrations between the original 7 drug concentrations"
 "i.e., if Oversample_N = 2: means that each 2 positions we'd have the original drug concentration tested in cell-line"
@@ -713,6 +721,12 @@ with torch.no_grad():
     Lpred_exact = torch.linalg.cholesky(Cpred_exact)  # Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
     Test_loss = -Val_LML(mpred_exact, Lpred_exact, y_test)
     print(f"Test Loss: {Test_loss.item()}")
+
+    mpred_missing, Cpred_missing = model(x_test, DrugC_new=DrugC_T_missing, noiseless=False)
+    Lpred_missing = torch.linalg.cholesky(Cpred_missing)  # Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
+    Test_loss_missing = -Val_LML(mpred_missing, Lpred_missing, y_missing)
+    print(f"Test Loss Missing Values: {Test_loss_missing.item()}")
+    print(f"MSE Missing Values: {(mpred_missing - y_missing.T.reshape(-1, 1)).pow(2).mean()}")
 
 yT_pred = mpred.reshape(DrugCtoPred.shape[1],x_test.shape[0]).T
 
@@ -760,4 +774,4 @@ for i in range(x_test.shape[0]):
     #     os.makedirs(path_plot)  # Use this for a multiple sub dirs
     # plt.savefig(path_plot+'plotbash'+str(config.bash)+'.pdf')
 
-#plt.savefig('./Plots_April16_2024/CID'+str(CosmicID_target)+'_Train'+str(i)+'.pdf')
+    #plt.savefig('./Plots_May7_2024/CID'+str(CosmicID_target)+'_Train'+str(i)+'.pdf')
