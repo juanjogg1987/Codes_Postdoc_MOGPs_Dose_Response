@@ -672,3 +672,95 @@ class NNetwork_kern(gpytorch.kernels.Kernel):
         kernel_value = torch.arcsin(numerator / denominator) * (2 / torch.pi)
 
         return kernel_value
+
+class Kernel_Sig2Constrained(gpytorch.kernels.Kernel):
+    # the kernel is stationary
+    is_stationary = True
+
+    # We will register the parameter when initializing the kernel
+    def __init__(self, sig2_prior=None,sig2_constraint=None,length_prior=None, length_constraint=None, **kwargs):
+        super().__init__(**kwargs)
+
+        # set the parameter constraint to be positive, when nothing is specified
+        if length_constraint is None:
+            length_constraint = Interval(1.0, 100) #Positive()
+
+        if sig2_constraint is None:
+            sig2_constraint = Interval(-1000, 1000)
+
+        # register the raw parameter
+        self.register_parameter(
+            name='raw_length', parameter=torch.nn.Parameter(torch.zeros(*self.batch_shape, 1, 1))
+        )
+        self.register_parameter(
+            name='raw_sig2', parameter=torch.nn.Parameter(torch.ones(*self.batch_shape, 1, 1))
+        )
+        # register the constraint
+        self.register_constraint("raw_length", length_constraint)
+        self.register_constraint("raw_sig2", sig2_constraint)
+
+        # set the parameter prior, see
+        # https://docs.gpytorch.ai/en/latest/module.html#gpytorch.Module.register_prior
+        "The ifs below are just a template, but not already tested by Juan, so I do not know if it would work"
+        if length_prior is not None:
+            self.register_prior(
+                "length_prior",
+                length_prior,
+                lambda m: m.length,
+                lambda m, v : m._set_length(v),
+            )
+        if sig2_prior is not None:
+            self.register_prior(
+                "sig2_prior",
+                sig2_prior,
+                lambda m: m.sig2,
+                lambda m, v : m._set_sig2(v),
+            )
+
+    # now set up the 'actual' paramter
+    @property
+    def length(self):
+        # when accessing the parameter, apply the constraint transform
+        return self.raw_length_constraint.transform(self.raw_length)
+
+    @property
+    def sig2(self):
+        # when accessing the parameter, apply the constraint transform
+        return self.raw_sig2_constraint.transform(self.raw_sig2)
+
+    @length.setter
+    def length(self, value):
+        return self._set_length(value)
+
+    @sig2.setter
+    def sig2(self, value):
+        return self._set_sig2(value)
+
+    def _set_length(self, value):
+        if not torch.is_tensor(value):
+            value = torch.as_tensor(value).to(self.raw_length)
+        # when setting the paramater, transform the actual value to a raw one by applying the inverse transform
+        self.initialize(raw_length=self.raw_length_constraint.inverse_transform(value))
+
+    def _set_sig2(self, value):
+        if not torch.is_tensor(value):
+            value = torch.as_tensor(value).to(self.raw_sig2)
+        # when setting the paramater, transform the actual value to a raw one by applying the inverse transform
+        self.initialize(raw_sig2=self.raw_sig2_constraint.inverse_transform(value))
+
+    # this is the kernel function
+    def forward(self, x1, x2, idx1=None,idx2=None,square_dist=True, diag=False,**params):
+        # apply lengthscale
+        if idx2 is None:
+            idx2 = idx1
+
+        # apply lengthscale
+        x1_ = x1.div(self.length)
+        x2_ = x2.div(self.length)
+        # calculate the distance between inputs
+        diff = self.covar_dist(x1_, x2_, square_dist=square_dist, diag=diag, **params)
+        diff = -0.5*diff
+        # prevent divide by 0 errors
+        #diff.where(diff == 0, torch.as_tensor(1e-20))
+        var = 0.001 / (1.0+torch.exp(-self.sig2))
+        return var*(diff.exp_())
