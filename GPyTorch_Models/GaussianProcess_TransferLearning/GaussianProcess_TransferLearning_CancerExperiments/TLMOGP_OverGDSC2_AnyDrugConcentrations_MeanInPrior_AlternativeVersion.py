@@ -162,16 +162,17 @@ class TLMOGaussianProcess(nn.Module):
         self.coef2 = torch.nn.Parameter(1.0 * torch.randn(NDomains))
         #self.lik_std_noise = 0.1 * torch.ones(NDomains)
 
-        # self.beta = torch.nn.Parameter(1 * torch.randn(self.Pfeat,2, dtype=torch.float64))
-        # self.alpha = torch.nn.Parameter(1 * torch.randn(self.Pfeat,2, dtype=torch.float64))
-        # self.gamma = torch.nn.Parameter(1 * torch.randn(self.Pfeat,2, dtype=torch.float64))
+        #self.beta = torch.nn.Parameter(1 * torch.randn(self.Pfeat,2, dtype=torch.float64))
+        #self.alpha = torch.nn.Parameter(1 * torch.randn(self.Pfeat,2, dtype=torch.float64))
+        self.gamma = torch.nn.Parameter(1 * torch.randn(self.Pfeat,2, dtype=torch.float64))
 
         self.beta = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
         self.alpha = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
-        self.gamma = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
+        #self.gamma = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
 
         self.beta2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat- 23, 2, dtype=torch.float64))
         self.alpha2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat-23, 2, dtype=torch.float64))
+        self.gamma2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat - 23, 2, dtype=torch.float64))
 
         self.mu_star = torch.zeros_like(self.yT) #mu has the shape of the new replicated along the outputs yT
         self.L = torch.eye(self.yT.shape[0])
@@ -179,18 +180,30 @@ class TLMOGaussianProcess(nn.Module):
         "TODO: I might need the self.LSS also here in order to be able to predict without optimising"
 
     def noise_func(self,DrugC_x,idx):
+        #std_lik =(1-(1/(torch.exp((-np.log2(0.1)+DrugC_x[:,0])**4))))* (0.5 / (1.0+torch.exp(- self.coef1[idx])))+1e-1*(1/(torch.exp((-np.log2(0.1)+DrugC_x[:,0])**4)))
+        #std_lik = (1-(1/(torch.exp((-np.log2(0.1)+DrugC_x[:, 0])))))*(1.0 / (1.0 + torch.exp(- self.coef1[idx]))) + 1e-1*(1/(torch.exp((-np.log2(0.1)+DrugC_x[:, 0]))))
+        #print(std_lik)
+        #std_lik = (0.3 / (1.0+torch.exp(- self.coef1[idx])))
         std_lik = self.coef1[idx]#*torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1)+self.coef2[idx]
-        #std_lik = self.coef1[idx] * (-np.log2(0.1) + DrugC_x[:, 0] + 1).pow(2) + self.coef2[idx] * DrugC_x[:, 0]
+        #coef1 = 1 / (1.0+torch.exp(- self.coef1[idx]))
+        #std_lik = coef1*torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1)#+self.coef2[idx]
         return std_lik
 
     def mean_func(self,x,DrugC_x,SelDomain):
         "We define a mean function that has to mapping one for all source data"
         "and another for all target data. SelDomain is 0 for all source and 1 for all target"
+        SelDomain = 0 #It's better to always use the same parameter mapping, some drugs might be in Source but no Target
         #x0 = torch.clip(torch.matmul(x,self.alpha[:,SelDomain:SelDomain+1]),-5,5)
-        x0 = torch.matmul(x[:,-23:], self.alpha[:, SelDomain:SelDomain + 1])#+torch.matmul(x[:,:-23], self.alpha2[:, SelDomain:SelDomain + 1])
-        L = 1.0   #This is the value where the sigmoid starts
-        d = 0.0#0.5 / (1.0+torch.exp(-torch.matmul(x,self.gamma[:,SelDomain:SelDomain+1])))  #It Controls range of Emax
-        k = -(torch.log(torch.abs(torch.matmul(x[:,-23:],self.beta[:,SelDomain:SelDomain+1]))+1))#+torch.log(torch.abs(torch.matmul(x[:,:-23],self.beta2[:,SelDomain:SelDomain+1]))+1)) #If negative (-\_) if positiv (_/-)
+        #scale_x0 = 1.0 / (1.0+torch.exp(-torch.matmul(x[:,:-23], self.alpha2[:, SelDomain:SelDomain + 1])))
+        x0 = torch.matmul(x[:,-23:], self.alpha[:, SelDomain:SelDomain + 1])#+scale_x0
+        #x0 = torch.matmul(x, self.alpha[:, SelDomain:SelDomain + 1])  # +scale_x0
+        L = 1.0 #/ (1.0+torch.exp(-torch.matmul(x[:,-23:],self.gamma[:,SelDomain:SelDomain+1])))  #This is the value where the sigmoid starts
+        #d = 0.5 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.gamma[:,SelDomain:SelDomain+1])))  #It Controls range of Emax
+        d = 0.0 #0.5 / (1.0 + torch.exp(-torch.matmul(x, self.gamma[:, SelDomain:SelDomain + 1])))  # It Controls range of Emax
+        #d = (torch.exp(-torch.log2(-np.log2(0.1)+DrugC_x+1)))*d0
+        #scale = 1.0 / (1.0+torch.exp(-torch.log(torch.abs(torch.matmul(x[:,:-23],self.beta2[:,SelDomain:SelDomain+1]))+1)))
+        k = -(torch.log(torch.abs(torch.matmul(x[:,-23:],self.beta[:,SelDomain:SelDomain+1]))+1)) #If negative (-\_) if positiv (_/-)
+        #k = -(torch.log(torch.abs(torch.matmul(x, self.beta[:, SelDomain:SelDomain + 1])) + 1))  # If negative (-\_) if positiv (_/-)
         #k = -torch.abs(torch.abs(torch.matmul(x, self.beta[:, SelDomain:SelDomain + 1])))  # If negative (-\_) if positiv (_/-)
         #print(k)
         return ( 1/ (L + torch.exp(-k*(DrugC_x-x0))) + d)
@@ -380,13 +393,13 @@ class commandLine:
         # opts = dict(opts)
         # print(opts)
         self.N_iter = 2    #number of iterations
-        self.which_seed = 21 #20 #108 #103 #29 #35 #123  #change seed to initialise the hyper-parameters
+        self.which_seed = 21 #21  #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = "None"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 5
         self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
-        self.which_drug = 1022 #1051 #1022 #1179 #1062(22) 1057(19) 2096(17) #This is the drug we will select as test for the target domain.
+        self.which_drug = 1022 #1004#dok #1003dok #1511dok #1819dok #1818dso #1259dso #1190dbad #1180dso #1080dbad #1179dso #1051dso #1079dok #1022dok  #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
             # print(op,arg)
@@ -700,7 +713,7 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
         if loss.item() < 0 and flag ==1:
         #if iter==100:  #70
             flag = 0
-            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr'] * 0.1
+            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr'] * 0.05
 
         print(f"i: {iter+1}, Loss: {loss.item()}")
         # print(f"TLlength1 {model.TLCovariance[2].length}")
