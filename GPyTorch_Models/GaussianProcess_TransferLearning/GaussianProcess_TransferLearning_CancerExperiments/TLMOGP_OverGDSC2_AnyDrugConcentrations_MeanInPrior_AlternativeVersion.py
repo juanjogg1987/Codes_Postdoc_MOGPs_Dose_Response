@@ -399,7 +399,7 @@ class commandLine:
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 5
         self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
-        self.which_drug = 1022 #1004#dok #1003dok #1511dok #1819dok #1818dso #1259dso #1190dbad #1180dso #1080dbad #1179dso #1051dso #1079dok #1022dok  #This is the drug we will select as test for the target domain.
+        self.which_drug = 1818 #1004#dok #1003dok #1511dok #1819dok #1818dok #1259dso #1190dbad #1180dso #1080dok #1179dso #1051dso #1079dok #1022dok  #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
             # print(op,arg)

@@ -601,7 +601,7 @@ for Nfold in range(nsplits, -1, -1):
     "The lines belos plot the dose response prediction over test set uncomment to plot!"
     if Nfold == nsplits:
         for posy in range(Y_pred_interp_all.__len__()):
-            if(posy == 38 or posy == 103):  #87 #95
+            if(posy == 40 or posy == 63):  #87 #95
                 plt.figure(Nfold + nsplits + 2 + posy)
                 plt.plot(x_dose_new, Y_pred_interp_all[posy],'r')
                 plt.plot(x_dose_new, std_upper_interp_all[posy], 'r--')
@@ -616,13 +616,13 @@ for Nfold in range(nsplits, -1, -1):
                 plt.plot(IC50_pred[posy]*np.ones(10)-0.001,np.linspace(-0.1,0.5,10),'b|',markersize=5,linewidth=3)
                 plt.plot(IC50_pred[posy] * np.ones(10)+0.001, np.linspace(-0.1, 0.5, 10), 'b|', markersize=5, linewidth=3)
                 # plt.plot(x_dose_new, np.ones_like(x_dose_new) * Emax_val[posy], 'r')  # Plot a horizontal line as Emax
-                plt.title(f"AUC = {AUC_pred[posy][0]:0.4f}")
+                plt.title(f"Response Prediction Cell-Line: 753561; AUC = {AUC_pred[posy][0]:0.4f}")
                 plt.ylim([-0.05, 1.2])
                 plt.xlim([0.135, 1.05])
-                if posy == 38:
-                    plt.xlabel('Drug Concentration (PLX-4720)',fontsize=14)
-                if posy == 103:
-                    plt.xlabel('Drug Concentration (ID1149)', fontsize=14)
+                if posy == 40:
+                    plt.xlabel('Drug Concentration (DrugID:1058)',fontsize=14)
+                if posy == 63:
+                    plt.xlabel('Drug Concentration (DrugID:1059)', fontsize=14)
                 plt.ylabel('Cell Viability',fontsize=14)
                 plt.legend(['MOGP-pred','2-std','_nolegend_','Real Data','IC50','Emax'])
 
