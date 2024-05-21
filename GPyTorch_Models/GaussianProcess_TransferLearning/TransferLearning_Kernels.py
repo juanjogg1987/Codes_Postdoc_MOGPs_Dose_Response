@@ -762,5 +762,5 @@ class Kernel_Sig2Constrained(gpytorch.kernels.Kernel):
         diff = -0.5*diff
         # prevent divide by 0 errors
         #diff.where(diff == 0, torch.as_tensor(1e-20))
-        var = 0.005 / (1.0+torch.exp(-self.sig2))
+        var = 0.005 / (1.0+torch.exp(-self.sig2)) #0.005
         return var*(diff.exp_())

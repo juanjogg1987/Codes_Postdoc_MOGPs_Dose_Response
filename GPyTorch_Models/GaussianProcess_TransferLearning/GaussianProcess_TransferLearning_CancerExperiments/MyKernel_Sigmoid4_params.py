@@ -21,8 +21,8 @@ def sigmoid_4_param(x, x0, L, k, d):
     return ( 1/ (L + np.exp(-k*(x-x0))) + d)
 
 x = torch.linspace(-3,3,100)
-y_sig = sigmoid_4_param(x,-1,1,-5.5,0)
-y_sig2 = sigmoid_4_param(x,-3,1,-5.5,0)
+y_sig = sigmoid_4_param(x,-1,1,-10.5,0)
+y_sig2 = sigmoid_4_param(x,-1,1,-10.5,0)
 
 plt.close('all')
 
@@ -34,7 +34,7 @@ def covar(x1,length=1):
     x1 =x1
     x2 = x1.copy()
     x1_m,x2_m = np.meshgrid(x1,x2)
-    sig = 0.69#0.0005  #Play with this value to see how the covariance increases or decreases its values
+    sig = 0.005  #Play with this value to see how the covariance increases or decreases its values
     kxx = sig*np.exp(-0.5/(length**2)*(x1_m-x2_m)**2)
     return kxx
 
@@ -43,8 +43,10 @@ mycovar =Kernel_Sig2Constrained()
 #cov = covar(x)
 #cov2 = covar(x,0.1)
 
+mycovar.length = 0.5
 cov = mycovar(x).evaluate()
-cov2 = covar(x,0.69)
+
+cov2 = covar(x,0.5)
 
 plt.figure(2,figsize=(10, 5))
 plt.figure(3,figsize=(10, 5))

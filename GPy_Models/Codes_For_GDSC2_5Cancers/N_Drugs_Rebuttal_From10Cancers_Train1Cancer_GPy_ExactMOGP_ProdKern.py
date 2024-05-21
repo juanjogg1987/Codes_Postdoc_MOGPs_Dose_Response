@@ -620,9 +620,9 @@ for Nfold in range(nsplits, -1, -1):
                 plt.ylim([-0.05, 1.2])
                 plt.xlim([0.135, 1.05])
                 if posy == 40:
-                    plt.xlabel('Drug Concentration (DrugID:1058)',fontsize=14)
+                    plt.xlabel('Drug Concentration (Drug:Pictilisib)',fontsize=14)
                 if posy == 63:
-                    plt.xlabel('Drug Concentration (DrugID:1059)', fontsize=14)
+                    plt.xlabel('Drug Concentration (Drug:AZD8055)', fontsize=14)
                 plt.ylabel('Cell Viability',fontsize=14)
                 plt.legend(['MOGP-pred','2-std','_nolegend_','Real Data','IC50','Emax'])
 
