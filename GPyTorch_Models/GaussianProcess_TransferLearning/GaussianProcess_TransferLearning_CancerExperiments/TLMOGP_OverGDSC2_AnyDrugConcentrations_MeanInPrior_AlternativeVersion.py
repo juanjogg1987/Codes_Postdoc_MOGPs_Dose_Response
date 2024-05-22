@@ -183,7 +183,7 @@ class TLMOGaussianProcess(nn.Module):
         #std_lik =(1-(1/(torch.exp((-np.log2(0.1)+DrugC_x[:,0])**4))))* (0.5 / (1.0+torch.exp(- self.coef1[idx])))+1e-1*(1/(torch.exp((-np.log2(0.1)+DrugC_x[:,0])**4)))
         #std_lik = (1-(1/(torch.exp((-np.log2(0.1)+DrugC_x[:, 0])))))*(1.0 / (1.0 + torch.exp(- self.coef1[idx]))) + 1e-1*(1/(torch.exp((-np.log2(0.1)+DrugC_x[:, 0]))))
         #print(std_lik)
-        #std_lik = (0.5 / (1.0+torch.exp(- self.coef1[idx])))+0.1
+        #std_lik = (0.5 / (1.0+torch.exp(- self.coef1[idx])))+0.05
         std_lik = self.coef1[idx]#*torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1)+self.coef2[idx]
         #coef1 = 1 / (1.0+torch.exp(- self.coef1[idx]))
         #std_lik = coef1*torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1)#+self.coef2[idx]
@@ -402,7 +402,7 @@ class commandLine:
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 5
         self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
-        self.which_drug = 1259 #1004#dok #1003dok #1511dok #1819dok #1818dok #1259dso #1190dbad #1180dso #1080dok #1179dso #1051dso #1079dok #1022dok  #This is the drug we will select as test for the target domain.
+        self.which_drug = 1079 #1004#dok #1003dok #1511dok #1819dok #1818dok #1259dso #1190dbad #1180dso #1080dok #1179dso #1051dso #1079dok #1022dok  #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
             # print(op,arg)
@@ -466,7 +466,6 @@ for k,idx_cancer in enumerate(indx_cancer_train):
 
 df_all = df_SourceCancer_all.reset_index().drop(columns=['index'])
 df_source = df_all.dropna().sample(n=100,random_state = 2)
-
 
 # Index_sel_target = (df_to_read_target["DRUG_ID"] == 1036) | (df_to_read_target["DRUG_ID"] == 1061)| (df_to_read_target["DRUG_ID"] == 1373) \
 #             | (df_to_read_target["DRUG_ID"] == 1039) | (df_to_read_target["DRUG_ID"] == 1560) | (df_to_read_target["DRUG_ID"] == 1057) \
@@ -674,7 +673,7 @@ torch.manual_seed(myseed)   #Ex1: 15 (run 100 iter)  #Exp2 (906826): 35  (run 10
 with torch.no_grad():
     #model.lik_std_noise= torch.nn.Parameter(2.0*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
 
-    model.TLCovariance[0].length = float(config.weight)*1.0*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None] #2
+    model.TLCovariance[0].length = float(config.weight)*0.1*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None] #1
     model.TLCovariance[1].length = float(config.weight)*5.0*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None] #15
     model.TLCovariance[2].length = float(config.weight)*30.0*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#10
     model.TLCovariance[3].length = float(config.weight)*40.0*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:,None]
@@ -716,7 +715,7 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
         if loss.item() < 0 and flag ==1:
         #if iter==100:  #70
             flag = 0
-            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr'] * 0.01
+            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr'] * 0.05 #0.01
 
         print(f"i: {iter+1}, Loss: {loss.item()}")
         # print(f"TLlength1 {model.TLCovariance[2].length}")
