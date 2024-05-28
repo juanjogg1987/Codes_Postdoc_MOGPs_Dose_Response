@@ -169,6 +169,7 @@ class TLMOGaussianProcess(nn.Module):
         self.beta = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
         self.alpha = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
         self.gamma = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
+        self.kappa = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
 
         self.beta2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat- 23, 2, dtype=torch.float64))
         self.alpha2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat-23, 2, dtype=torch.float64))
@@ -198,8 +199,8 @@ class TLMOGaussianProcess(nn.Module):
         #x0 = 5.0 / (1.0+torch.exp(- torch.matmul(x[:,-23:], self.alpha[:, SelDomain:SelDomain + 1])))-5.0 / (1.0+torch.exp(- torch.matmul(x[:,-23:], self.alpha[:, SelDomain:SelDomain + 1])))  #+scale_x0
         x0 = torch.matmul(x[:,-23:], self.alpha[:, SelDomain:SelDomain + 1])  # +scale_x0
         #x0 = torch.matmul(x, self.alpha[:, SelDomain:SelDomain + 1])  # +scale_x0
-        L = 1.0 #/ (1.0+torch.exp(-torch.matmul(x[:,-23:],self.gamma[:,SelDomain:SelDomain+1])))  #This is the value where the sigmoid starts
-        d = 0.5 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.gamma[:,SelDomain:SelDomain+1])))  #It Controls range of Emax
+        L = 1.0 #/ (1.0+torch.exp(-torch.matmul(x[:,-23:],self.kappa[:,SelDomain:SelDomain+1])))  #This is the value where the sigmoid starts
+        d = 0.3 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.gamma[:,SelDomain:SelDomain+1])))  #It Controls range of Emax
         #d = 0.5 / (1.0 + torch.exp(-torch.matmul(x, self.gamma[:, SelDomain:SelDomain + 1])))  # It Controls range of Emax
         #d = 0.5 / (1.0 + torch.exp(-torch.matmul(x, self.gamma[:, SelDomain:SelDomain + 1])))  # It Controls range of Emax
         #d = (torch.exp(-torch.log2(-np.log2(0.1)+DrugC_x+1)))*d0
@@ -222,18 +223,18 @@ class TLMOGaussianProcess(nn.Module):
             # Here we compute the Covariance matrices between source-target, source-source and target domains
             KTS = self.LambdaDiDj(xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate()*(self.CoregCovariance[0](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[0](xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate() + \
                                                                                         self.CoregCovariance[1](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[1](xT, self.xS, idx1=self.idxT, idx2=self.idxS).evaluate()+\
-                                                                                        self.CoregCovariance[2](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[2](xT, self.xS, idx1=self.idxT, idx2=self.idxS).evaluate()+\
-                                                                                        self.CoregCovariance[3](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[3](xT, self.xS, idx1=self.idxT, idx2=self.idxS).evaluate())
+                                                                                        self.CoregCovariance[2](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[2](xT, self.xS, idx1=self.idxT, idx2=self.idxS).evaluate())#+\
+                                                                                        #self.CoregCovariance[3](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[3](xT, self.xS, idx1=self.idxT, idx2=self.idxS).evaluate())
 
             KSS = self.LambdaDiDj(self.xS,idx1=self.idxS).evaluate()*(self.CoregCovariance[0](self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance[0](self.xS,idx1=self.idxS).evaluate()+ \
                                                                       self.CoregCovariance[1](self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance[1](self.xS, idx1=self.idxS).evaluate()+\
-                                                                      self.CoregCovariance[2](self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance[2](self.xS, idx1=self.idxS).evaluate()+\
-                                                                      self.CoregCovariance[3](self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance[3](self.xS, idx1=self.idxS).evaluate())
+                                                                      self.CoregCovariance[2](self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance[2](self.xS, idx1=self.idxS).evaluate())#+\
+                                                                      #self.CoregCovariance[3](self.DrugC_xS,self.DrugC_xS).evaluate()*self.TLCovariance[3](self.xS, idx1=self.idxS).evaluate())
 
             KTT = self.LambdaDiDj(self.xT,idx1=self.idxT).evaluate()*(self.CoregCovariance[0](self.DrugC_xT,self.DrugC_xT).evaluate()*self.TLCovariance[0](self.xT,idx1=self.idxT).evaluate()+ \
                                                                       self.CoregCovariance[1](self.DrugC_xT,self.DrugC_xT).evaluate() * self.TLCovariance[1](self.xT, idx1=self.idxT).evaluate()+\
-                                                                      self.CoregCovariance[2](self.DrugC_xT,self.DrugC_xT).evaluate() * self.TLCovariance[2](self.xT, idx1=self.idxT).evaluate()+\
-                                                                      self.CoregCovariance[3](self.DrugC_xT,self.DrugC_xT).evaluate() * self.TLCovariance[3](self.xT, idx1=self.idxT).evaluate())
+                                                                      self.CoregCovariance[2](self.DrugC_xT,self.DrugC_xT).evaluate() * self.TLCovariance[2](self.xT, idx1=self.idxT).evaluate())#+\
+                                                                      #self.CoregCovariance[3](self.DrugC_xT,self.DrugC_xT).evaluate() * self.TLCovariance[3](self.xT, idx1=self.idxT).evaluate())
 
             #print(f"LambdaDiDj xT xS: {self.LambdaDiDj(xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate()}")
             #print(f"LambdaDiDj xS xS: {self.LambdaDiDj(self.xS,idx1=self.idxS).evaluate()}")
@@ -291,8 +292,8 @@ class TLMOGaussianProcess(nn.Module):
             self.DrugC_xSxT = torch.cat([self.DrugC_xS, self.DrugC_xT])
             all_K_xST = self.LambdaDiDj(xST, idx1=idxST).evaluate()*(self.CoregCovariance[0](self.DrugC_xSxT).evaluate() * self.TLCovariance[0](xST, idx1=idxST).evaluate()+ \
                                                                      self.CoregCovariance[1](self.DrugC_xSxT).evaluate() * self.TLCovariance[1](xST, idx1=idxST).evaluate()+\
-                                                                     self.CoregCovariance[2](self.DrugC_xSxT).evaluate() * self.TLCovariance[2](xST, idx1=idxST).evaluate()+\
-                                                                     self.CoregCovariance[3](self.DrugC_xSxT).evaluate() * self.TLCovariance[3](xST, idx1=idxST).evaluate())
+                                                                     self.CoregCovariance[2](self.DrugC_xSxT).evaluate() * self.TLCovariance[2](xST, idx1=idxST).evaluate())#+\
+                                                                     #self.CoregCovariance[3](self.DrugC_xSxT).evaluate() * self.TLCovariance[3](xST, idx1=idxST).evaluate())
 
             lik_std_noise_xST = self.noise_func(self.DrugC_xSxT, idxST)
             lik_std_noise_xST = lik_std_noise_xST + torch.sign(lik_std_noise_xST)*1.0e-3
@@ -327,16 +328,16 @@ class TLMOGaussianProcess(nn.Module):
             alpha = torch.linalg.solve(self.all_L.t(), alpha1)
             KTT_xnew_xnew = self.LambdaDiDj(xT, idx1=idxT).evaluate()*(self.CoregCovariance[0](DrugC_xT).evaluate() * self.TLCovariance[0](xT, idx1=idxT).evaluate()+ \
                                                                        self.CoregCovariance[1](DrugC_xT).evaluate() * self.TLCovariance[1](xT,idx1=idxT).evaluate()+\
-                                                                       self.CoregCovariance[2](DrugC_xT).evaluate() * self.TLCovariance[2](xT,idx1=idxT).evaluate()+\
-                                                                       self.CoregCovariance[3](DrugC_xT).evaluate() * self.TLCovariance[3](xT,idx1=idxT).evaluate())
+                                                                       self.CoregCovariance[2](DrugC_xT).evaluate() * self.TLCovariance[2](xT,idx1=idxT).evaluate())#+\
+                                                                       #self.CoregCovariance[3](DrugC_xT).evaluate() * self.TLCovariance[3](xT,idx1=idxT).evaluate())
             xST = torch.cat([self.xS, self.xT])
             idxST = self.idxS+self.idxT
 
             # Rep. Concentr. similar to coreginalisation
             K_xnew_xST = self.LambdaDiDj(xT,xST, idx1=idxT,idx2=idxST).evaluate()*(self.CoregCovariance[0](DrugC_xT,self.DrugC_xSxT).evaluate() * self.TLCovariance[0](xT,xST, idx1=idxT,idx2=idxST).evaluate()+ \
                                                                                    self.CoregCovariance[1](DrugC_xT,self.DrugC_xSxT).evaluate() * self.TLCovariance[1](xT, xST, idx1=idxT, idx2=idxST).evaluate()+\
-                                                                                   self.CoregCovariance[2](DrugC_xT,self.DrugC_xSxT).evaluate() * self.TLCovariance[2](xT, xST, idx1=idxT, idx2=idxST).evaluate()+\
-                                                                                   self.CoregCovariance[3](DrugC_xT,self.DrugC_xSxT).evaluate() * self.TLCovariance[3](xT, xST, idx1=idxT, idx2=idxST).evaluate())
+                                                                                   self.CoregCovariance[2](DrugC_xT,self.DrugC_xSxT).evaluate() * self.TLCovariance[2](xT, xST, idx1=idxT, idx2=idxST).evaluate())#+\
+                                                                                   #self.CoregCovariance[3](DrugC_xT,self.DrugC_xSxT).evaluate() * self.TLCovariance[3](xT, xST, idx1=idxT, idx2=idxST).evaluate())
 
             #f_mu = torch.matmul(K_xnew_xST, alpha)
             mT_pred = self.mean_func(xT, DrugC_xT,1) #torch.zeros_like(f_mu)
@@ -396,14 +397,14 @@ class commandLine:
         # opts = dict(opts)
         # print(opts)
         self.N_iter = 2    #number of iterations
-        self.which_seed = 21 #21  #change seed to initialise the hyper-parameters
+        self.which_seed = 27 #21  #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = "None"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 5
         self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
-        self.which_drug = 1079 #1004#dok #1003dok #1511dok #1819dok #1818dok #1259dso #1190dbad #1180dso #1080dok #1179dso #1051dso #1079dok #1022dok  #This is the drug we will select as test for the target domain.
-
+        self.which_drug = 1190 #1004#dok #1003dok #1511dok #1819dok #1818dok #1259dso #1190dbad #1180dso #1080dok #1179dso #1051dso #1079dok #1022dok  #This is the drug we will select as test for the target domain.
+        #1259 (fails) 1180 (fails) 1179 (so so) 1051 (so so) 1079 (fails) 1022 (fails)  #This is when using only 10 in source
         for op, arg in opts:
             # print(op,arg)
             if op == '-n':
@@ -465,14 +466,21 @@ for k,idx_cancer in enumerate(indx_cancer_train):
         df_SourceCancer_all = pd.concat([df_SourceCancer_all, df_to_read])
 
 df_all = df_SourceCancer_all.reset_index().drop(columns=['index'])
-df_source = df_all.dropna().sample(n=100,random_state = 2)
+df_all = df_all.dropna()
+#df_source = df_all.dropna().sample(n=100,random_state = 5)
 
-# Index_sel_target = (df_to_read_target["DRUG_ID"] == 1036) | (df_to_read_target["DRUG_ID"] == 1061)| (df_to_read_target["DRUG_ID"] == 1373) \
-#             | (df_to_read_target["DRUG_ID"] == 1039) | (df_to_read_target["DRUG_ID"] == 1560) | (df_to_read_target["DRUG_ID"] == 1057) \
-#             | (df_to_read_target["DRUG_ID"] == 1059)| (df_to_read_target["DRUG_ID"] == 1062) | (df_to_read_target["DRUG_ID"] == 2096) \
-#             | (df_to_read_target["DRUG_ID"] == 2045)
+myset_source = set(df_all['COSMIC_ID'].values)
+myLabels_source = np.arange(0,myset_source.__len__())
+CosmicIDs_All_Source = list(myset_source)
+"Here we order the list of Source COSMIC_IDs from smallest CosmicID to biggest"
+CosmicIDs_All_Source.sort()
+Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[0]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[1]) \
+                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[20]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[200])\
+                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[50])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[51])\
+                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[202])
 
-#df_TargetCancer_all = df_to_read_target[Index_sel_target]
+df_source = df_all[Index_sel_source]
+
 df_TargetCancer_all = df_to_read_target
 df_all_target = df_TargetCancer_all.reset_index().drop(columns=['index'])
 df_all_target = df_all_target.dropna()
@@ -489,8 +497,9 @@ df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_ind
 #df_target = df_all_target.iloc[0:200]
 
 "Here we select the drug we will use as testing"
-which_drug = int(config.which_drug) #1057
-idx_test = np.where(df_target['DRUG_ID']==which_drug)[0]
+#which_drug = int(config.which_drug) #1057
+#idx_test = np.where(df_target['DRUG_ID']==which_drug)[0]
+idx_test = np.array([0,3,8,10])   #[0,4,6]
 assert idx_test.shape[0]>0 #The drug selected was not tested in the cell-line
 idx_train = np.delete(np.arange(0,df_target.shape[0]),idx_test)
 
@@ -610,6 +619,13 @@ df_source_sort = df_source.sort_values(by='COSMIC_ID')
 CosmicID_source = df_source_sort['COSMIC_ID'].values
 idx_S = [dict_CosmicID2Label[CosID] for CosID in CosmicID_source]
 
+# idx_S_length=idx_S.__len__()
+# idx_S = [0]*(idx_S_length//4)
+# idx_S = idx_S+ [1]*(idx_S_length//4)
+# idx_S = idx_S+ [2]*(idx_S_length//4)
+# idx_S = idx_S+ [3]*(idx_S_length - 3* idx_S_length//4)
+# CosmicID_labels = [0,1,3,4]
+
 "Here we extract the source domain inputs xS so that they coincide with yS sorted by COSMIC_ID"
 xS_train = scaler.transform(df_source_sort[Names_features_NonZeroStd])
 
@@ -673,10 +689,10 @@ torch.manual_seed(myseed)   #Ex1: 15 (run 100 iter)  #Exp2 (906826): 35  (run 10
 with torch.no_grad():
     #model.lik_std_noise= torch.nn.Parameter(2.0*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
 
-    model.TLCovariance[0].length = float(config.weight)*0.1*np.sqrt(xT_train.shape[1])*torch.rand(NDomains)[:,None] #1
-    model.TLCovariance[1].length = float(config.weight)*5.0*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None] #15
-    model.TLCovariance[2].length = float(config.weight)*30.0*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#10
-    model.TLCovariance[3].length = float(config.weight)*40.0*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:,None]
+    model.TLCovariance[0].length = float(config.weight)*0.1*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:,None] #0.1
+    model.TLCovariance[1].length = float(config.weight)*5*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None] #5
+    model.TLCovariance[2].length = float(config.weight)*30*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#30
+    model.TLCovariance[3].length = float(config.weight)*40*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:,None] #40
 
     #model.CoregCovariance[0].lengthscale = 500*8*torch.rand(1) #8*
     #model.CoregCovariance[1].lengthscale = 500*10*torch.rand(1)  #10*
@@ -693,8 +709,8 @@ with torch.no_grad():
     # model.CoregCovariance[2].sig0 = 1 * torch.rand(1) +valini2 # 20*
     # model.CoregCovariance[3].sig0 = 1 * torch.rand(1)+valini2
 
-    model.LambdaDiDj.muDi = 1*torch.rand(NDomains)[:, None]
-    model.LambdaDiDj.bDi = 1*torch.rand(NDomains)[:, None]
+    model.LambdaDiDj.muDi = 0.1*torch.rand(NDomains)[:, None]
+    model.LambdaDiDj.bDi = 0.1*torch.rand(NDomains)[:, None]
     #print(model.LambdaDiDj.muDi)
 #print(f"Noises std: {model.lik_std_noise}")
 
@@ -715,7 +731,7 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
         if loss.item() < 0 and flag ==1:
         #if iter==100:  #70
             flag = 0
-            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr'] * 0.05 #0.01
+            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr'] * 0.02 #0.01
 
         print(f"i: {iter+1}, Loss: {loss.item()}")
         # print(f"TLlength1 {model.TLCovariance[2].length}")
