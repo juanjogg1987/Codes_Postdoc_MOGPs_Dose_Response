@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 _FOLDER = '/home/juanjo/Work_Postdoc/my_codes_postdoc/GPy_Models/Codes_For_GDSC2_5Cancers/PaperPrecOncologyRebuttal_CSVs/'
-sel_can = 9
+sel_can = 0
 DictFileName = {0:'MOGP_Predict_C0_Train100_m_23.csv',1:'MOGP_Predict_C1_Train100_m_24.csv',
                 2:'MOGP_Predict_C2_Train100_m_35.csv',3:'MOGP_Predict_C3_Train100_m_26.csv',
                 4:'MOGP_Predict_C4_Train100_m_25.csv',5:'MOGP_Predict_C5_Train100_m_23.csv',
@@ -83,7 +83,7 @@ def create_scatter_plot(df, title, ax, xlim_scatter, ylim_scatter, xlim_regressi
 fig, axes = plt.subplots(3, 1, figsize=(5.5, 20))
 #axes[0].set_title(f'GDSC2')
 #fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-show_legend = True
+show_legend = False
 create_scatter_plot(df, '', axes[0],
                    xlim_scatter=(0.05, 1.05),  # Scatter plot axis limits
                         ylim_scatter=(0.05, 1.05),  # Scatter plot axis limits

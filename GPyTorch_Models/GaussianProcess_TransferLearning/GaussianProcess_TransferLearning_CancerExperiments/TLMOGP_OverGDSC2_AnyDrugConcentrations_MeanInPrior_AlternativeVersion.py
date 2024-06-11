@@ -123,9 +123,6 @@ class TLMOGaussianProcess(nn.Module):
         self.mT = torch.zeros_like(self.yT)
         self.all_m = torch.cat([self.mS, self.mT])
 
-        #self.DrugC_xT = torch.kron(self.DrugC_T,torch.ones(xT.shape[0], 1)) #Rep. Concentr. similar to coreginalisation
-        #self.DrugC_xS = torch.kron(self.DrugC_S,torch.ones(xS.shape[0], 1)) #Rep. Concentr. similar to coreginalisation
-
         self.DrugC_xT = DrugC_T.T.reshape(-1, 1)
         self.DrugC_xS = DrugC_S.T.reshape(-1, 1)
 
@@ -136,9 +133,9 @@ class TLMOGaussianProcess(nn.Module):
         self.TLKern1 = Kernel_CrossDomains(NDomains=NDomains)
         self.TLKern2 = Kernel_CrossDomains(NDomains=NDomains)
         self.TLKern3 = Kernel_CrossDomains(NDomains=NDomains)
-        self.TLKern4 = Kernel_CrossDomains(NDomains=NDomains)
+        #self.TLKern4 = Kernel_CrossDomains(NDomains=NDomains)
 
-        self.TLCovariance = [self.TLKern1, self.TLKern2, self.TLKern3, self.TLKern4]
+        self.TLCovariance = [self.TLKern1, self.TLKern2, self.TLKern3]#, self.TLKern4]
         #self.TLCovariance = [Kernel_CrossDomains(NDomains=NDomains),Kernel_CrossDomains(NDomains=NDomains),Kernel_CrossDomains(NDomains=NDomains)] #gpytorch.kernels.RBFKernel()
 
         self.LambdaDiDj = TLRelatedness(NDomains=NDomains)
@@ -151,15 +148,15 @@ class TLMOGaussianProcess(nn.Module):
         self.LMCkern1 = Kernel_Sig2Constrained()#NNetwork_kern()  # gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(1.5)
         self.LMCkern2 = Kernel_Sig2Constrained()#NNetwork_kern()  # gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(1.5)
         self.LMCkern3 = Kernel_Sig2Constrained()#NNetwork_kern()  # gpytorch.kernels.RBFKernel() #gpytorch.kernels.MaternKernel(2.5)
-        self.LMCkern4 = Kernel_Sig2Constrained()#NNetwork_kern()
+        #self.LMCkern4 = Kernel_Sig2Constrained()#NNetwork_kern()
 
-        self.CoregCovariance = [self.LMCkern1, self.LMCkern2, self.LMCkern3, self.LMCkern4]
+        self.CoregCovariance = [self.LMCkern1, self.LMCkern2, self.LMCkern3]#, self.LMCkern4]
         #self.CoregCovariance = [gpytorch.kernels.MaternKernel(1.5),gpytorch.kernels.MaternKernel(2.5),gpytorch.kernels.MaternKernel(2.5)]
 
         self.Train_mode = True
         #self.lik_std_noise = torch.nn.Parameter(1.0*torch.ones(NDomains)) #0.3*torch.rand(NDomains)+0.01
         self.coef1 = torch.nn.Parameter(1.0 * torch.randn(NDomains))
-        self.coef2 = torch.nn.Parameter(1.0 * torch.randn(NDomains))
+        #self.coef2 = torch.nn.Parameter(1.0 * torch.randn(NDomains))
         #self.lik_std_noise = 0.1 * torch.ones(NDomains)
 
         # self.beta = torch.nn.Parameter(1 * torch.randn(self.Pfeat,2, dtype=torch.float64))
@@ -169,11 +166,11 @@ class TLMOGaussianProcess(nn.Module):
         self.beta = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
         self.alpha = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
         self.gamma = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
-        self.kappa = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
+        #self.kappa = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
 
-        self.beta2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat- 23, 2, dtype=torch.float64))
-        self.alpha2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat-23, 2, dtype=torch.float64))
-        self.gamma2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat - 23, 2, dtype=torch.float64))
+        # self.beta2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat- 23, 2, dtype=torch.float64))
+        # self.alpha2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat-23, 2, dtype=torch.float64))
+        # self.gamma2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat - 23, 2, dtype=torch.float64))
 
         self.mu_star = torch.zeros_like(self.yT) #mu has the shape of the new replicated along the outputs yT
         self.L = torch.eye(self.yT.shape[0])
@@ -235,17 +232,6 @@ class TLMOGaussianProcess(nn.Module):
                                                                       self.CoregCovariance[1](self.DrugC_xT,self.DrugC_xT).evaluate() * self.TLCovariance[1](self.xT, idx1=self.idxT).evaluate()+\
                                                                       self.CoregCovariance[2](self.DrugC_xT,self.DrugC_xT).evaluate() * self.TLCovariance[2](self.xT, idx1=self.idxT).evaluate())#+\
                                                                       #self.CoregCovariance[3](self.DrugC_xT,self.DrugC_xT).evaluate() * self.TLCovariance[3](self.xT, idx1=self.idxT).evaluate())
-
-            #print(f"LambdaDiDj xT xS: {self.LambdaDiDj(xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate()}")
-            #print(f"LambdaDiDj xS xS: {self.LambdaDiDj(self.xS,idx1=self.idxS).evaluate()}")
-            #print(f"LambdaDiDj xT xT: {self.LambdaDiDj(self.xT,idx1=self.idxT).evaluate()}")
-            #print(f"KTS: {KTS}")
-            #print(f"KSS: {KSS}")
-            #print(f"KTT: {KTT}")
-
-            #print(f"KTS CoregCov[0]: {self.CoregCovariance[0](self.DrugC_xT, self.DrugC_xS).evaluate()}")
-            #print(f"KTS TLCov: {self.TLCovariance[0](xT, self.xS, idx1=self.idxT, idx2=self.idxS).evaluate()}")
-            #print(f"KTS CoregCov[0]*TLCov: {self.CoregCovariance[0](self.DrugC_xT,self.DrugC_xS).evaluate()*self.TLCovariance[0](xT,self.xS,idx1=self.idxT,idx2=self.idxS).evaluate()}")
 
             # Here we include the respective noise terms associated to each domain
             lik_std_noise_xS = self.noise_func(self.DrugC_xS, self.idxS)
@@ -368,7 +354,7 @@ random.seed(Nseed)
 "Here we preprocess and prepare our data"
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 _FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_dataset_ForSarcoma/"
-#_FOLDER = "/rds/general/user/jgiraldo/home/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/" #HPC path
+#_FOLDER = "/rds/general/user/jgiraldo/home/Dataset_5Cancers/GDSC2_dataset_ForSarcoma/" #HPC path
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 def sigmoid_4_param(x, x0, L, k, d):
@@ -397,7 +383,7 @@ class commandLine:
         # opts = dict(opts)
         # print(opts)
         self.N_iter = 2    #number of iterations
-        self.which_seed = 27 #21  #change seed to initialise the hyper-parameters
+        self.which_seed = 31 #27 #29  #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = "None"
         self.sel_cancer_Source = 3
@@ -474,10 +460,22 @@ myLabels_source = np.arange(0,myset_source.__len__())
 CosmicIDs_All_Source = list(myset_source)
 "Here we order the list of Source COSMIC_IDs from smallest CosmicID to biggest"
 CosmicIDs_All_Source.sort()
-Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[0]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[1]) \
-                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[20]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[200])\
-                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[50])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[51])\
-                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[202])
+"This is for np.array([0,3,8,10])"
+# Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[0]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[1]) \
+#                     | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[20]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[200])\
+#                     | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[50])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[51])\
+#                     | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[202])
+
+"This is for np.array([0,4,6])"
+Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[1]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[2]) \
+                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[21]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[201])\
+                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[51])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[75])\
+                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[203])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[120])
+
+# Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[2]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[3]) \
+#                     | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[13]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[70])\
+#                     | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[80])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[90])\
+#                     | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[205])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[206])
 
 df_source = df_all[Index_sel_source]
 
@@ -499,7 +497,7 @@ df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_ind
 "Here we select the drug we will use as testing"
 #which_drug = int(config.which_drug) #1057
 #idx_test = np.where(df_target['DRUG_ID']==which_drug)[0]
-idx_test = np.array([0,3,8,10])   #[0,4,6]
+idx_test = np.array([0,4,6]) #np.array([1,5,7]) #np.array([0,3,8,10])
 assert idx_test.shape[0]>0 #The drug selected was not tested in the cell-line
 idx_train = np.delete(np.arange(0,df_target.shape[0]),idx_test)
 
@@ -682,17 +680,18 @@ DrugC_T = DrugC_T_AllConc[:,indT_concentr]
 DrugC_T_test_AllConc = torch.from_numpy(x_dose_T[idx_test])
 DrugC_T_test = DrugC_T_test_AllConc[:,indT_concentr]
 
-model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC_T=DrugC_T,DrugC_S=DrugC_S,NDomains=NDomains)
-## model.covariance.length=0.05
 myseed = int(config.which_seed)
 torch.manual_seed(myseed)   #Ex1: 15 (run 100 iter)  #Exp2 (906826): 35  (run 100 iter)
+
+model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC_T=DrugC_T,DrugC_S=DrugC_S,NDomains=NDomains)
+## model.covariance.length=0.05
 with torch.no_grad():
     #model.lik_std_noise= torch.nn.Parameter(2.0*torch.ones(NDomains)) #torch.nn.Parameter(0.5*torch.randn(NDomains))
 
     model.TLCovariance[0].length = float(config.weight)*0.1*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:,None] #0.1
     model.TLCovariance[1].length = float(config.weight)*5*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None] #5
     model.TLCovariance[2].length = float(config.weight)*30*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#30
-    model.TLCovariance[3].length = float(config.weight)*40*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:,None] #40
+    #model.TLCovariance[3].length = float(config.weight)*40*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:,None] #40
 
     #model.CoregCovariance[0].lengthscale = 500*8*torch.rand(1) #8*
     #model.CoregCovariance[1].lengthscale = 500*10*torch.rand(1)  #10*
@@ -745,7 +744,7 @@ myTrain(model,xT_train,yT_train,myLr = 5e-2,Niter = int(config.N_iter))
 def bypass_params(model_trained,model_cv):
     #model_cv.lik_std_noise = model_trained.lik_std_noise
     model_cv.coef1 = model_trained.coef1
-    model_cv.coef2 = model_trained.coef2
+    #model_cv.coef2 = model_trained.coef2
 
     model_cv.alpha = model_trained.alpha
     model_cv.beta = model_trained.beta
@@ -771,6 +770,10 @@ def bypass_params(model_trained,model_cv):
     model_cv.LambdaDiDj.muDi = model_trained.LambdaDiDj.muDi.clone()
     model_cv.LambdaDiDj.bDi = model_trained.LambdaDiDj.bDi.clone()
 
+
+# print(f"Model ORIGINAL train check small stepsize:")
+# myTrain(model, xT_train, yT_train, myLr=1e-20, Niter=1)
+#
 # model_check = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC_T=DrugC_T,DrugC_S=DrugC_S,NDomains=NDomains)
 # print(f"Model check train BEFORE bypass:")
 # myTrain(model_check, xT_train, yT_train, myLr=1e-20, Niter=1)
@@ -808,7 +811,7 @@ for i in range(yT_all_train.shape[0]):
     "model fit with Cross-val"
     model_cv = TLMOGaussianProcess(xT_train_cv, yT_train_cv, xS_train, yS_train, idxS=idx_S, DrugC_T=DrugC_T_train_cv,DrugC_S=DrugC_S, NDomains=NDomains)
     bypass_params(model, model_cv)  #Here we bypass the fitted parameters from the MOGP trained over all data
-    myTrain(model_cv, xT_train_cv, yT_train_cv, myLr=1e-15, Niter=1) #Here we could refine hyper-params a bit if wished
+    myTrain(model_cv, xT_train_cv, yT_train_cv, myLr=1e-20, Niter=1) #Here we could refine hyper-params a bit if wished
     "Here we put the model in prediciton mode"
     model_cv.eval()
     model_cv.Train_mode = False
@@ -826,9 +829,9 @@ for i in range(yT_all_train.shape[0]):
 
 print(f"Mean cv ValLogLoss: {np.mean(TestLogLoss_All)}")
 
-path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
-#path_home = '/rds/general/user/jgiraldo/home/TransferLearning_Results/'
-path_val = path_home+'Jobs_TLMOGP_OneCell_OneDrug_Testing/TargetCancer'+str(config.sel_cancer_Target)+'/Drug_'+str(config.which_drug)+'/CellLine'+str(config.idx_CID_Target)+'_CID'+str(CosmicID_target)+'/'
+#path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
+path_home = '/rds/general/user/jgiraldo/home/TLMOGP_MeanInPrior_Results/'
+path_val = path_home+'Jobs_TLMOGP_OneCell_MultiDrug_Testing/TargetCancer'+str(config.sel_cancer_Target)+'/Drug_'+str(df_target_test['DRUG_ID'].values)+'/CellLine'+str(config.idx_CID_Target)+'_CID'+str(CosmicID_target)+'/'
 
 # check whether directory already exists
 if not os.path.exists(path_val):
@@ -844,7 +847,7 @@ f.close()
 print("check difference between model.eval and model.train")
 model.eval()
 model.Train_mode = False
-plot_test = False
+plot_test = True
 if plot_test:
     x_test = xT_test.clone()
     y_test = yT_test.clone()
@@ -938,10 +941,10 @@ for i in range(x_test.shape[0]):
     plt.plot(DrugCtoPred[i,:], yT_pred[i, :] - 2.0 * std_pred[i,:], '--b')
 
     # # check whether directory already exists
-    # path_plot = path_val + 'Test_plot/'
-    # if not os.path.exists(path_plot):
-    #     # os.mkdir(path_val)   #Use this for a single dir
-    #     os.makedirs(path_plot)  # Use this for a multiple sub dirs
-    # plt.savefig(path_plot+'plotbash'+str(config.bash)+'.pdf')
+    path_plot = path_val + 'Test_plot/'+str(config.bash)+'/'
+    if not os.path.exists(path_plot):
+        # os.mkdir(path_val)   #Use this for a single dir
+        os.makedirs(path_plot)  # Use this for a multiple sub dirs
+    plt.savefig(path_plot+'plot'+str(i)+'.pdf')
 
 #plt.savefig('./Plots_May20_2024/CID'+str(CosmicID_target)+'_Train'+str(i)+'.pdf')
