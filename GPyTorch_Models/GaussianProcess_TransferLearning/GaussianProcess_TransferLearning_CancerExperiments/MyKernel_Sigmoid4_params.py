@@ -21,8 +21,9 @@ def sigmoid_4_param(x, x0, L, k, d):
     return ( 1/ (L + np.exp(-k*(x-x0))) + d)
 
 x = torch.linspace(-3,3,100)
-y_sig = sigmoid_4_param(x,-1,1,-10.5,0)
-y_sig2 = sigmoid_4_param(x,-1,1,-10.5,0)
+y_sig = sigmoid_4_param(x,3.,1,-0.2,0)
+y_sig2 = sigmoid_4_param(x,3.,1,-0.2,0)
+"A necessary constraint is not allow x0 to be higher than k"
 
 plt.close('all')
 
@@ -43,10 +44,10 @@ mycovar =Kernel_Sig2Constrained()
 #cov = covar(x)
 #cov2 = covar(x,0.1)
 
-mycovar.length = 0.5
+mycovar.length = 1.5
 cov = mycovar(x).evaluate()
 
-cov2 = covar(x,0.5)
+cov2 = covar(x,1.5)
 
 plt.figure(2,figsize=(10, 5))
 plt.figure(3,figsize=(10, 5))

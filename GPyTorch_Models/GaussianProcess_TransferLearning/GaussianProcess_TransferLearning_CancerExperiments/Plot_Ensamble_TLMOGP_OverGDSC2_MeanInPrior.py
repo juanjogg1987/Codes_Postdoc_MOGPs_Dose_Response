@@ -462,18 +462,11 @@ myLabels_source = np.arange(0,myset_source.__len__())
 CosmicIDs_All_Source = list(myset_source)
 "Here we order the list of Source COSMIC_IDs from smallest CosmicID to biggest"
 CosmicIDs_All_Source.sort()
-"This is for np.array([0,3,8,10]) with some drugs missing in some Source cell-lines"
-#Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[0]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[1]) \
-                    #| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[20]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[200])\
-                    #| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[50])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[51])\
-                    #| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[202])
-
-"This is for np.array([0,3,8,10]) all Source cell-lines tested in unknown drugs"
-Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[3]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[13]) \
-                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[48]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[76])\
-                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[150])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[179])\
-                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[191])
-
+"This is for np.array([0,3,8,10])"
+Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[0]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[1]) \
+                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[20]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[200])\
+                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[50])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[51])\
+                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[202])
 
 # "This is for np.array([0,4,6])"
 # Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[1]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[4]) \
@@ -514,7 +507,7 @@ df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_ind
 "Here we select the drug we will use as testing"
 #which_drug = int(config.which_drug) #1057
 #idx_test = np.where(df_target['DRUG_ID']==which_drug)[0]
-idx_test = np.array([3]) #np.array([0,3,8,10]) #np.array([0,4,6]) #np.array([1,5,7])
+idx_test = np.array([0,3,8,10]) #xnp.array([0,4,6]) #np.array([1,5,7])
 assert idx_test.shape[0]>0 #The drug selected was not tested in the cell-line
 idx_train = np.delete(np.arange(0,df_target.shape[0]),idx_test)
 
@@ -725,8 +718,8 @@ with torch.no_grad():
     # model.CoregCovariance[2].sig0 = 1 * torch.rand(1) +valini2 # 20*
     # model.CoregCovariance[3].sig0 = 1 * torch.rand(1)+valini2
 
-    model.LambdaDiDj.muDi = 2*torch.rand(NDomains)[:, None]  #0.1
-    model.LambdaDiDj.bDi = 2*torch.rand(NDomains)[:, None]   #0.1
+    model.LambdaDiDj.muDi = 0.1*torch.rand(NDomains)[:, None]
+    model.LambdaDiDj.bDi = 0.1*torch.rand(NDomains)[:, None]
     #print(model.LambdaDiDj.muDi)
 #print(f"Noises std: {model.lik_std_noise}")
 
@@ -844,7 +837,7 @@ for i in range(yT_all_train.shape[0]):
         print(f"Val Loss: {Val_loss.item()}")
     TestLogLoss_All.append(Val_loss.numpy())
 
-print(f"Mean cv ValLogLoss: {np.mean(TestLogLoss_All)} ({np.std(TestLogLoss_All)})")
+print(f"Mean cv ValLogLoss: {np.mean(TestLogLoss_All)}")
 
 path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
 #path_home = '/rds/general/user/jgiraldo/home/TLMOGP_MeanInPrior_Results/'
@@ -857,14 +850,14 @@ if not os.path.exists(path_val):
 
 "Here we save the Validation Log Loss in path_val in order to have a list of different bashes to select the best model"
 f = open(path_val+'Validation.txt', "a")
-f.write(f"\nbash{str(config.bash)}, ValLogLoss:{np.mean(TestLogLoss_All)} ({np.std(TestLogLoss_All)}), CrossVal_N:{yT_train.shape[0]}")
+f.write(f"\nbash{str(config.bash)}, ValLogLoss:{np.mean(TestLogLoss_All)}, CrossVal_N:{yT_train.shape[0]}")
 f.close()
 
 "Here we have to assign the flag to change from self.Train_mode = True to False"
 print("check difference between model.eval and model.train")
 model.eval()
 model.Train_mode = False
-plot_test = False
+plot_test = True
 if plot_test:
     x_test = xT_test.clone()
     y_test = yT_test.clone()
@@ -979,15 +972,22 @@ for i in range(x_test.shape[0]):
     #save_model_pred(path_val=path_val,VarToSave=yT_pred[i, :],DConcentr=DrugCtoPred[i,:],FileName='Mean_pred_'+str(Name_DrugID_plot[i])+'.csv',bash_name='bash'+str(config.bash))
     #save_model_pred(path_val=path_val, VarToSave=std_pred[i, :].pow(2),DConcentr=DrugCtoPred[i,:], FileName='Sig2_pred_'+str(Name_DrugID_plot[i])+ '.csv',bash_name='bash' + str(config.bash))
 
+    # df_models = pd.read_csv('/home/juanjo/Downloads/TargetCancer5/Drug_[1051 1179 1190]_50seeds/CellLine0_CID683667/Mean_pred_'+str(Name_DrugID_plot[i]) + '.csv')
+    # df_mod_sig2 = pd.read_csv('/home/juanjo/Downloads/TargetCancer5/Drug_[1051 1179 1190]_50seeds/CellLine0_CID683667/Sig2_pred_'+str(Name_DrugID_plot[i]) + '.csv')
+
+    #df_models = pd.read_csv('/home/juanjo/Downloads/TargetCancer5/Drug_[1051 1179 1190]/CellLine0_CID683667/Mean_pred_'+str(Name_DrugID_plot[i]) + '.csv')
+    #df_mod_sig2 = pd.read_csv('/home/juanjo/Downloads/TargetCancer5/Drug_[1051 1179 1190]/CellLine0_CID683667/Sig2_pred_'+str(Name_DrugID_plot[i]) + '.csv')
+
+    df_models = pd.read_csv('/home/juanjo/Downloads/TargetCancer5/Drug_[1051 1022 1818 1511]/CellLine0_CID683667/Mean_pred_'+str(Name_DrugID_plot[i]) + '.csv')
+    df_mod_sig2 = pd.read_csv('/home/juanjo/Downloads/TargetCancer5/Drug_[1051 1022 1818 1511]/CellLine0_CID683667/Sig2_pred_'+str(Name_DrugID_plot[i]) + '.csv')
+
+    x_models = df_models.values[:, 1:2]
+    y_models = df_models.values[:, 2:]
+    sig2_models = df_mod_sig2.values[:, 2:]
+    sig2_mean = np.sum(sig2_models,1)/(sig2_models.shape[1]**2)
+    plt.plot(x_models,np.mean(y_models,1))
+    plt.plot(x_models, np.mean(y_models, 1)+2*np.sqrt(sig2_mean),'--')
+    plt.plot(x_models, np.mean(y_models, 1) - 2* np.sqrt(sig2_mean), '--')
+    #plt.plot(x_models, y_models)
+
 #plt.savefig('./Plots_May20_2024/CID'+str(CosmicID_target)+'_Train'+str(i)+'.pdf')
-
-
-#"The code below is just to analyse which cell lines have been tested in all the drugs we want to predict"
-# for i in range(0,200):
-#     d1 = (df_all[df_all['COSMIC_ID'] == CosmicIDs_All_Source[i]]['DRUG_ID']==1051).sum()
-#     d2 = (df_all[df_all['COSMIC_ID'] == CosmicIDs_All_Source[i]]['DRUG_ID'] == 1022).sum()
-#     d3 = (df_all[df_all['COSMIC_ID'] == CosmicIDs_All_Source[i]]['DRUG_ID'] == 1511).sum()
-#     d4 = (df_all[df_all['COSMIC_ID'] == CosmicIDs_All_Source[i]]['DRUG_ID'] == 1818).sum()
-#     if (d1*d2*d3*d4>0):
-#         print(f"i:{i} with:{d1*d2*d3*d4}")
-#         print(df_all[df_all['COSMIC_ID'] == CosmicIDs_All_Source[i]]['Cancer_type_TCGA'].values[0])
