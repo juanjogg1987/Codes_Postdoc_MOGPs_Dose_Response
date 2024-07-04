@@ -385,12 +385,12 @@ class commandLine:
         # opts = dict(opts)
         # print(opts)
         self.N_iter = 2    #number of iterations
-        self.which_seed = 21 #27 #29  #change seed to initialise the hyper-parameters
+        self.which_seed = 22 #27 #29  #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = 0#"None"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 5
-        self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.idx_CID_Target = 2  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
         self.which_drug = 1190 #1004#dok #1003dok #1511dok #1819dok #1818dok #1259dso #1190dbad #1180dso #1080dok #1179dso #1051dso #1079dok #1022dok  #This is the drug we will select as test for the target domain.
         #1259 (fails) 1180 (fails) 1179 (so so) 1051 (so so) 1079 (fails) 1022 (fails)  #This is when using only 10 in source
         for op, arg in opts:
@@ -872,7 +872,7 @@ print(f"Mean cv ValLogLoss: {np.mean(TestLogLoss_All)} ({np.std(TestLogLoss_All)
 
 path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
 #path_home = '/rds/general/user/jgiraldo/home/TLMOGP_MeanInPrior_Results/'
-path_val = path_home+'Jobs_TLMOGP_OneCell_MultiDrug_Testing/TargetCancer'+str(config.sel_cancer_Target)+'/LongRange_set'+str(which_set)+'/CellLine'+str(config.idx_CID_Target)+'_CID'+str(CosmicID_target)+'/'
+path_val = path_home+'Jobs_TLMOGP_CollaborationSheffield/TargetCancer'+str(config.sel_cancer_Target)+'/LongRange_set'+str(which_set)+'/CellLine'+str(config.idx_CID_Target)+'_CID'+str(CosmicID_target)+'/'
 
 # check whether directory already exists
 if not os.path.exists(path_val):

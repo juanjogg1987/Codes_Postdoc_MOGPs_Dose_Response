@@ -197,16 +197,20 @@ class TLMOGaussianProcess(nn.Module):
         #x0 = 5.0 / (1.0+torch.exp(- torch.matmul(x[:,-23:], self.alpha[:, SelDomain:SelDomain + 1])))-5.0 / (1.0+torch.exp(- torch.matmul(x[:,-23:], self.alpha[:, SelDomain:SelDomain + 1])))  #+scale_x0
         #x0 = torch.matmul(x[:,-23:], self.alpha[:, SelDomain:SelDomain + 1])  # +scale_x0
         #x0 = 12.0 / (1.0+torch.exp(-torch.matmul(x[:, -23:], self.alpha[:, SelDomain:SelDomain + 1])))-2.0  # +scale_x0
-        x0 = (torch.matmul(x[:, -23:], self.alpha[:, SelDomain:SelDomain + 1])).pow(2) - (-np.log2(0.06))
+        x0 = (torch.matmul(x[:, -23:], self.alpha[:, SelDomain:SelDomain + 1])).pow(2) - (-np.log2(0.055))  #0.055
+        #torch.exp(0.5 * (np.log2(0.05) - DrugC_x))
         #x0 = torch.matmul(x, self.alpha[:, SelDomain:SelDomain + 1])  # +scale_x0
         L = 1.0 # - 0.15 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.kappa[:,SelDomain:SelDomain+1])))  #This is the value where the sigmoid starts
-        d = 0.3 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.gamma[:,SelDomain:SelDomain+1])))  #It Controls range of Emax
+        #d = 0.3 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.gamma[:,SelDomain:SelDomain+1])))  #It Controls range of Emax
+        #d = torch.exp(0.5* torch.abs(torch.matmul(x[:, -23:], self.gamma[:, SelDomain:SelDomain + 1]))*(np.log2(0.05) - DrugC_x))   # It Controls range of Emax
+        d = (np.log2(0.05)+DrugC_x)/(2*np.log2(0.05))  # It Controls range of Emax
+        #d = torch.exp((np.log2(0.05) - DrugC_x))  # It Controls range of Emax
         #d = 0.5 / (1.0 + torch.exp(-torch.matmul(x, self.gamma[:, SelDomain:SelDomain + 1])))  # It Controls range of Emax
         #d = 0.5 / (1.0 + torch.exp(-torch.matmul(x, self.gamma[:, SelDomain:SelDomain + 1])))  # It Controls range of Emax
         #d = (torch.exp(-torch.log2(-np.log2(0.1)+DrugC_x+1)))*d0
         #scale = 1.0 / (1.0+torch.exp(-torch.log(torch.abs(torch.matmul(x[:,:-23],self.beta2[:,SelDomain:SelDomain+1]))+1)))
         #k = - 5 / (1.0+torch.exp(-torch.matmul(x[:, -23:], self.beta[:, SelDomain:SelDomain + 1])))  # If negative (-\_) if positiv (_/-)
-        k = -(torch.log(torch.abs(torch.matmul(x[:,-23:],self.beta[:,SelDomain:SelDomain+1]))+1))-2*torch.exp(np.log2(0.05)-DrugC_x) #If negative (-\_) if positiv (_/-)
+        k = -(torch.log(torch.abs(torch.matmul(x[:,-23:],self.beta[:,SelDomain:SelDomain+1]))+1))-2*torch.exp(0.5*(np.log2(0.05)-DrugC_x)) #-2*np.exp(0.5*)
         #k = -(torch.log(torch.abs(torch.matmul(x, self.beta[:, SelDomain:SelDomain + 1])) + 1))  # If negative (-\_) if positiv (_/-)
         #k = -torch.abs(torch.abs(torch.matmul(x, self.beta[:, SelDomain:SelDomain + 1])))  # If negative (-\_) if positiv (_/-)
         #print(k)
@@ -356,8 +360,8 @@ random.seed(Nseed)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Here we preprocess and prepare our data"
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_dataset_ForSarcoma/"
-#_FOLDER = "/rds/general/user/jgiraldo/home/Dataset_5Cancers/GDSC2_dataset_ForSarcoma/" #HPC path
+#_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_dataset_ForSarcoma/"
+_FOLDER = "/rds/general/user/jgiraldo/home/Dataset_5Cancers/GDSC2_dataset_ForSarcoma/" #HPC path
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 def sigmoid_4_param(x, x0, L, k, d):
@@ -386,7 +390,7 @@ class commandLine:
         # opts = dict(opts)
         # print(opts)
         self.N_iter = 2    #number of iterations
-        self.which_seed = 11 #27 #29  #change seed to initialise the hyper-parameters
+        self.which_seed = 70 #27 #29  #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = 0#"None"
         self.sel_cancer_Source = 3
@@ -483,10 +487,17 @@ if which_set == 2:
     "SCLC,LUAD,BRCA,SKCM,COREAD,COREAD,SKCM,BRCA,LUAD,SCLC"
     Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[15]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[31]) \
                         | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[54]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[58])\
-                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[75])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[93])\
+                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[75])#| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[93])\
                         #| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[102])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[103])\
                         #| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[104])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[260])
+
 elif which_set == 3:
+    "set2 This is for np.array([0,3,8,10]) all Source cell-lines tested in unknown drugs"
+    Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[93])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[102])\
+                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[103])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[104])\
+                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[260])
+
+elif which_set == 4:
     "set3 This is for np.array([0,3,8,10]) all Source cell-lines tested in unknown drugs"
     "SCLC,LUAD,BRCA,SKCM,COREAD,COREAD,SKCM,BRCA,LUAD,SCLC,COERAD,SKCM,BRCA,LUAD"
     Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[15])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[31]) \
@@ -686,7 +697,7 @@ x_dose_S = np.log2(x_dose_S + add_to_log)
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Make all variable passed to the model tensor to operate in pytorch"
-indT_concentr = np.array([0,3,4,5,6,7])
+indT_concentr = np.array([0,4,5,6,7])
 xT_all_train = xT_train.copy()
 yT_all_train = yT_train[:,indT_concentr].copy()
 xT_train = torch.from_numpy(xT_train)
@@ -870,8 +881,8 @@ for i in range(yT_all_train.shape[0]):
 
 print(f"Mean cv ValLogLoss: {np.mean(TestLogLoss_All)} ({np.std(TestLogLoss_All)})")
 
-path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
-#path_home = '/rds/general/user/jgiraldo/home/TLMOGP_MeanInPrior_Results/'
+#path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
+path_home = '/rds/general/user/jgiraldo/home/TLMOGP_MeanInPrior_Results/'
 path_val = path_home+'Jobs_TLMOGP_OneCell_MultiDrug_Testing/TargetCancer'+str(config.sel_cancer_Target)+'/Drug_'+str(df_target_test['DRUG_ID'].values)+'_set'+str(which_set)+'/CellLine'+str(config.idx_CID_Target)+'_CID'+str(CosmicID_target)+'/'
 
 # check whether directory already exists
@@ -986,12 +997,12 @@ for i in range(x_test.shape[0]):
     plt.plot(DrugCtoPred[i,:], yT_pred[i, :] + 2.0 * std_pred[i,:], '--b')
     plt.plot(DrugCtoPred[i,:], yT_pred[i, :] - 2.0 * std_pred[i,:], '--b')
 
-    # # check whether directory already exists
-    # path_plot = path_val + 'Test_plot/'+str(config.bash)+'/'
-    # if not os.path.exists(path_plot):
-    #     # os.mkdir(path_val)   #Use this for a single dir
-    #     os.makedirs(path_plot)  # Use this for a multiple sub dirs
-    # plt.savefig(path_plot+'plot'+str(i)+'.pdf')
+    # check whether directory already exists
+    path_plot = path_val + 'Test_plot/'+str(config.bash)+'/'
+    if not os.path.exists(path_plot):
+        # os.mkdir(path_val)   #Use this for a single dir
+        os.makedirs(path_plot)  # Use this for a multiple sub dirs
+    plt.savefig(path_plot+'plot'+str(i)+'.pdf')
 
     def save_model_pred(path_val,VarToSave,DConcentr,FileName,bash_name):
         try:
@@ -1005,8 +1016,8 @@ for i in range(x_test.shape[0]):
             df_tosave = pd.DataFrame(data={'DrugC':DConcentr,bash_name: VarToSave})
             df_tosave.to_csv(path_val + FileName)
 
-    #save_model_pred(path_val=path_val,VarToSave=yT_pred[i, :],DConcentr=DrugCtoPred[i,:],FileName='Mean_pred_'+str(Name_DrugID_plot[i])+'.csv',bash_name='bash'+str(config.bash))
-    #save_model_pred(path_val=path_val, VarToSave=std_pred[i, :].pow(2),DConcentr=DrugCtoPred[i,:], FileName='Sig2_pred_'+str(Name_DrugID_plot[i])+ '.csv',bash_name='bash' + str(config.bash))
+    save_model_pred(path_val=path_val,VarToSave=yT_pred[i, :],DConcentr=DrugCtoPred[i,:],FileName='Mean_pred_'+str(Name_DrugID_plot[i])+'.csv',bash_name='bash'+str(config.bash))
+    save_model_pred(path_val=path_val, VarToSave=std_pred[i, :].pow(2),DConcentr=DrugCtoPred[i,:], FileName='Sig2_pred_'+str(Name_DrugID_plot[i])+ '.csv',bash_name='bash' + str(config.bash))
 
 #plt.savefig('./Plots_May20_2024/CID'+str(CosmicID_target)+'_Train'+str(i)+'.pdf')
 

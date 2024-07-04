@@ -271,8 +271,8 @@ random.seed(Nseed)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Here we preprocess and prepare our data"
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_dataset_ForSarcoma/"
-#_FOLDER = "/rds/general/user/jgiraldo/home/Dataset_5Cancers/GDSC2_EGFR_PI3K_MAPK_Top5cancers/" #HPC path
+#_FOLDER = "/home/juanjo/Work_Postdoc/my_codes_postdoc/Dataset_5Cancers/GDSC2_dataset_ForSarcoma/"
+_FOLDER = "/rds/general/user/jgiraldo/home/Dataset_5Cancers/GDSC2_dataset_ForSarcoma/" #HPC path
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 def sigmoid_4_param(x, x0, L, k, d):
@@ -703,22 +703,22 @@ for i in range(yT_all_train.shape[0]):
         print(f"Val Loss: {Val_loss.item()}")
     TestLogLoss_All.append(Val_loss.numpy())
 
-print(f"Mean cv ValLogLoss: {np.mean(TestLogLoss_All)}")
+print(f"Mean cv ValLogLoss: {np.mean(TestLogLoss_All)} ({np.std(TestLogLoss_All)})")
 
-# path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
-# #path_home = '/rds/general/user/jgiraldo/home/TransferLearning_Results/'
-# path_val = path_home+'Jobs_TLMOGP_OneCell_OneDrug_Testing/TargetCancer'+str(config.sel_cancer_Target)+'/Drug_'+str(config.which_drug)+'/CellLine'+str(config.idx_CID_Target)+'_CID'+str(CosmicID_target)+'/'
-#
-# # check whether directory already exists
-# if not os.path.exists(path_val):
-#   #os.mkdir(path_val)   #Use this for a single dir
-#   os.makedirs(path_val) #Use this for a multiple sub dirs
-#
-# "Here we save the Validation Log Loss in path_val in order to have a list of different bashes to select the best model"
-# f = open(path_val+'Validation.txt', "a")
-# f.write(f"\nbash{str(config.bash)}, ValLogLoss:{np.mean(TestLogLoss_All)}, CrossVal_N:{yT_train.shape[0]}")
-# f.close()
-#
+#path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
+path_home = '/rds/general/user/jgiraldo/home/TLMOGP_MeanInPrior_Results/'
+path_val = path_home+'Jobs_BKMOGP_CollaborationSheffield/TargetCancer'+str(config.sel_cancer_Target)+'/LongRange/CellLine'+str(config.idx_CID_Target)+'_CID'+str(CosmicID_target)+'/'
+
+# check whether directory already exists
+if not os.path.exists(path_val):
+  #os.mkdir(path_val)   #Use this for a single dir
+  os.makedirs(path_val) #Use this for a multiple sub dirs
+
+"Here we save the Validation Log Loss in path_val in order to have a list of different bashes to select the best model"
+f = open(path_val+'Validation.txt', "a")
+f.write(f"\nbash{str(config.bash)}, ValLogLoss:{np.mean(TestLogLoss_All)} ({np.std(TestLogLoss_All)}), CrossVal_N:{yT_train.shape[0]}")
+f.close()
+
 "Here we have to assign the flag to change from self.Train_mode = True to False"
 print("check difference between model.eval and model.train")
 model.eval()
@@ -729,6 +729,10 @@ y_test = yT_train.clone()
 DrugCtoPred_exact = DrugC_T.clone()
 Name_DrugID_plot = Name_DrugID_train
 plotname = 'Train'
+
+indT_missing = np.delete(np.arange(0, 8), indT_concentr)
+y_missing = yT_train_AllConc[:, indT_missing]
+DrugC_T_missing = DrugC_T_AllConc[:, indT_missing]
 
 "The Oversample_N below is to generate equaly spaced drug concentrations between the original 7 drug concentrations"
 "i.e., if Oversample_N = 2: means that each 2 positions we'd have the original drug concentration tested in cell-line"
@@ -755,6 +759,12 @@ with torch.no_grad():
     Lpred_exact = torch.linalg.cholesky(Cpred_exact)  # Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
     Test_loss = -Val_LML(mpred_exact, Lpred_exact, y_test)
     print(f"Test Loss: {Test_loss.item()}")
+
+    mpred_missing, Cpred_missing = model(x_test, DrugC_new=DrugC_T_missing, noiseless=False)
+    Lpred_missing = torch.linalg.cholesky(Cpred_missing)  # Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
+    Test_loss_missing = -Val_LML(mpred_missing, Lpred_missing, y_missing)
+    print(f"Test Loss Missing Values: {Test_loss_missing.item()}")
+    print(f"MSE Missing Values: {(mpred_missing - y_missing.T.reshape(-1, 1)).pow(2).mean()}")
 
 yT_pred = mpred.reshape(DrugCtoPred.shape[1],x_test.shape[0]).T
 
@@ -788,11 +798,11 @@ for i in range(x_test.shape[0]):
     plt.plot(DrugCtoPred[i,:], yT_pred[i, :] + 2.0 * std_pred[i,:], '--b')
     plt.plot(DrugCtoPred[i,:], yT_pred[i, :] - 2.0 * std_pred[i,:], '--b')
 
-    # # check whether directory already exists
-    # path_plot = path_val + 'Test_plot/'
-    # if not os.path.exists(path_plot):
-    #     # os.mkdir(path_val)   #Use this for a single dir
-    #     os.makedirs(path_plot)  # Use this for a multiple sub dirs
-    # plt.savefig(path_plot+'plotbash'+str(config.bash)+'.pdf')
+    # check whether directory already exists
+    path_plot = path_val + 'Test_plot/'+str(config.bash)+'/'
+    if not os.path.exists(path_plot):
+        # os.mkdir(path_val)   #Use this for a single dir
+        os.makedirs(path_plot)  # Use this for a multiple sub dirs
+    plt.savefig(path_plot+'plot'+str(i)+'.pdf')
 
 #plt.savefig('./Plots_April16_2024/CID'+str(CosmicID_target)+'_Train'+str(i)+'.pdf')

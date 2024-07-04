@@ -683,7 +683,7 @@ class Kernel_Sig2Constrained(gpytorch.kernels.Kernel):
 
         # set the parameter constraint to be positive, when nothing is specified
         if length_constraint is None:
-            length_constraint = Interval(1.5, 100) #Positive()
+            length_constraint = Interval(1.5, 100) #1.5#Positive()
 
         if sig2_constraint is None:
             sig2_constraint = Interval(-1000, 1000)
