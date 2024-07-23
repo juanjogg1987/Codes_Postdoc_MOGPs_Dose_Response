@@ -156,6 +156,7 @@ class TLMOGaussianProcess(nn.Module):
         self.Train_mode = True
         #self.lik_std_noise = torch.nn.Parameter(1.0*torch.ones(NDomains)) #0.3*torch.rand(NDomains)+0.01
         self.coef1 = torch.nn.Parameter(1.0 * torch.randn(NDomains))
+        #self.bias_k = torch.nn.Parameter(1.0 * torch.randn(1))
         #self.coef2 = torch.nn.Parameter(1.0 * torch.randn(NDomains))
         #self.lik_std_noise = 0.1 * torch.ones(NDomains)
 
@@ -163,10 +164,10 @@ class TLMOGaussianProcess(nn.Module):
         # self.alpha = torch.nn.Parameter(1 * torch.randn(self.Pfeat,2, dtype=torch.float64))
         # self.gamma = torch.nn.Parameter(1 * torch.randn(self.Pfeat,2, dtype=torch.float64))
 
-        self.beta = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
-        self.alpha = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
-        self.gamma = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
-        self.kappa = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
+        self.beta = torch.nn.Parameter(0.5 * torch.randn(23, 2, dtype=torch.float64))
+        self.alpha = torch.nn.Parameter(0.5 * torch.randn(23, 2, dtype=torch.float64))
+        self.gamma = torch.nn.Parameter(0.5 * torch.randn(23, 2, dtype=torch.float64))
+        self.kappa = torch.nn.Parameter(0.5 * torch.randn(23, 2, dtype=torch.float64))
 
         # self.beta2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat- 23, 2, dtype=torch.float64))
         # self.alpha2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat-23, 2, dtype=torch.float64))
@@ -197,20 +198,23 @@ class TLMOGaussianProcess(nn.Module):
         #x0 = 5.0 / (1.0+torch.exp(- torch.matmul(x[:,-23:], self.alpha[:, SelDomain:SelDomain + 1])))-5.0 / (1.0+torch.exp(- torch.matmul(x[:,-23:], self.alpha[:, SelDomain:SelDomain + 1])))  #+scale_x0
         #x0 = torch.matmul(x[:,-23:], self.alpha[:, SelDomain:SelDomain + 1])  # +scale_x0
         #x0 = 12.0 / (1.0+torch.exp(-torch.matmul(x[:, -23:], self.alpha[:, SelDomain:SelDomain + 1])))-2.0  # +scale_x0
-        x0 = (torch.matmul(x[:, -23:], self.alpha[:, SelDomain:SelDomain + 1])).pow(2) - (-np.log2(0.055))  #0.055
+        x0 = (torch.matmul(x[:, -23:], self.alpha[:, SelDomain:SelDomain + 1])).pow(2) - (-np.log2(0.051))  #0.055
         #torch.exp(0.5 * (np.log2(0.05) - DrugC_x))
         #x0 = torch.matmul(x, self.alpha[:, SelDomain:SelDomain + 1])  # +scale_x0
-        L = 1.0 # - 0.15 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.kappa[:,SelDomain:SelDomain+1])))  #This is the value where the sigmoid starts
-        #d = 0.3 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.gamma[:,SelDomain:SelDomain+1])))  #It Controls range of Emax
-        #d = torch.exp(0.5* torch.abs(torch.matmul(x[:, -23:], self.gamma[:, SelDomain:SelDomain + 1]))*(np.log2(0.05) - DrugC_x))   # It Controls range of Emax
-        d = (np.log2(0.05)+DrugC_x)/(2*np.log2(0.05))  # It Controls range of Emax
+        #L = 1.0
+        L = 1.0 #-0.5 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.kappa[:,SelDomain:SelDomain+1])))  #This is the value where the sigmoid starts
+        d = 1.0 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.gamma[:,SelDomain:SelDomain+1])))  #It Controls range of Emax
+        #d = torch.exp(torch.abs(torch.matmul(x[:, -23:], self.gamma[:, SelDomain:SelDomain + 1]))*(np.log2(0.05) - DrugC_x))   # It Controls range of Emax
+        #d = (np.log2(0.05)+DrugC_x)/(2*np.log2(0.05))  # It Controls range of Emax
         #d = torch.exp((np.log2(0.05) - DrugC_x))  # It Controls range of Emax
         #d = 0.5 / (1.0 + torch.exp(-torch.matmul(x, self.gamma[:, SelDomain:SelDomain + 1])))  # It Controls range of Emax
         #d = 0.5 / (1.0 + torch.exp(-torch.matmul(x, self.gamma[:, SelDomain:SelDomain + 1])))  # It Controls range of Emax
         #d = (torch.exp(-torch.log2(-np.log2(0.1)+DrugC_x+1)))*d0
         #scale = 1.0 / (1.0+torch.exp(-torch.log(torch.abs(torch.matmul(x[:,:-23],self.beta2[:,SelDomain:SelDomain+1]))+1)))
         #k = - 5 / (1.0+torch.exp(-torch.matmul(x[:, -23:], self.beta[:, SelDomain:SelDomain + 1])))  # If negative (-\_) if positiv (_/-)
-        k = -(torch.log(torch.abs(torch.matmul(x[:,-23:],self.beta[:,SelDomain:SelDomain+1]))+1))-2*torch.exp(0.5*(np.log2(0.05)-DrugC_x)) #-2*np.exp(0.5*)
+        k = -(torch.log(torch.abs(torch.matmul(x[:,-23:],self.beta[:,SelDomain:SelDomain+1])) + 1.0))-2*torch.exp(0.5*(np.log2(0.05)-DrugC_x)) #-2*np.exp(0.5*)
+        #k = -(torch.log(torch.abs(torch.matmul(x[:,-23:],self.beta[:,SelDomain:SelDomain+1]))+torch.abs(self.bias_k)))#-2*torch.exp(0.5*(np.log2(0.05)-DrugC_x)) #-2*np.exp(0.5*)
+        #k = -((torch.abs(torch.matmul(x[:, -23:], self.beta[:, SelDomain:SelDomain + 1])) + 0.0))-2*torch.exp(0.5*(np.log2(0.05)-DrugC_x))
         #k = -(torch.log(torch.abs(torch.matmul(x, self.beta[:, SelDomain:SelDomain + 1])) + 1))  # If negative (-\_) if positiv (_/-)
         #k = -torch.abs(torch.abs(torch.matmul(x, self.beta[:, SelDomain:SelDomain + 1])))  # If negative (-\_) if positiv (_/-)
         #print(k)
@@ -390,7 +394,7 @@ class commandLine:
         # opts = dict(opts)
         # print(opts)
         self.N_iter = 2    #number of iterations
-        self.which_seed = 70 #27 #29  #change seed to initialise the hyper-parameters
+        self.which_seed = 160 #27 #29  #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = 0#"None"
         self.sel_cancer_Source = 3
@@ -468,7 +472,7 @@ CosmicIDs_All_Source = list(myset_source)
 "Here we order the list of Source COSMIC_IDs from smallest CosmicID to biggest"
 CosmicIDs_All_Source.sort()
 
-which_set = 3
+which_set = 2
 
 "This is for np.array([0,3,8,10]) with some drugs missing in some Source cell-lines"
 #Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[0]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[1]) \
@@ -487,12 +491,12 @@ if which_set == 2:
     "SCLC,LUAD,BRCA,SKCM,COREAD,COREAD,SKCM,BRCA,LUAD,SCLC"
     Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[15]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[31]) \
                         | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[54]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[58])\
-                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[75])#| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[93])\
-                        #| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[102])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[103])\
-                        #| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[104])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[260])
+                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[75])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[93])\
+                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[102])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[103])\
+                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[104])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[260])
 
 elif which_set == 3:
-    "set2 This is for np.array([0,3,8,10]) all Source cell-lines tested in unknown drugs"
+    "set2 This is for np.array([0,3,8,10]) all Source cell-lines tested in unknown drugs 1051, 1022, 1818, 1511"
     Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[93])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[102])\
                         | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[103])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[104])\
                         | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[260])
@@ -549,7 +553,10 @@ df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_ind
 "Here we select the drug we will use as testing"
 #which_drug = int(config.which_drug) #1057
 #idx_test = np.where(df_target['DRUG_ID']==which_drug)[0]
-idx_test = np.array([0,3,8,10]) #np.array([0,3,8,10]) #np.array([0,4,6]) #np.array([1,5,7])
+#idx_test = np.array([0,3,8,10]) #np.array([0,3,8,10]) #np.array([0,4,6]) #np.array([1,5,7])
+#idx_test = df_target[(df_target['DRUG_ID']==1003)| (df_target['DRUG_ID']==1786) | (df_target['DRUG_ID']==2172)| (df_target['DRUG_ID']==1511)].index.values
+idx_test = df_target[(df_target['DRUG_ID']==1051)| (df_target['DRUG_ID']==1022) | (df_target['DRUG_ID']==1818)| (df_target['DRUG_ID']==1511)].index.values
+#idx_test = df_target[(df_target['DRUG_ID']==1812)| (df_target['DRUG_ID']==1004) | (df_target['DRUG_ID']==1819)| (df_target['DRUG_ID']==1059)].index.values
 assert idx_test.shape[0]>0 #The drug selected was not tested in the cell-line
 idx_train = np.delete(np.arange(0,df_target.shape[0]),idx_test)
 
@@ -792,15 +799,17 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
         # print(f"muDi: {model.LambdaDiDj.bDi}")
 
 "Train the model with all yT training data"
-myTrain(model,xT_train,yT_train,myLr = 5e-2,Niter = int(config.N_iter))
+myTrain(model,xT_train,yT_train,myLr = 5e-2,Niter = int(config.N_iter))  #I have used 5e-2 before
 def bypass_params(model_trained,model_cv):
     #model_cv.lik_std_noise = model_trained.lik_std_noise
     model_cv.coef1 = model_trained.coef1
+    #model_cv.bias_k = model_trained.bias_k
     #model_cv.coef2 = model_trained.coef2
 
     model_cv.alpha = model_trained.alpha
     model_cv.beta = model_trained.beta
     model_cv.gamma = model_trained.gamma
+    #model_cv.kappa = model_trained.kappa
 
     "Bypass lengthscales"
     for i in range(model_trained.TLCovariance.__len__()):
@@ -973,8 +982,8 @@ for i in range(x_test.shape[0]):
     #plt.plot(x_lin, np.ones_like(x_lin) * Emax_pred[i], 'r')  # Plot a horizontal line as Emax
     if plot_test:
         #plt.plot(DrugC_T_test[i,:], yT_test[i,:], 'ro')
-        plt.plot(DrugC_T_test_AllConc[i,:], yT_test_AllConc[i, :], 'b*')
-        plt.plot(DrugC_T_test_AllConc[i, indT_concentr], yT_test_AllConc[i, indT_concentr], 'ro')
+        plt.plot(DrugC_T_test_AllConc[i,:], yT_test_AllConc[i, :], 'bo')
+        plt.plot(DrugC_T_test_AllConc[i, indT_concentr], yT_test_AllConc[i, indT_concentr], 'bo')
         xlim1 = DrugC_T_test_AllConc[i,0]; xlim2 = DrugC_T_test_AllConc[i,-1]
         plt.xlim([xlim1-.1*np.abs(xlim1),xlim2+.1*np.abs(xlim2)])
     else:
@@ -1016,8 +1025,8 @@ for i in range(x_test.shape[0]):
             df_tosave = pd.DataFrame(data={'DrugC':DConcentr,bash_name: VarToSave})
             df_tosave.to_csv(path_val + FileName)
 
-    save_model_pred(path_val=path_val,VarToSave=yT_pred[i, :],DConcentr=DrugCtoPred[i,:],FileName='Mean_pred_'+str(Name_DrugID_plot[i])+'.csv',bash_name='bash'+str(config.bash))
-    save_model_pred(path_val=path_val, VarToSave=std_pred[i, :].pow(2),DConcentr=DrugCtoPred[i,:], FileName='Sig2_pred_'+str(Name_DrugID_plot[i])+ '.csv',bash_name='bash' + str(config.bash))
+    #save_model_pred(path_val=path_val,VarToSave=yT_pred[i, :],DConcentr=DrugCtoPred[i,:],FileName='Mean_pred_'+str(Name_DrugID_plot[i])+'.csv',bash_name='bash'+str(config.bash))
+    #save_model_pred(path_val=path_val, VarToSave=std_pred[i, :].pow(2),DConcentr=DrugCtoPred[i,:], FileName='Sig2_pred_'+str(Name_DrugID_plot[i])+ '.csv',bash_name='bash' + str(config.bash))
 
 #plt.savefig('./Plots_May20_2024/CID'+str(CosmicID_target)+'_Train'+str(i)+'.pdf')
 
