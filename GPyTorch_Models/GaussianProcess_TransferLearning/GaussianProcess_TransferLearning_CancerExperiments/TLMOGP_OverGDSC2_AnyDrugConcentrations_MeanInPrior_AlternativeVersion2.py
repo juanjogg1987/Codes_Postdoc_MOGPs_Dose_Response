@@ -172,9 +172,9 @@ class TLMOGaussianProcess(nn.Module):
         self.mykern1 = RBF_with_sig2()# gpytorch.kernels.RBFKernel()#RBF_with_sig2() #gpytorch.kernels.RBFKernel()
         self.mykern2 = RBF_with_sig2()# gpytorch.kernels.RBFKernel()#RBF_with_sig2() #gpytorch.kernels.RBFKernel()
         self.mykern3 = RBF_with_sig2() #gpytorch.kernels.RBFKernel()#RBF_with_sig2() #gpytorch.kernels.RBFKernel()
-        self.mykern4 = RBF_with_sig2() #gpytorch.kernels.RBFKernel()  # RBF_with_sig2() #gpytorch.kernels.RBFKernel()
-        self.mykern5 = RBF_with_sig2() #gpytorch.kernels.RBFKernel()  # RBF_with_sig2() #gpytorch.kernels.RBFKernel()
-        self.mykern6 = RBF_with_sig2() #gpytorch.kernels.RBFKernel()  # RBF_with_sig2() #gpytorch.kernels.RBFKernel()
+        #self.mykern4 = RBF_with_sig2() #gpytorch.kernels.RBFKernel()  # RBF_with_sig2() #gpytorch.kernels.RBFKernel()
+        #self.mykern5 = RBF_with_sig2() #gpytorch.kernels.RBFKernel()  # RBF_with_sig2() #gpytorch.kernels.RBFKernel()
+        #self.mykern6 = RBF_with_sig2() #gpytorch.kernels.RBFKernel()  # RBF_with_sig2() #gpytorch.kernels.RBFKernel()
         #self.mykern4 = RBF_with_sig2()
 
         # self.beta2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat- 23, 2, dtype=torch.float64))
@@ -209,7 +209,7 @@ class TLMOGaussianProcess(nn.Module):
         #L = 0.5+1.0 / (1.0+torch.exp(-self.mykern2(x[:, -23:]).evaluate()[:,0:1]))  #This is the value where the sigmoid starts
         #d = 1.0 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.gamma[:,SelDomain:SelDomain+1])))  #It Controls range of Emax
         #Below the envelope using *torch.exp(0.02*(np.log2(0.05)-DrugC_x)) is to guarrantee that in the high concentration the model tend to go to d = 0
-        d = 0.0#(0.5-1.0 / (1.0+torch.exp(-self.mykern2(x[:, -23:]).evaluate()[:,0:1])))#*torch.exp(0.5*(np.log2(0.05)-DrugC_x))  # It Controls range of Emax
+        d = self.mykern2(x[:, -23:]).evaluate()[:,0:1]#(0.5-0.5 / (1.0+torch.exp(-self.mykern2(x[:, -23:]).evaluate()[:,0:1])))#*torch.exp(0.5*(np.log2(0.05)-DrugC_x))  # It Controls range of Emax
         k = -(torch.log(torch.abs(self.mykern3(x[:, -23:]).evaluate()[:,0:1])+1.0))  #self.mykern3(x[:, -23:]).evaluate()[:,0:1]
         #k = -(torch.log(torch.abs(torch.matmul(x[:,-23:],self.beta[:,SelDomain:SelDomain+1])) + 1.0))-2*torch.exp(0.5*(np.log2(0.05)-DrugC_x)) #-2*np.exp(0.5*)
         #print(k)
@@ -389,12 +389,12 @@ class commandLine:
         # opts = dict(opts)
         # print(opts)
         self.N_iter = 2    #number of iterations
-        self.which_seed = 47 #45 #29  #change seed to initialise the hyper-parameters
+        self.which_seed = 93 #45 #29  #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = 0#"None"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 5
-        self.idx_CID_Target = 3  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
         self.which_drug = 1190 #1004#dok #1003dok #1511dok #1819dok #1818dok #1259dso #1190dbad #1180dso #1080dok #1179dso #1051dso #1079dok #1022dok  #This is the drug we will select as test for the target domain.
         #1259 (fails) 1180 (fails) 1179 (so so) 1051 (so so) 1079 (fails) 1022 (fails)  #This is when using only 10 in source
         for op, arg in opts:
@@ -550,8 +550,8 @@ df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_ind
 #idx_test = np.where(df_target['DRUG_ID']==which_drug)[0]
 #idx_test = np.array([0,3,8,10]) #np.array([0,3,8,10]) #np.array([0,4,6]) #np.array([1,5,7])
 #idx_test = df_target[(df_target['DRUG_ID']==1003)| (df_target['DRUG_ID']==1786) | (df_target['DRUG_ID']==2172)| (df_target['DRUG_ID']==1511)].index.values
-idx_test = df_target[(df_target['DRUG_ID']==1051)| (df_target['DRUG_ID']==1022) | (df_target['DRUG_ID']==1818)| (df_target['DRUG_ID']==1511)].index.values
-#idx_test = df_target[(df_target['DRUG_ID']==1812)| (df_target['DRUG_ID']==1004) | (df_target['DRUG_ID']==1819)| (df_target['DRUG_ID']==1059)].index.values
+#idx_test = df_target[(df_target['DRUG_ID']==1051)| (df_target['DRUG_ID']==1022) | (df_target['DRUG_ID']==1818)| (df_target['DRUG_ID']==1511)].index.values
+idx_test = df_target[(df_target['DRUG_ID']==1812)| (df_target['DRUG_ID']==1004) | (df_target['DRUG_ID']==1819)| (df_target['DRUG_ID']==1059)].index.values
 assert idx_test.shape[0]>0 #The drug selected was not tested in the cell-line
 idx_train = np.delete(np.arange(0,df_target.shape[0]),idx_test)
 
