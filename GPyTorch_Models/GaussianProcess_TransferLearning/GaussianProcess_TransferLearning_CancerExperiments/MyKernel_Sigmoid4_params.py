@@ -21,7 +21,7 @@ def sigmoid_4_param(x, x0, L, k, d):
     return ( 1/ (L + np.exp(-k*(x-x0))) + d)
 
 x = torch.linspace(-3,3,100)
-y_sig = sigmoid_4_param(x,-3.,1,-10.2,0)
+y_sig = sigmoid_4_param(x,-0.,1,-10.2,0.0)
 y_sig2 = sigmoid_4_param(x,-3.,1,-10.2,0)
 "A necessary constraint is not allow x0 to be higher than k"
 
@@ -45,6 +45,7 @@ mycovar =Kernel_Sig2Constrained()
 #cov2 = covar(x,0.1)
 
 mycovar.length = 1.5
+mycovar.sig2 = 0.19
 cov = mycovar(x).evaluate()
 
 cov2 = covar(x,1.5)
@@ -58,12 +59,13 @@ for i in range(Nsamples):
 
     # ysample = np.random.multivariate_normal(y.flatten(), np.diag(np.diag(cov)))
     ysample = np.random.multivariate_normal(y_sig.flatten(), cov.detach().numpy())
-    ysample2 = np.random.multivariate_normal(y_sig2.flatten(), cov2)
+    ysample2 = np.random.multivariate_normal(y_sig2.flatten(), cov.detach().numpy())
+    #ysample2 = np.random.multivariate_normal(y_sig2.flatten(), cov2)
 
-    plt.figure(2)
-    plt.plot(x, ysample2, '-', alpha=0.7)
+    #plt.figure(2)
+    #plt.plot(x, ysample2, '-', alpha=0.7)
     plt.figure(3)
-    plt.plot(x, ysample, '-', alpha=0.7)
+    plt.plot(x, 0.5*ysample+0.5*ysample2, '-', alpha=0.7)
 
 # plt.ylim([1.5,2.2])
 # plt.ylim([-2.2,2.2])

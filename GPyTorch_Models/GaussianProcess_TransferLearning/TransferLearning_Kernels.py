@@ -586,7 +586,7 @@ class NNetwork_kern(gpytorch.kernels.Kernel):
 
         # set the parameter constraint to be positive, when nothing is specified
         if sig0_constraint is None:
-            sig0_constraint = Interval(10, 100) #Positive()10-100
+            sig0_constraint = Positive() # Interval(10, 100) #10-100
 
         if sig_constraint is None:
             sig_constraint = Interval(0, 1) #Positive() 0-1.5
@@ -683,10 +683,10 @@ class Kernel_Sig2Constrained(gpytorch.kernels.Kernel):
 
         # set the parameter constraint to be positive, when nothing is specified
         if length_constraint is None:
-            length_constraint = Interval(2.5, 100) #1.5#Positive()
+            length_constraint = Interval(1.5, 100) #1.5#Positive()
 
         if sig2_constraint is None:
-            sig2_constraint = Interval(-1000, 1000)
+            sig2_constraint = Interval(-0.2, 0.2)   #-1000, 1000
 
         # register the raw parameter
         self.register_parameter(
@@ -762,8 +762,9 @@ class Kernel_Sig2Constrained(gpytorch.kernels.Kernel):
         diff = -0.5*diff
         # prevent divide by 0 errors
         #diff.where(diff == 0, torch.as_tensor(1e-20))
-        var = 0.05 / (1.0+torch.exp(-self.sig2)) #0.005
-        return var*(diff.exp_())
+        #var = 0.05 / (1.0+torch.exp(-self.sig2)) #0.005
+        return (self.sig2).pow(2)*(diff.exp_())
+        #return var * (diff.exp_())
 
 class RBF_with_sig2(gpytorch.kernels.Kernel):
     # the kernel is stationary
@@ -854,5 +855,5 @@ class RBF_with_sig2(gpytorch.kernels.Kernel):
         diff = -0.5*diff
         # prevent divide by 0 errors
         #diff.where(diff == 0, torch.as_tensor(1e-20))
-        #var = 0.005 / (1.0+torch.exp(-self.sig2)) #0.005
-        return self.sig2*(diff.exp_())
+        #var = 1.0 / (1.0+torch.exp(-self.sig2)) + 0.001
+        return (self.sig2).pow(2)*(diff.exp_())

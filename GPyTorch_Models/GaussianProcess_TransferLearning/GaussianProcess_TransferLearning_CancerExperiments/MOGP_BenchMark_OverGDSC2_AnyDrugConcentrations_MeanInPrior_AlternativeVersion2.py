@@ -12,7 +12,7 @@ sys.path.append('..')
 from importlib import reload
 import TransferLearning_Kernels
 reload(TransferLearning_Kernels)
-from TransferLearning_Kernels import TL_Kernel_var, Kernel_CrossDomains, TLRelatedness,NNetwork_kern,Kernel_Sig2Constrained
+from TransferLearning_Kernels import TL_Kernel_var, Kernel_CrossDomains, TLRelatedness,NNetwork_kern,Kernel_Sig2Constrained,RBF_with_sig2
 
 from numpy import linalg as la
 import numpy as np
@@ -135,52 +135,45 @@ class BKMOGaussianProcess(nn.Module):
         #self.lik_std_noise = 0.1 * torch.ones(NDomains)
         self.LSS = torch.eye(self.yS.shape[0])
 
-        self.beta = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
-        self.alpha = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
-        self.gamma = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
+        # self.beta = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
+        # self.alpha = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
+        # self.gamma = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
+
+        self.mykern1 = RBF_with_sig2()  # gpytorch.kernels.RBFKernel()#RBF_with_sig2() #gpytorch.kernels.RBFKernel()
+        self.mykern2 = RBF_with_sig2()  # gpytorch.kernels.RBFKernel()#RBF_with_sig2() #gpytorch.kernels.RBFKernel()
+        self.mykern3 = RBF_with_sig2()  # gpytorch.kernels.RBFKernel()#RBF_with_sig2() #gpytorch.kernels.RBFKernel()
 
         self.mu_star = torch.zeros_like(self.yS)
 
-    def noise_func(self,DrugC_x,idx):
-        #std_lik =(1-(1/(torch.exp((-np.log2(0.1)+DrugC_x[:,0])**4))))* (0.5 / (1.0+torch.exp(- self.coef1[idx])))+1e-1*(1/(torch.exp((-np.log2(0.1)+DrugC_x[:,0])**4)))
-        #std_lik = (1-(1/(torch.exp((-np.log2(0.1)+DrugC_x[:, 0])))))*(1.0 / (1.0 + torch.exp(- self.coef1[idx]))) + 1e-1*(1/(torch.exp((-np.log2(0.1)+DrugC_x[:, 0]))))
-        #print(std_lik)
-        #std_lik = (0.5 / (1.0+torch.exp(- self.coef1[idx])))+0.05
-        #std_lik = self.coef1[idx] + 0.1 * torch.sign(self.coef1[idx])
-        std_lik = torch.abs(self.coef1[idx])+0.1  #*torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1)+self.coef2[idx]
-        #coef1 = 1 / (1.0+torch.exp(- self.coef1[idx]))
-        #std_lik = coef1*torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1)#+self.coef2[idx]
+    def noise_func(self, DrugC_x, idx):
+        # std_lik =(1-(1/(torch.exp((-np.log2(0.1)+DrugC_x[:,0])**4))))* (0.5 / (1.0+torch.exp(- self.coef1[idx])))+1e-1*(1/(torch.exp((-np.log2(0.1)+DrugC_x[:,0])**4)))
+        # std_lik = (1-(1/(torch.exp((-np.log2(0.1)+DrugC_x[:, 0])))))*(1.0 / (1.0 + torch.exp(- self.coef1[idx]))) + 1e-1*(1/(torch.exp((-np.log2(0.1)+DrugC_x[:, 0]))))
+        # print(std_lik)
+        # std_lik = (0.5 / (1.0+torch.exp(- self.coef1[idx])))+0.05
+        # std_lik = self.coef1[idx] + 0.1 * torch.sign(self.coef1[idx])
+        std_lik = torch.abs(self.coef1[idx]) + 0.02  # *torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1)+self.coef2[idx]
+        # coef1 = 1 / (1.0+torch.exp(- self.coef1[idx]))
+        # std_lik = coef1*torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1)#+self.coef2[idx]
         return std_lik
 
-    def mean_func(self,x,DrugC_x,SelDomain):
+    def mean_func(self, x, DrugC_x, SelDomain):
         "We define a mean function that has to mapping one for all source data"
         "and another for all target data. SelDomain is 0 for all source and 1 for all target"
-        SelDomain = 0 #It's better to always use the same parameter mapping, some drugs might be in Source but no Target
-        #x0 = torch.clip(torch.matmul(x,self.alpha[:,SelDomain:SelDomain+1]),-5,5)
-        #scale_x0 = 1.0 / (1.0+torch.exp(-torch.matmul(x[:,:-23], self.alpha2[:, SelDomain:SelDomain + 1])))
-        #x0 = 5.0 / (1.0+torch.exp(- torch.matmul(x[:,-23:], self.alpha[:, SelDomain:SelDomain + 1])))-5.0 / (1.0+torch.exp(- torch.matmul(x[:,-23:], self.alpha[:, SelDomain:SelDomain + 1])))  #+scale_x0
-        #x0 = torch.matmul(x[:,-23:], self.alpha[:, SelDomain:SelDomain + 1])  # +scale_x0
-        #x0 = 12.0 / (1.0+torch.exp(-torch.matmul(x[:, -23:], self.alpha[:, SelDomain:SelDomain + 1])))-2.0  # +scale_x0
-        x0 = (torch.matmul(x[:, -23:], self.alpha[:, SelDomain:SelDomain + 1])).pow(2) - (-np.log2(0.06)) #- (-np.log2(0.13))
-        #x0 = torch.matmul(x, self.alpha[:, SelDomain:SelDomain + 1])  # +scale_x0
-        L = 1.0 #/ (1.0+torch.exp(-torch.matmul(x[:,-23:],self.kappa[:,SelDomain:SelDomain+1])))  #This is the value where the sigmoid starts
-        d = 0.3 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.gamma[:,SelDomain:SelDomain+1])))  #It Controls range of Emax
-        #d = 0.5 / (1.0 + torch.exp(-torch.matmul(x, self.gamma[:, SelDomain:SelDomain + 1])))  # It Controls range of Emax
-        #d = 0.5 / (1.0 + torch.exp(-torch.matmul(x, self.gamma[:, SelDomain:SelDomain + 1])))  # It Controls range of Emax
-        #d = (torch.exp(-torch.log2(-np.log2(0.1)+DrugC_x+1)))*d0
-        #scale = 1.0 / (1.0+torch.exp(-torch.log(torch.abs(torch.matmul(x[:,:-23],self.beta2[:,SelDomain:SelDomain+1]))+1)))
-        #k = - 5 / (1.0+torch.exp(-torch.matmul(x[:, -23:], self.beta[:, SelDomain:SelDomain + 1])))  # If negative (-\_) if positiv (_/-)
-        k = -(torch.log(torch.abs(torch.matmul(x[:,-23:],self.beta[:,SelDomain:SelDomain+1]))+1))-2*torch.exp(np.log2(0.05)-DrugC_x) #If negative (-\_) if positiv (_/-)
-        #k = -(torch.log(torch.abs(torch.matmul(x, self.beta[:, SelDomain:SelDomain + 1])) + 1))  # If negative (-\_) if positiv (_/-)
-        #k = -torch.abs(torch.abs(torch.matmul(x, self.beta[:, SelDomain:SelDomain + 1])))  # If negative (-\_) if positiv (_/-)
-        #print(k)
-        return ( 1/ (L + torch.exp(-k*(DrugC_x-x0))) + d)
-    # def mean_func(self,xS,DrugC_S):
-    #     x0 = torch.matmul(xS,self.alpha)
-    #     L = 1.0
-    #     d = torch.matmul(xS,self.gamma)
-    #     k = torch.matmul(xS,self.beta)
-    #     return ( 1/ (L + torch.exp(-k*(DrugC_S-x0))) + d)
+        SelDomain = 0  # It's better to always use the same parameter mapping, some drugs might be in Source but no Target
+        # x0 = (torch.matmul(x[:, -23:], self.alpha[:, SelDomain:SelDomain + 1])).pow(2) - (-np.log2(0.051))  #0.055
+        # x0 = (self.mykern1(x[:, -23:]).evaluate()[:,0:1]).pow(2) - (-np.log2(0.051)) #self.mykern1(x[:, -23:],x[:, -23:]).evaluate()
+        # x0 = self.mykern4(x[:, -23:]).evaluate()[:,0:1]
+        x0 = self.mykern1(x[:, -23:]).evaluate()[:, 0:1] - (-np.log2(0.051))
+        L = 1.0  # -0.5 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.kappa[:,SelDomain:SelDomain+1])))  #This is the value where the sigmoid starts
+        # L = 0.5+0.5 / (1.0+torch.exp(-self.mykern4(x[:, -23:]).evaluate()[:,0:1]))  #This is the value where the sigmoid starts
+        # d = 1.0 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.gamma[:,SelDomain:SelDomain+1])))  #It Controls range of Emax
+        # Below the envelope using *torch.exp(0.02*(np.log2(0.05)-DrugC_x)) is to guarrantee that in the high concentration the model tend to go to d = 0
+        d = (1.0 - 1.0 / (1.0 + torch.exp(-self.mykern2(x[:, -23:]).evaluate()[:,0:1])))  # self.mykern2(x[:, -23:]).evaluate()[:,0:1] #*torch.exp(0.5*(np.log2(0.05)-DrugC_x))  # It Controls range of Emax
+        k = -(torch.log(
+            torch.abs(self.mykern3(x[:, -23:]).evaluate()[:, 0:1]) + 1.0))  # self.mykern3(x[:, -23:]).evaluate()[:,0:1]
+        # k = -(torch.log(torch.abs(torch.matmul(x[:,-23:],self.beta[:,SelDomain:SelDomain+1])) + 1.0))-2*torch.exp(0.5*(np.log2(0.05)-DrugC_x)) #-2*np.exp(0.5*)
+        # print(k)
+        return (1 / (L + torch.exp(-k * (DrugC_x - x0))) + d)
 
     def forward(self, xS, DrugC_new=None, NDomain_sel=None, noiseless=True):
         if self.Train_mode:
@@ -301,12 +294,12 @@ class commandLine:
         # opts = dict(opts)
         # print(opts)
         self.N_iter = 2    #number of iterations
-        self.which_seed = 22 #108 #103 #29 #35 #123  #change seed to initialise the hyper-parameters
+        self.which_seed = 973 #108 #103 #29 #35 #123  #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = "None"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 5
-        self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.idx_CID_Target = 3  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
         self.which_drug = 1022 #1179   #1062(22) 1057(19) 2096(17) #This is the drug we will select as test for the target domain.
 
         for op, arg in opts:
@@ -395,16 +388,18 @@ df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_ind
 #df_target = df_all_target.iloc[0:200]
 
 "Here we select the drug we will use as testing"
-which_drug = int(config.which_drug) #1057
-#idx_test = np.where(df_target['DRUG_ID']==which_drug)[0]
-#assert idx_test.shape[0]>0 #The drug selected was not tested in the cell-line
-idx_train = np.arange(0,df_target.shape[0])
+#idx_test = df_target[(df_target['DRUG_ID']==1003)| (df_target['DRUG_ID']==1786) | (df_target['DRUG_ID']==2172)| (df_target['DRUG_ID']==1511)].index.values
+#idx_test = df_target[(df_target['DRUG_ID']==1051)| (df_target['DRUG_ID']==1022) | (df_target['DRUG_ID']==1818)| (df_target['DRUG_ID']==1511)].index.values
+idx_test = df_target[(df_target['DRUG_ID']==1051)| (df_target['DRUG_ID']==1003) | (df_target['DRUG_ID']==1022)].index.values
+#idx_test = df_target[(df_target['DRUG_ID']==1812)| (df_target['DRUG_ID']==1004) | (df_target['DRUG_ID']==1819)| (df_target['DRUG_ID']==1059)].index.values
+assert idx_test.shape[0]>0 #The drug selected was not tested in the cell-line
+idx_train = np.delete(np.arange(0,df_target.shape[0]),idx_test)
 
-#df_target_test = df_target.iloc[idx_test]
+df_target_test = df_target.iloc[idx_test]
 df_target_train = df_target.iloc[idx_train]
 
 Name_DrugID_train = df_target_train['DRUG_ID'].values
-#Name_DrugID_test = df_target_test['DRUG_ID'].values
+Name_DrugID_test = df_target_test['DRUG_ID'].values
 
 df_source_and_target = pd.concat([df_source,df_target_train])
 
@@ -425,7 +420,7 @@ Names_features_NonZeroStd = Names_All_features[Idx_Non_ZeroStd]
 scaler = MinMaxScaler().fit(df_source_and_target[Names_features_NonZeroStd])
 
 xT_train = scaler.transform(df_target_train[Names_features_NonZeroStd])
-#xT_test = scaler.transform(df_target_test[Names_features_NonZeroStd])
+xT_test = scaler.transform(df_target_test[Names_features_NonZeroStd])
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Here we extract from the dataframe the D outputs related to each dose concentration"
@@ -499,7 +494,7 @@ x_dose_T = np.log2(x_dose_T + add_to_log)
 # my_plot(posy,1,Ydose50,Ydose_res,IC50,AUC,Emax,x_lin[posy,:],x_dose_T[posy,:],yT)
 
 yT_train = yT[idx_train]
-#yT_test = yT[idx_test]
+yT_test = yT[idx_test]
 
 "Here we define the set of all the possible cell-lines (Cosmic_ID) that belong to Melanoma cancer"
 "NOTE: Not all cell-lines have been tested with all ten drugs, so some cell-line might have more"
@@ -536,7 +531,7 @@ x_dose_S = np.log2(x_dose_S + add_to_log)
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Make all variable passed to the model tensor to operate in pytorch"
-indT_concentr = np.array([0,5,6,7])
+indT_concentr = np.array([0,3,4,5,6,7])
 xT_all_train = xT_train.copy()
 yT_all_train = yT_train[:,indT_concentr].copy()
 xT_train = torch.from_numpy(xT_train)
@@ -544,9 +539,9 @@ xS_train = torch.from_numpy(xS_train)
 yT_train_AllConc = torch.from_numpy(yT_train)
 yT_train = torch.from_numpy(yT_train[:,indT_concentr])
 yS_train = torch.from_numpy(yS_train)
-#xT_test = torch.from_numpy(xT_test)
-#yT_test_AllConc = torch.from_numpy(yT_test)
-#yT_test = torch.from_numpy(yT_test[:,indT_concentr])
+xT_test = torch.from_numpy(xT_test)
+yT_test_AllConc = torch.from_numpy(yT_test)
+yT_test = torch.from_numpy(yT_test[:,indT_concentr])
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 print(f"new shape for yS_train: {yS_train.shape}")
@@ -569,8 +564,8 @@ DrugC_S = torch.from_numpy(x_dose_S)
 "Drug_T concentrations for training and testing"
 DrugC_T_AllConc = torch.from_numpy(x_dose_T[idx_train])
 DrugC_T = DrugC_T_AllConc[:,indT_concentr]
-#DrugC_T_test_AllConc = torch.from_numpy(x_dose_T[idx_test])
-#DrugC_T_test = DrugC_T_test_AllConc[:,indT_concentr]
+DrugC_T_test_AllConc = torch.from_numpy(x_dose_T[idx_test])
+DrugC_T_test = DrugC_T_test_AllConc[:,indT_concentr]
 idx_T = [0] * xT_train.shape[0]
 
 myseed = int(config.which_seed)
@@ -580,33 +575,30 @@ model = BKMOGaussianProcess(xT_train,yT_train,idxS=idx_T,DrugC_S=DrugC_T,NDomain
 #model = TLMOGaussianProcess(xT_train,yT_train,xS_train,yS_train,idxS=idx_S,DrugC_T=DrugC_T,DrugC_S=DrugC_S,NDomains=NDomains)
 
 with torch.no_grad():
-    model.TLCovariance[0].length = float(config.weight)*0.1*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:,None]  # 0.1
-    model.TLCovariance[1].length = float(config.weight)*5*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:,None]  # 5
-    model.TLCovariance[2].length = float(config.weight)*30*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]  # 30
+    model.TLCovariance[0].length = float(config.weight) * 0.1 * np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:,
+                                                                                             None]  # 0.1
+    model.TLCovariance[1].length = float(config.weight) * 0.5 * np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:,
+                                                                                             None]  # 5
+    model.TLCovariance[2].length = float(config.weight) * 1 * np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:,
+                                                                                           None]  # 30
     # model.TLCovariance[3].length = float(config.weight)*40*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:,None] #40
 
-    # model.CoregCovariance[0].lengthscale = 500*8*torch.rand(1) #8*
-    # model.CoregCovariance[1].lengthscale = 500*10*torch.rand(1)  #10*
-    # model.CoregCovariance[2].lengthscale = 500*20*torch.rand(1)  #20*
+    model.mykern1.length = 0.1 * np.sqrt(23) * torch.rand(1)
+    model.mykern2.length = 0.1 * np.sqrt(23) * torch.rand(1)
+    model.mykern3.length = 0.1 * np.sqrt(23) * torch.rand(1)
+    # model.mykern4.length = 1 * np.sqrt(23) * torch.rand(1)
 
-    # valini1 = 0.5
-    # model.CoregCovariance[0].sig = 0.05 * torch.rand(1) +valini1  # 8*
-    # model.CoregCovariance[1].sig = 0.05 * torch.rand(1) +valini1 # 10*
-    # model.CoregCovariance[2].sig = 0.05 * torch.rand(1) +valini1 # 20*
-    # model.CoregCovariance[3].sig = 0.05 * torch.rand(1) +valini1
-    # valini2 = 10
-    # model.CoregCovariance[0].sig0 = 1 * torch.rand(1) +valini2 # 8*
-    # model.CoregCovariance[1].sig0 = 1 * torch.rand(1) +valini2 # 10*
-    # model.CoregCovariance[2].sig0 = 1 * torch.rand(1) +valini2 # 20*
-    # model.CoregCovariance[3].sig0 = 1 * torch.rand(1)+valini2
+    model.mykern1.sig2 = 1 * np.sqrt(23) * torch.rand(1)
+    model.mykern2.sig2 = 1 * np.sqrt(23) * torch.rand(1)
+    model.mykern3.sig2 = 1 * np.sqrt(23) * torch.rand(1)
 
-    model.LambdaDiDj.muDi = 2 * torch.rand(NDomains)[:, None]  # 0.1
-    model.LambdaDiDj.bDi = 2 * torch.rand(NDomains)[:, None]  # 0.1
+    model.LambdaDiDj.muDi = 1 * torch.rand(NDomains)[:, None]  # 0.1
+    model.LambdaDiDj.bDi = 1 * torch.rand(NDomains)[:, None]  # 0.1
     #print(model.LambdaDiDj.muDi)
 #print(f"Noises std: {model.lik_std_noise}")
 
 "Training process below"
-def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
+def myTrain(model,xT_train,yT_train,myLr = 5e-2,Niter = 1):
     optimizer = optim.Adam(model.parameters(),lr=myLr)
     loss_fn = LogMarginalLikelihood()
     flag = 1
@@ -619,12 +611,22 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        if iter>0:# and flag ==1:
+            if loss.item() - loss_old > 1e-3:
+                print('decreasing step')
+                optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] * 0.95  # 0.01
+            if loss.item() - loss_old < -1e-3:
+                print('increasing step')
+                optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] * 1/0.98  # 0.01
         if loss.item() < 0 and flag ==1:
         #if iter==100:  #70
             flag = 0
-            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr'] * 0.02
-
+            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr'] * 0.1 #0.01
+        loss_old = loss.item()
         print(f"i: {iter+1}, Loss: {loss.item()}")
+        # print(f"Myk1 length {model.mykern1.length}")
+        # print(f"Myk2 length {model.mykern2.length}")
+        # print(f"Myk3 length {model.mykern3.length}")
         # print(f"TLlength1 {model.TLCovariance[2].length}")
         # print(f"CoregCov1 {model.CoregCovariance[0].lengthscale}")
         # print(f"CoregCov2 {model.CoregCovariance[1].lengthscale}")
@@ -635,11 +637,12 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
 myTrain(model,xT_train,yT_train,myLr = 5e-2,Niter = int(config.N_iter))
 def bypass_params(model_trained,model_cv):
     model_cv.coef1 = model_trained.coef1
-    # model_cv.coef2 = model_trained.coef2
-
-    model_cv.alpha = model_trained.alpha
-    model_cv.beta = model_trained.beta
-    model_cv.gamma = model_trained.gamma
+    model_cv.mykern1.length = model_trained.mykern1.length.clone()
+    model_cv.mykern2.length = model_trained.mykern2.length.clone()
+    model_cv.mykern3.length = model_trained.mykern3.length.clone()
+    model_cv.mykern1.sig2 = model_trained.mykern1.sig2.clone()
+    model_cv.mykern2.sig2 = model_trained.mykern2.sig2.clone()
+    model_cv.mykern3.sig2 = model_trained.mykern3.sig2.clone()
 
     "Bypass lengthscales"
     for i in range(model_trained.TLCovariance.__len__()):
@@ -660,6 +663,20 @@ def bypass_params(model_trained,model_cv):
 
     model_cv.LambdaDiDj.muDi = model_trained.LambdaDiDj.muDi.clone()
     model_cv.LambdaDiDj.bDi = model_trained.LambdaDiDj.bDi.clone()
+
+# print(f"Model ORIGINAL train check small stepsize:")
+# myTrain(model, xT_train, yT_train, myLr=1e-20, Niter=1)
+#
+# model_check = BKMOGaussianProcess(xT_train,yT_train,idxS=idx_T,DrugC_S=DrugC_T,NDomains=NDomains)
+# print(f"Model check train BEFORE bypass:")
+# myTrain(model_check, xT_train, yT_train, myLr=0.0, Niter=1)
+# bypass_params(model,model_check)
+#
+# print(f"Model check train AFTER bypass:")
+# myTrain(model_check, xT_train, yT_train, myLr=0.0, Niter=1)
+#
+# print(f"Model ORIGINAL train check small stepsize:")
+# myTrain(model, xT_train, yT_train, myLr=0.0, Niter=1)
 
 "Leave one out cross-validation"
 Val_LML = LogMarginalLikelihood()
@@ -687,7 +704,7 @@ for i in range(yT_all_train.shape[0]):
     "model fit with Cross-val"
     model_cv = BKMOGaussianProcess(xT_train_cv, yT_train_cv, idxS=[0]*xT_train_cv.shape[0], DrugC_S=DrugC_T_train_cv, NDomains=NDomains)
     bypass_params(model, model_cv)  #Here we bypass the fitted parameters from the MOGP trained over all data
-    myTrain(model_cv, xT_train_cv, yT_train_cv, myLr=1e-20, Niter=1) #Here we could refine hyper-params a bit if wished
+    myTrain(model_cv, xT_train_cv, yT_train_cv, myLr=0.0, Niter=1) #Here we could refine hyper-params a bit if wished
     "Here we put the model in prediciton mode"
     model_cv.eval()
     model_cv.Train_mode = False
@@ -723,16 +740,27 @@ f.close()
 print("check difference between model.eval and model.train")
 model.eval()
 model.Train_mode = False
-#plot_test = True
-x_test = xT_train.clone()
-y_test = yT_train.clone()
-DrugCtoPred_exact = DrugC_T.clone()
-Name_DrugID_plot = Name_DrugID_train
-plotname = 'Train'
+plot_test = True
+if plot_test:
+    x_test = xT_test.clone()
+    y_test = yT_test.clone()
+    DrugCtoPred_exact = DrugC_T_test.clone()
+    Name_DrugID_plot = Name_DrugID_test
+    plotname = 'Test'
 
-indT_missing = np.delete(np.arange(0, 8), indT_concentr)
-y_missing = yT_train_AllConc[:, indT_missing]
-DrugC_T_missing = DrugC_T_AllConc[:, indT_missing]
+    indT_missing = np.delete(np.arange(0, 8), indT_concentr)
+    y_missing = yT_test_AllConc[:, indT_missing]
+    DrugC_T_missing = DrugC_T_test_AllConc[:, indT_missing]
+else:
+    x_test = xT_train.clone()
+    y_test = yT_train.clone()
+    DrugCtoPred_exact = DrugC_T.clone()
+    Name_DrugID_plot = Name_DrugID_train
+    plotname = 'Train'
+
+    indT_missing = np.delete(np.arange(0, 8), indT_concentr)
+    y_missing = yT_train_AllConc[:, indT_missing]
+    DrugC_T_missing = DrugC_T_AllConc[:, indT_missing]
 
 "The Oversample_N below is to generate equaly spaced drug concentrations between the original 7 drug concentrations"
 "i.e., if Oversample_N = 2: means that each 2 positions we'd have the original drug concentration tested in cell-line"
@@ -779,11 +807,18 @@ for i in range(x_test.shape[0]):
     plt.plot(DrugCtoPred[i,:],yT_pred[i,:],'blue')
     #plt.plot(IC50_pred[i],0.5,'x')   # Plot an x in predicted IC50 location
     #plt.plot(x_lin, np.ones_like(x_lin) * Emax_pred[i], 'r')  # Plot a horizontal line as Emax
-    #plt.plot(DrugC_T[i, :], yT_train[i, :], 'ro')
-    plt.plot(DrugC_T_AllConc[i,:], yT_train_AllConc[i, :], 'b*')
-    plt.plot(DrugC_T_AllConc[i, indT_concentr], yT_train_AllConc[i, indT_concentr], 'ro')
-    xlim1 = DrugC_T_AllConc[i,0]; xlim2 = DrugC_T_AllConc[i,-1]
-    plt.xlim([xlim1-.1*np.abs(xlim1),xlim2+.1*np.abs(xlim2)])
+    if plot_test:
+        #plt.plot(DrugC_T_test[i,:], yT_test[i,:], 'ro')
+        plt.plot(DrugC_T_test_AllConc[i,:], yT_test_AllConc[i, :], 'bo')
+        plt.plot(DrugC_T_test_AllConc[i, indT_concentr], yT_test_AllConc[i, indT_concentr], 'bo')
+        xlim1 = DrugC_T_test_AllConc[i,0]; xlim2 = DrugC_T_test_AllConc[i,-1]
+        plt.xlim([xlim1-.1*np.abs(xlim1),xlim2+.1*np.abs(xlim2)])
+    else:
+        #plt.plot(DrugC_T[i, :], yT_train[i, :], 'ro')
+        plt.plot(DrugC_T_AllConc[i,:], yT_train_AllConc[i, :], 'b*')
+        plt.plot(DrugC_T_AllConc[i, indT_concentr], yT_train_AllConc[i, indT_concentr], 'ro')
+        xlim1 = DrugC_T_AllConc[i,0]; xlim2 = DrugC_T_AllConc[i,-1]
+        plt.xlim([xlim1-.1*np.abs(xlim1),xlim2+.1*np.abs(xlim2)])
     plt.title(f"CosmicID: {CosmicID_target}, {plotname} DrugID: {Name_DrugID_plot[i]}",fontsize=14)
     plt.xlabel('Dose concentration',fontsize=14)
     plt.ylabel('Cell viability',fontsize=14)

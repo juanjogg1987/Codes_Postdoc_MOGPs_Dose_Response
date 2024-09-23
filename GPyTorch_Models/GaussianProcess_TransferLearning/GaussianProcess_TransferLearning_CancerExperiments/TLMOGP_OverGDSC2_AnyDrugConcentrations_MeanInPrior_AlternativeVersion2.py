@@ -155,7 +155,7 @@ class TLMOGaussianProcess(nn.Module):
 
         self.Train_mode = True
         #self.lik_std_noise = torch.nn.Parameter(1.0*torch.ones(NDomains)) #0.3*torch.rand(NDomains)+0.01
-        self.coef1 = torch.nn.Parameter(1.0 * torch.randn(NDomains))
+        self.coef1 = torch.nn.Parameter(1 * torch.randn(NDomains))
         #self.bias_k = torch.nn.Parameter(1.0 * torch.randn(1))
         #self.coef2 = torch.nn.Parameter(1.0 * torch.randn(NDomains))
         #self.lik_std_noise = 0.1 * torch.ones(NDomains)
@@ -164,22 +164,24 @@ class TLMOGaussianProcess(nn.Module):
         # self.alpha = torch.nn.Parameter(1 * torch.randn(self.Pfeat,2, dtype=torch.float64))
         # self.gamma = torch.nn.Parameter(1 * torch.randn(self.Pfeat,2, dtype=torch.float64))
 
-        self.beta = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
-        self.alpha = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
-        self.gamma = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
-        self.kappa = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
+        # self.beta = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
+        # self.alpha = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
+        # self.gamma = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
+        # self.kappa = torch.nn.Parameter(1 * torch.randn(23, 2, dtype=torch.float64))
 
         self.mykern1 = RBF_with_sig2()# gpytorch.kernels.RBFKernel()#RBF_with_sig2() #gpytorch.kernels.RBFKernel()
         self.mykern2 = RBF_with_sig2()# gpytorch.kernels.RBFKernel()#RBF_with_sig2() #gpytorch.kernels.RBFKernel()
         self.mykern3 = RBF_with_sig2() #gpytorch.kernels.RBFKernel()#RBF_with_sig2() #gpytorch.kernels.RBFKernel()
-        #self.mykern4 = RBF_with_sig2() #gpytorch.kernels.RBFKernel()  # RBF_with_sig2() #gpytorch.kernels.RBFKernel()
-        #self.mykern5 = RBF_with_sig2() #gpytorch.kernels.RBFKernel()  # RBF_with_sig2() #gpytorch.kernels.RBFKernel()
+        #self.mykern4 = RBF_with_sig2()#gpytorch.kernels.RBFKernel()  # RBF_with_sig2() #gpytorch.kernels.RBFKernel()
+        #self.mykern4 = NNetwork_kern() #gpytorch.kernels.RBFKernel()  # RBF_with_sig2() #gpytorch.kernels.RBFKernel()
         #self.mykern6 = RBF_with_sig2() #gpytorch.kernels.RBFKernel()  # RBF_with_sig2() #gpytorch.kernels.RBFKernel()
         #self.mykern4 = RBF_with_sig2()
 
         # self.beta2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat- 23, 2, dtype=torch.float64))
         # self.alpha2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat-23, 2, dtype=torch.float64))
         # self.gamma2 = torch.nn.Parameter(1 * torch.randn(self.Pfeat - 23, 2, dtype=torch.float64))
+
+        #self.mylamb = torch.nn.Parameter(1 * torch.randn(1))
 
         self.mu_star = torch.zeros_like(self.yT) #mu has the shape of the new replicated along the outputs yT
         self.L = torch.eye(self.yT.shape[0])
@@ -190,9 +192,11 @@ class TLMOGaussianProcess(nn.Module):
         #std_lik =(1-(1/(torch.exp((-np.log2(0.1)+DrugC_x[:,0])**4))))* (0.5 / (1.0+torch.exp(- self.coef1[idx])))+1e-1*(1/(torch.exp((-np.log2(0.1)+DrugC_x[:,0])**4)))
         #std_lik = (1-(1/(torch.exp((-np.log2(0.1)+DrugC_x[:, 0])))))*(1.0 / (1.0 + torch.exp(- self.coef1[idx]))) + 1e-1*(1/(torch.exp((-np.log2(0.1)+DrugC_x[:, 0]))))
         #print(std_lik)
-        #std_lik = (0.5 / (1.0+torch.exp(- self.coef1[idx])))+0.05
+        #std_lik = (0.1 / (1.0+torch.exp(- self.coef1[idx])))+0.02
         #std_lik = self.coef1[idx] + 0.1 * torch.sign(self.coef1[idx])
         std_lik = torch.abs(self.coef1[idx])+0.02  #*torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1)+self.coef2[idx]
+        #std_lik = self.mykern4(DrugC_x).evaluate()[:,0]+0.02 #+self.coef1[idx]
+        #print(std_lik.shape)
         #coef1 = 1 / (1.0+torch.exp(- self.coef1[idx]))
         #std_lik = coef1*torch.log2(-np.log2(0.1)+DrugC_x[:,0]+1)#+self.coef2[idx]
         return std_lik
@@ -200,17 +204,24 @@ class TLMOGaussianProcess(nn.Module):
     def mean_func(self,x,DrugC_x,SelDomain):
         "We define a mean function that has to mapping one for all source data"
         "and another for all target data. SelDomain is 0 for all source and 1 for all target"
-        SelDomain = 0 #It's better to always use the same parameter mapping, some drugs might be in Source but no Target
-        #x0 = (torch.matmul(x[:, -23:], self.alpha[:, SelDomain:SelDomain + 1])).pow(2) - (-np.log2(0.051))  #0.055
+        #SelDomain = 0 #It's better to always use the same parameter mapping, some drugs might be in Source but no Target
+        #x0 = (torch.matmul(x[:, -23:], self.alpha[:, SelDomain:SelDomain + 1])).pow(2) - (-np.log2(0.051))  # 0.055
+        #x0 = (torch.matmul(x[:, -23:], self.alpha[:, SelDomain:SelDomain + 1]))# - (-np.log2(0.051))  #0.055
         #x0 = (self.mykern1(x[:, -23:]).evaluate()[:,0:1]).pow(2) - (-np.log2(0.051)) #self.mykern1(x[:, -23:],x[:, -23:]).evaluate()
-        #x0 = torch.log(torch.abs(self.mykern1(x[:, -23:]).evaluate()[:,0:1])+1.0) - (-np.log2(0.051))
-        x0 = self.mykern1(x[:, -23:]).evaluate()[:,0:1] - (-np.log2(0.051))
+        #x0 = self.mykern4(x[:, -23:]).evaluate()[:,0:1]
+        #xaux = torch.cat((x[:, -23:],DrugC_x),1)
+        x0 = self.mykern1(x[:, -23:]).evaluate()[:,0:1] - (-np.log2(0.051))#(-np.log2(0.051))
+        #x0 = ((self.mykern1(x[:, -23:]).evaluate()[:, 0:1]).pow(self.mylamb)-1.0)/self.mylamb - (-np.log2(0.051))
         L = 1.0 #-0.5 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.kappa[:,SelDomain:SelDomain+1])))  #This is the value where the sigmoid starts
-        #L = 0.5+1.0 / (1.0+torch.exp(-self.mykern2(x[:, -23:]).evaluate()[:,0:1]))  #This is the value where the sigmoid starts
-        #d = 1.0 / (1.0+torch.exp(-torch.matmul(x[:,-23:],self.gamma[:,SelDomain:SelDomain+1])))  #It Controls range of Emax
+        #L = 0.5+0.5 / (1.0+torch.exp(-self.mykern4(x[:, -23:]).evaluate()[:,0:1]))  #This is the value where the sigmoid starts
+        #d = 1.0-1.0 / (1.0+torch.exp(-torch.abs(torch.matmul(x[:,-23:],self.gamma[:,SelDomain:SelDomain+1]))))  #It Controls range of Emax
         #Below the envelope using *torch.exp(0.02*(np.log2(0.05)-DrugC_x)) is to guarrantee that in the high concentration the model tend to go to d = 0
-        d = self.mykern2(x[:, -23:]).evaluate()[:,0:1]#(0.5-0.5 / (1.0+torch.exp(-self.mykern2(x[:, -23:]).evaluate()[:,0:1])))#*torch.exp(0.5*(np.log2(0.05)-DrugC_x))  # It Controls range of Emax
-        k = -(torch.log(torch.abs(self.mykern3(x[:, -23:]).evaluate()[:,0:1])+1.0))  #self.mykern3(x[:, -23:]).evaluate()[:,0:1]
+        #saturate = (DrugC_x<3)
+        #print(DrugC_x)
+        d = (1.0 - 1.0/ (1.0+torch.exp(-self.mykern2(x[:, -23:]).evaluate()[:,0:1]))) #self.mykern2(x[:, -23:]).evaluate()[:,0:1] #*torch.exp(0.5*(np.log2(0.05)-DrugC_x))  # It Controls range of Emax
+        #print(d)
+        #print(x0)
+        k = -(torch.log(torch.abs(self.mykern3(x[:, -23:]).evaluate()[:,0:1])+1.0))#-2*torch.exp(0.5*(np.log2(0.05)-DrugC_x))  #self.mykern3(x[:, -23:]).evaluate()[:,0:1]
         #k = -(torch.log(torch.abs(torch.matmul(x[:,-23:],self.beta[:,SelDomain:SelDomain+1])) + 1.0))-2*torch.exp(0.5*(np.log2(0.05)-DrugC_x)) #-2*np.exp(0.5*)
         #print(k)
         return ( 1/ (L + torch.exp(-k*(DrugC_x-x0))) + d)
@@ -263,6 +274,8 @@ class TLMOGaussianProcess(nn.Module):
             # Compute the mean of the conditional distribution p(yT|XT,XS,yS)
             self.mT = self.mean_func(self.xT, self.DrugC_xT, 1)
             self.mu_star = torch.matmul(KTS,alphaSS) + self.mT
+            #print(f"mT {self.mT}")
+            #print(f"mS {self.mS}")
             # Compute the Covariance of the conditional distribution p(yT|XT,XS,yS)
             vTT = torch.linalg.solve(self.LSS, KTS.t())
             C_star = CTT - torch.matmul(vTT.t(),vTT) #+ 1e-4*torch.eye(xT.shape[0])  #jitter?
@@ -316,6 +329,7 @@ class TLMOGaussianProcess(nn.Module):
             #xT = torch.kron(torch.ones(NewDouts, 1), xT)
             xT = torch.kron(torch.ones(NewDouts, 1), xT.reshape(-1)).reshape(-1, self.Pfeat)
             self.all_m = torch.cat([self.mS, self.mT])
+            #print(f"all-m {self.all_m}")
             alpha1 = torch.linalg.solve(self.all_L, self.all_y-self.all_m)
             alpha = torch.linalg.solve(self.all_L.t(), alpha1)
             KTT_xnew_xnew = self.LambdaDiDj(xT, idx1=idxT).evaluate()*(self.CoregCovariance[0](DrugC_xT).evaluate() * self.TLCovariance[0](xT, idx1=idxT).evaluate()+ \
@@ -389,12 +403,12 @@ class commandLine:
         # opts = dict(opts)
         # print(opts)
         self.N_iter = 2    #number of iterations
-        self.which_seed = 93 #45 #29  #change seed to initialise the hyper-parameters
+        self.which_seed = 170 #5 #7 #change seed to initialise the hyper-parameters
         self.weight = 1.0  #use weights 0.3, 0.5, 1.0 and 2.0
         self.bash = 0#"None"
         self.sel_cancer_Source = 3
         self.sel_cancer_Target = 5
-        self.idx_CID_Target = 0  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
+        self.idx_CID_Target = 4  #This is just an integer from 0 to max number of CosmicIDs in Target cancer.
         self.which_drug = 1190 #1004#dok #1003dok #1511dok #1819dok #1818dok #1259dso #1190dbad #1180dso #1080dok #1179dso #1051dso #1079dok #1022dok  #This is the drug we will select as test for the target domain.
         #1259 (fails) 1180 (fails) 1179 (so so) 1051 (so so) 1079 (fails) 1022 (fails)  #This is when using only 10 in source
         for op, arg in opts:
@@ -467,7 +481,15 @@ CosmicIDs_All_Source = list(myset_source)
 "Here we order the list of Source COSMIC_IDs from smallest CosmicID to biggest"
 CosmicIDs_All_Source.sort()
 
-which_set = 3
+select_SimilarCells_inSource = True
+if select_SimilarCells_inSource:
+    dict_set_Similar = {0:5,1:7,2:9,3:11,4:13}
+else:
+    dict_set_Similar = {0:6,1:8,2:10,3:12,4:14}
+    #dict_set_Similar = {0: 5, 1: 7, 2: 9, 3: 11}
+
+which_set = dict_set_Similar[int(config.idx_CID_Target)]
+print(f"\nSet {which_set} selected as source for target Cell-line with index {int(config.idx_CID_Target)}")
 
 "This is for np.array([0,3,8,10]) with some drugs missing in some Source cell-lines"
 #Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[0]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[1]) \
@@ -485,10 +507,10 @@ if which_set == 2:
     "set2 This is for np.array([0,3,8,10]) all Source cell-lines tested in unknown drugs"
     "SCLC,LUAD,BRCA,SKCM,COREAD,COREAD,SKCM,BRCA,LUAD,SCLC"
     Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[15]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[31]) \
-                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[54]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[58])\
-                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[75])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[93])\
-                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[102])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[103])\
-                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[104])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[260])
+                        #| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[54]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[58])\
+                        #| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[75])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[93])\
+                        #| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[102])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[103])\
+                        #| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[104])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[260])
 
 elif which_set == 3:
     "set2 This is for np.array([0,3,8,10]) all Source cell-lines tested in unknown drugs 1051, 1022, 1818, 1511"
@@ -497,8 +519,8 @@ elif which_set == 3:
                         | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[260])
 
 elif which_set == 4:
-    "set3 This is for np.array([0,3,8,10]) all Source cell-lines tested in unknown drugs"
-    "SCLC,LUAD,BRCA,SKCM,COREAD,COREAD,SKCM,BRCA,LUAD,SCLC,COERAD,SKCM,BRCA,LUAD"
+    "set4 This is for np.array([0,3,8,10]) all Source cell-lines tested in unknown drugs"
+    "SCLC,LUAD,BRCA,SKCM,COREAD,COREAD,SKCM,BRCA,LUAD,SCLC,COERAD,SKCM,BRCA,LUAD..."
     Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[15])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[31]) \
                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[54])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[58]) \
                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[75])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[93]) \
@@ -508,25 +530,78 @@ elif which_set == 4:
                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[236])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[232]) \
                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[250])
 
+elif which_set == 5:
+    "set5 Most similar cell-lines between source and target suggested by Nick"
+    ""
+    Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[1])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[37]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[66])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[198]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[200])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[222]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[239])
+elif which_set == 6:
+    "set6 Least similar cell-lines between source and target suggested by Nick"
+    ""
+    Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[109])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[164]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[178])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[208]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[231])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[252]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[253])
+elif which_set == 7:
+    "set7 Most similar cell-lines between source and target suggested by Nick"
+    ""
+    Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[9])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[162]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[165])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[168]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[196])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[231]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[259])
 
-# "This is for np.array([0,4,6])"
-# Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[1]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[4]) \
-#                     | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[21]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[201])\
-#                     | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[51])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[75])\
-#                    | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[203])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[120])
-
-# "This is for np.array([0,4,6])"
-# Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[1]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[4]) \
-#                     | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[21]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[201])\
-#                     | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[51])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[75])\
-#                     | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[203])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[120])\
-#                     | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[204])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[205])
-
-# "This is for np.array([1,5,7])"
-# Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[2]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[3]) \
-#                     | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[13]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[70])\
-                    #| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[80])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[90])\
-                     #| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[205])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[206])
+elif which_set == 8:
+    "set8 Least similar cell-lines between source and target suggested by Nick"
+    ""
+    Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[75])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[129]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[132])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[173]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[213])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[257]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[266])
+elif which_set == 9:
+    "set9 Most similar cell-lines between source and target suggested by Nick"
+    ""
+    Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[32])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[43])\
+                        |(df_all['COSMIC_ID'] == CosmicIDs_All_Source[58]) | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[91])\
+                        |(df_all['COSMIC_ID'] == CosmicIDs_All_Source[216])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[242])\
+                        | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[253])
+elif which_set == 10:
+    "set10 Least similar cell-lines between source and target suggested by Nick"
+    ""
+    Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[22])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[25]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[64])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[122]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[123])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[167]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[208])
+elif which_set == 11:
+    "set1 Most similar cell-lines between source and target suggested by Nick"
+    ""
+    Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[13])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[116]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[145])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[150]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[197])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[221]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[267])
+elif which_set == 12:
+    "set1 Most similar cell-lines between source and target suggested by Nick"
+    ""
+    Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[32])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[33]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[34])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[107]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[191])| (df_all['COSMIC_ID'] == CosmicIDs_All_Source[208]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[215])
+elif which_set == 13:
+    "set13 Most similar cell-lines between source and target suggested by Nick this is for case using all cell-lines in target"
+    "Here we select two cell-lines very similar to each one in target. There are 4 cell-lines available for target"
+    "so there are two in Source very similar to cell-line1, there other two very similar to cell-line2, and so on..."
+    Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[1])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[37]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[9])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[162]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[32])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[43]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[13])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[116])
+elif which_set == 14:
+    "set14 Leat similar cell-lines between source and target suggested by Nick"
+    ""
+    Index_sel_source = (df_all['COSMIC_ID'] == CosmicIDs_All_Source[109])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[164]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[75])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[129]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[22])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[25]) \
+                       | (df_all['COSMIC_ID'] == CosmicIDs_All_Source[32])|(df_all['COSMIC_ID'] == CosmicIDs_All_Source[33])
 
 df_source = df_all[Index_sel_source]
 
@@ -540,18 +615,25 @@ CosmicIDs_All_Target = list(myset_target)
 "Here we order the list of target COSMIC_IDs from smallest CosmicID to biggest"
 CosmicIDs_All_Target.sort()
 CellLine_pos = int(config.idx_CID_Target) #37
-print(f"The CosmicID of the selected Target Cell-line: {CosmicIDs_All_Target[CellLine_pos]}")
-CosmicID_target = CosmicIDs_All_Target[CellLine_pos]
-df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
-#df_target = df_all_target.iloc[0:200]
 
+if CellLine_pos != 4:
+    CosmicID_target = CosmicIDs_All_Target[CellLine_pos]
+    df_target = df_all_target[df_all_target['COSMIC_ID']==CosmicID_target].reset_index().drop(columns=['index'])
+    print(f"The CosmicID of the selected Target Cell-line: {CosmicIDs_All_Target[CellLine_pos]}\n")
+else:
+    df_target = df_all_target.copy().reset_index().drop(columns=['index'])
+    CosmicID_target = CosmicIDs_All_Target
+    print(f"The CosmicID of the selected Target Cell-line: {CosmicIDs_All_Target}\n")
 "Here we select the drug we will use as testing"
 #which_drug = int(config.which_drug) #1057
 #idx_test = np.where(df_target['DRUG_ID']==which_drug)[0]
 #idx_test = np.array([0,3,8,10]) #np.array([0,3,8,10]) #np.array([0,4,6]) #np.array([1,5,7])
 #idx_test = df_target[(df_target['DRUG_ID']==1003)| (df_target['DRUG_ID']==1786) | (df_target['DRUG_ID']==2172)| (df_target['DRUG_ID']==1511)].index.values
 #idx_test = df_target[(df_target['DRUG_ID']==1051)| (df_target['DRUG_ID']==1022) | (df_target['DRUG_ID']==1818)| (df_target['DRUG_ID']==1511)].index.values
-idx_test = df_target[(df_target['DRUG_ID']==1812)| (df_target['DRUG_ID']==1004) | (df_target['DRUG_ID']==1819)| (df_target['DRUG_ID']==1059)].index.values
+#idx_test = df_target[(df_target['DRUG_ID']==1051)| (df_target['DRUG_ID']==1022) | (df_target['DRUG_ID']==1511)].index.values  #test in HPC
+#idx_test = df_target[(df_target['DRUG_ID']==1051)| (df_target['DRUG_ID']==1190) | (df_target['DRUG_ID']==1179)].index.values
+idx_test = df_target[(df_target['DRUG_ID']==1051)| (df_target['DRUG_ID']==1003) | (df_target['DRUG_ID']==1022)].index.values
+#idx_test = df_target[(df_target['DRUG_ID']==1812)| (df_target['DRUG_ID']==1004) | (df_target['DRUG_ID']==1819)| (df_target['DRUG_ID']==1059)].index.values
 assert idx_test.shape[0]>0 #The drug selected was not tested in the cell-line
 idx_train = np.delete(np.arange(0,df_target.shape[0]),idx_test)
 
@@ -560,6 +642,9 @@ df_target_train = df_target.iloc[idx_train]
 
 Name_DrugID_train = df_target_train['DRUG_ID'].values
 Name_DrugID_test = df_target_test['DRUG_ID'].values
+
+CosmicID_target_train = df_target_train['COSMIC_ID'].values
+CosmicID_target_test = df_target_test['COSMIC_ID'].values
 
 df_source_and_target = pd.concat([df_source,df_target_train])
 
@@ -699,7 +784,7 @@ x_dose_S = np.log2(x_dose_S + add_to_log)
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Make all variable passed to the model tensor to operate in pytorch"
-indT_concentr = np.array([0,4,5,6,7])
+indT_concentr = np.array([0,3,4,5,6,7])
 xT_all_train = xT_train.copy()
 yT_all_train = yT_train[:,indT_concentr].copy()
 xT_train = torch.from_numpy(xT_train)
@@ -747,13 +832,15 @@ with torch.no_grad():
     model.TLCovariance[2].length = float(config.weight)*1*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:, None]#30
     #model.TLCovariance[3].length = float(config.weight)*40*np.sqrt(xT_train.shape[1]) * torch.rand(NDomains)[:,None] #40
 
-    model.mykern1.length = 1*np.sqrt(23)* torch.rand(1)
-    model.mykern2.length = 1* np.sqrt(23) * torch.rand(1)
-    model.mykern3.length = 1* np.sqrt(23) * torch.rand(1)
+    model.mykern1.length = 0.1*np.sqrt(23)* torch.rand(1)
+    model.mykern2.length = 0.1* np.sqrt(23) * torch.rand(1)
+    model.mykern3.length = 0.1* np.sqrt(23) * torch.rand(1)
+    #model.mykern4.length = 1 * np.sqrt(23) * torch.rand(1)
 
     model.mykern1.sig2 = 1 * np.sqrt(23) * torch.rand(1)
     model.mykern2.sig2 = 1 * np.sqrt(23) * torch.rand(1)
     model.mykern3.sig2 = 1 * np.sqrt(23) * torch.rand(1)
+    #model.mykern4.sig2 = 1 * np.sqrt(23) * torch.rand(1)
 
     #model.CoregCovariance[0].lengthscale = 500*8*torch.rand(1) #8*
     #model.CoregCovariance[1].lengthscale = 500*10*torch.rand(1)  #10*
@@ -776,7 +863,7 @@ with torch.no_grad():
 #print(f"Noises std: {model.lik_std_noise}")
 
 "Training process below"
-def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
+def myTrain(model,xT_train,yT_train,myLr = 5e-2,Niter = 1):
     optimizer = optim.Adam(model.parameters(),lr=myLr)
     loss_fn = LogMarginalLikelihood()
     flag = 1
@@ -789,12 +876,22 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        if iter>0:# and flag ==1:
+            if loss.item() - loss_old > 1e-3:
+                print('decreasing step')
+                optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] * 0.95  # 0.01
+            if loss.item() - loss_old < -1e-3:
+                print('increasing step')
+                optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] * 1/0.98  # 0.01
         if loss.item() < 0 and flag ==1:
         #if iter==100:  #70
             flag = 0
-            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr'] * 0.02 #0.01
-
+            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr'] * 0.1 #0.01
+        loss_old = loss.item()
         print(f"i: {iter+1}, Loss: {loss.item()}")
+        # print(f"Myk1 length {model.mykern1.length}")
+        # print(f"Myk2 length {model.mykern2.length}")
+        # print(f"Myk3 length {model.mykern3.length}")
         # print(f"TLlength1 {model.TLCovariance[2].length}")
         # print(f"CoregCov1 {model.CoregCovariance[0].lengthscale}")
         # print(f"CoregCov2 {model.CoregCovariance[1].lengthscale}")
@@ -802,16 +899,23 @@ def myTrain(model,xT_train,yT_train,myLr = 1e-2,Niter = 1):
         # print(f"muDi: {model.LambdaDiDj.bDi}")
 
 "Train the model with all yT training data"
-myTrain(model,xT_train,yT_train,myLr = 5e-1,Niter = int(config.N_iter))  #I have used 5e-2 before
+myTrain(model,xT_train,yT_train,myLr = 5e-1,Niter = int(config.N_iter))  #I have used 5e-1 before
 def bypass_params(model_trained,model_cv):
     #model_cv.lik_std_noise = model_trained.lik_std_noise
     model_cv.coef1 = model_trained.coef1
     model_cv.mykern1.length = model_trained.mykern1.length.clone()
     model_cv.mykern2.length = model_trained.mykern2.length.clone()
     model_cv.mykern3.length = model_trained.mykern3.length.clone()
-    #model_cv.mykern1.sig2 = model_trained.mykern1.sig2.clone()
-    #model_cv.mykern2.sig2 = model_trained.mykern2.sig2.clone()
-    #model_cv.mykern3.sig2 = model_trained.mykern3.sig2.clone()
+    model_cv.mykern1.sig2 = model_trained.mykern1.sig2.clone()
+    model_cv.mykern2.sig2 = model_trained.mykern2.sig2.clone()
+    model_cv.mykern3.sig2 = model_trained.mykern3.sig2.clone()
+
+    #model_cv.mykern4.length = model_trained.mykern4.length.clone()
+    #model_cv.mykern4.sig2 = model_trained.mykern4.sig2.clone()
+
+    #model_cv.mykern4.sig0 = model_trained.mykern4.sig0.clone()
+    #model_cv.mykern4.sig = model_trained.mykern4.sig.clone()
+
     #model_cv.bias_k = model_trained.bias_k
     #model_cv.coef2 = model_trained.coef2
 
@@ -858,6 +962,7 @@ def bypass_params(model_trained,model_cv):
 "Leave one out cross-validation"
 Val_LML = LogMarginalLikelihood()
 TestLogLoss_All = []
+ValMSE_All = []
 #for i in range(2):
 for i in range(yT_all_train.shape[0]):
     model_cv = []
@@ -881,7 +986,7 @@ for i in range(yT_all_train.shape[0]):
     "model fit with Cross-val"
     model_cv = TLMOGaussianProcess(xT_train_cv, yT_train_cv, xS_train, yS_train, idxS=idx_S, DrugC_T=DrugC_T_train_cv,DrugC_S=DrugC_S, NDomains=NDomains)
     bypass_params(model, model_cv)  #Here we bypass the fitted parameters from the MOGP trained over all data
-    myTrain(model_cv, xT_train_cv, yT_train_cv, myLr=1e-20, Niter=1) #Here we could refine hyper-params a bit if wished
+    myTrain(model_cv, xT_train_cv, yT_train_cv, myLr=0.0, Niter=1) #Here we could refine hyper-params a bit if wished
     "Here we put the model in prediciton mode"
     model_cv.eval()
     model_cv.Train_mode = False
@@ -894,10 +999,14 @@ for i in range(yT_all_train.shape[0]):
         mpred_cv, Cpred_cv = model_cv(xT_val_cv, DrugC_new=DrugC_T_val_cv, noiseless=False)
         Lpred_cv = torch.linalg.cholesky(Cpred_cv)  #Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
         Val_loss = -Val_LML(mpred_cv, Lpred_cv, yT_val_cv)
+        MSE_val = (mpred_cv - yT_val_cv.T.reshape(-1, 1)).pow(2).mean()
         print(f"Val Loss: {Val_loss.item()}")
+        print(f"MSE val: {MSE_val}")
     TestLogLoss_All.append(Val_loss.numpy())
+    ValMSE_All.append(MSE_val.numpy())
 
 print(f"Mean cv ValLogLoss: {np.mean(TestLogLoss_All)} ({np.std(TestLogLoss_All)})")
+print(f"Mean cv MSE: {np.mean(ValMSE_All)} ({np.std(ValMSE_All)})")
 
 path_home = '/home/juanjo/Work_Postdoc/my_codes_postdoc/'
 #path_home = '/rds/general/user/jgiraldo/home/TLMOGP_MeanInPrior_Results/'
@@ -910,7 +1019,7 @@ if not os.path.exists(path_val):
 
 "Here we save the Validation Log Loss in path_val in order to have a list of different bashes to select the best model"
 f = open(path_val+'Validation.txt', "a")
-f.write(f"\nbash{str(config.bash)}, ValLogLoss:{np.mean(TestLogLoss_All)} ({np.std(TestLogLoss_All)}), CrossVal_N:{yT_train.shape[0]}")
+f.write(f"\nbash{str(config.bash)}, ValLogLoss:{np.mean(TestLogLoss_All)} ({np.std(TestLogLoss_All)}), Val_MSE:{np.mean(ValMSE_All)} ({np.std(ValMSE_All)}), CrossVal_N:{yT_train.shape[0]}")
 f.close()
 
 "Here we have to assign the flag to change from self.Train_mode = True to False"
@@ -945,7 +1054,7 @@ else:
 
 Oversample_N = 35
 #DrugCtoPred_range = list(np.linspace(0.5,1,NTarget_concentr+(NTarget_concentr-1)*(Oversample_N-1)))
-DrugCtoPred_range = np.array(np.linspace(np.log2(add_to_log),4.0,7+6*(Oversample_N-1)))
+DrugCtoPred_range = np.array(np.linspace(np.log2(add_to_log),4.5,7+6*(Oversample_N-1)))  #upper limit 4.0
 #DrugCtoPred_range = list(np.linspace(0.142857,1,7+6*(Oversample_N-1)))
 DrugCtoPred = torch.from_numpy(DrugCtoPred_range)
 DrugCtoPred = DrugCtoPred.repeat(x_test.shape[0],1)
@@ -963,19 +1072,21 @@ with torch.no_grad():
     mpred_exact, Cpred_exact = model(x_test, DrugC_new=DrugCtoPred_exact, noiseless=False)
     Lpred_exact = torch.linalg.cholesky(Cpred_exact)  # Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
     Test_loss = -Val_LML(mpred_exact, Lpred_exact, y_test)
+    Test_MSE = (mpred_exact - y_test.T.reshape(-1, 1)).pow(2).mean()
     print(f"Test Loss: {Test_loss.item()}")
+    print(f"Test MSE exact locations: {Test_MSE}")
 
     mpred_missing, Cpred_missing = model(x_test, DrugC_new=DrugC_T_missing, noiseless=False)
     Lpred_missing = torch.linalg.cholesky(Cpred_missing)  # Here we compute Cholesky since Val_LML gets L Cholesky of Cpred
     Test_loss_missing = -Val_LML(mpred_missing, Lpred_missing, y_missing)
     print(f"Test Loss Missing Values: {Test_loss_missing.item()}")
-    print(f"MSE Missing Values: {(mpred_missing- y_missing.T.reshape(-1, 1)).pow(2).mean()}")
+    print(f"Test MSE Missing Values: {(mpred_missing- y_missing.T.reshape(-1, 1)).pow(2).mean()}")
 
 yT_pred = mpred.reshape(DrugCtoPred.shape[1],x_test.shape[0]).T
 
 "Here we save the Test Log Loss in path_val"
 f = open(path_val+'Testing.txt', "a")
-f.write(f"\nbash{str(config.bash)}, TestLogLoss:{Test_loss.item()} Test_N:{y_test.shape[0]}")
+f.write(f"\nbash{str(config.bash)}, TestLogLoss:{Test_loss.item()}, TestMSE:{Test_MSE}, Test_N:{y_test.shape[0]}")
 f.close()
 
 "Plot the prediction for the test yT"
@@ -985,6 +1096,7 @@ plt.close('all')
 for i in range(x_test.shape[0]):
     plt.figure(i+1)
     plt.ylim([-0.02,1.1])
+    #plt.xlim([-4.2, 10])
     #plt.plot(x,mpred1,'.')
     plt.plot(DrugCtoPred[i,:],yT_pred[i,:],'blue')
     #plt.plot(IC50_pred[i],0.5,'x')   # Plot an x in predicted IC50 location
@@ -995,13 +1107,15 @@ for i in range(x_test.shape[0]):
         plt.plot(DrugC_T_test_AllConc[i, indT_concentr], yT_test_AllConc[i, indT_concentr], 'bo')
         xlim1 = DrugC_T_test_AllConc[i,0]; xlim2 = DrugC_T_test_AllConc[i,-1]
         plt.xlim([xlim1-.1*np.abs(xlim1),xlim2+.1*np.abs(xlim2)])
+        plt.title(f"CosmicID: {CosmicID_target_test[i]}, {plotname} DrugID: {Name_DrugID_plot[i]}", fontsize=14)
     else:
         #plt.plot(DrugC_T[i, :], yT_train[i, :], 'ro')
         plt.plot(DrugC_T_AllConc[i,:], yT_train_AllConc[i, :], 'b*')
         plt.plot(DrugC_T_AllConc[i, indT_concentr], yT_train_AllConc[i, indT_concentr], 'ro')
         xlim1 = DrugC_T_AllConc[i,0]; xlim2 = DrugC_T_AllConc[i,-1]
         plt.xlim([xlim1-.1*np.abs(xlim1),xlim2+.1*np.abs(xlim2)])
-    plt.title(f"CosmicID: {CosmicID_target}, {plotname} DrugID: {Name_DrugID_plot[i]}",fontsize=14)
+        plt.title(f"CosmicID: {CosmicID_target_train[i]}, {plotname} DrugID: {Name_DrugID_plot[i]}",fontsize=14)
+    #plt.title(f"CosmicID: {CosmicID_target}, {plotname} DrugID: {Name_DrugID_plot[i]}", fontsize=14)
     plt.xlabel('Dose concentration',fontsize=14)
     plt.ylabel('Cell viability',fontsize=14)
     plt.grid(True)
@@ -1040,7 +1154,7 @@ for i in range(x_test.shape[0]):
 #plt.savefig('./Plots_May20_2024/CID'+str(CosmicID_target)+'_Train'+str(i)+'.pdf')
 
 
-#"The code below is just to analyse which cell lines have been tested in all the drugs we want to predict"
+# "The code below is just to analyse which cell lines have been tested in all the drugs we want to predict"
 # for i in range(0,200):
 #     d1 = (df_all[df_all['COSMIC_ID'] == CosmicIDs_All_Source[i]]['DRUG_ID']==1051).sum()
 #     d2 = (df_all[df_all['COSMIC_ID'] == CosmicIDs_All_Source[i]]['DRUG_ID'] == 1022).sum()
@@ -1049,3 +1163,39 @@ for i in range(x_test.shape[0]):
 #     if (d1*d2*d3*d4>0):
 #         print(f"i:{i} with:{d1*d2*d3*d4}")
 #         print(df_all[df_all['COSMIC_ID'] == CosmicIDs_All_Source[i]]['Cancer_type_TCGA'].values[0])
+
+# "The code below is just to pick Cell-lines Nick suggested"
+# mylogic = False
+# print(f"Checking for COSMIC_ID: {CosmicIDs_All_Target[CellLine_pos]}")
+# for i in range(CosmicIDs_All_Source.__len__()):
+#     CoID = CosmicIDs_All_Source[i]
+#     if select_SimilarCells_inSource:
+#         if CosmicIDs_All_Target[CellLine_pos] == 683667:
+#             mylogic = CoID == 910937 or CoID == 1297438 or CoID == 917486 or CoID == 722046 or CoID == 1240182 or CoID == 687777or CoID == 753588 #use for CID 683667
+#         if CosmicIDs_All_Target[CellLine_pos] == 909248:
+#             mylogic = CoID == 687980 or CoID == 910932 or CoID == 908473 or CoID == 908463 or CoID == 1240173 or CoID == 907045 or CoID == 1659929  #use for CID 909248
+#         if CosmicIDs_All_Target[CellLine_pos] == 906833:
+#             mylogic = CoID == 909727 or CoID == 1330964 or CoID == 909724 or CoID == 687816 or CoID == 910931 or CoID == 909718 or CoID == 1240226 #use for CID 906833
+#         if CosmicIDs_All_Target[CellLine_pos] == 906834:
+#             mylogic = CoID == 1298145 or CoID == 753546 or CoID == 724868 or CoID == 1299081 or CoID == 1240130 or CoID == 905967 or CoID == 713878  # use for CID 906834
+#     else:
+#         if CosmicIDs_All_Target[CellLine_pos] == 683667:
+#             mylogic = CoID == 930301 or CoID == 909784 or CoID == 1240226 or CoID == 1299081 or CoID == 906818 or CoID == 909723 or CoID == 1299080 #use for CID 683667
+#         if CosmicIDs_All_Target[CellLine_pos] == 909248:
+#             mylogic = CoID == 713885 or CoID == 713880 or CoID == 713878 or CoID == 1240125 or CoID == 906813 or CoID == 910903 or CoID == 930301  #use for CID 909248
+#         if CosmicIDs_All_Target[CellLine_pos] == 906833:
+#             mylogic = CoID == 905936 or CoID == 998189 or CoID == 907795 or CoID == 907790 or CoID == 1659928 or CoID == 909751 or CoID == 1322212 #use for CID 906833
+#         if CosmicIDs_All_Target[CellLine_pos] == 906834:
+#             mylogic = CoID == 688014 or CoID == 688021 or CoID == 907171 or CoID == 907172 or CoID == 753581 or CoID == 909726 or CoID == 930301  # use for CID 906834
+#     if mylogic:
+#         print(f"i:{i} for {CoID}")
+#         print(df_all[df_all['COSMIC_ID'] == CosmicIDs_All_Source[i]]['Cancer_type_TCGA'].values[0])
+#         mylogic = False
+
+
+# "This is to check how many drugs that we want to predict for Target are actually present in Source"
+# for drug_id in df_target_test['DRUG_ID'].values:
+#     print(f"Drug id {drug_id} tested {(df_source['DRUG_ID']==drug_id).sum()} times in Source Cell-lines:")
+#     mylist_cells= list(set(df_source[(df_source['DRUG_ID']==drug_id)]['COSMIC_ID']))
+#     print(mylist_cells)
+#     print(f"That is a total of {mylist_cells.__len__()} cell-lines\n")
